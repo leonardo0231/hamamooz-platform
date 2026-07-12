@@ -1,0 +1,41 @@
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.venv/
+venv/
+
+# Django
+Backend/.env
+Backend/db.sqlite3
+Backend/staticfiles/
+Backend/media/
+Backend/openapi-schema.yml
+
+# Logs / runtime
+*.log
+*.pid
+celerybeat-schedule
+
+# Secrets / certificates
+*.pem
+*.key
+*.crt
+
+# Frontend build artifacts (do not alter frontend source)
+Frontend/node_modules/
+Frontend/.next/
+Frontend/dist/
