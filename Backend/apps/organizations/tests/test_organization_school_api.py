@@ -358,7 +358,7 @@ def test_school_manager_cannot_create_school(
 
 
 @pytest.mark.django_db
-def test_school_manager_can_edit_name_but_cannot_deactivate_school(
+def test_school_manager_cannot_update_school_record(
     school_a: School,
 ) -> None:
     manager = User.objects.create_user(
@@ -372,39 +372,19 @@ def test_school_manager_can_edit_name_but_cannot_deactivate_school(
         SystemRole.SCHOOL_MANAGER,
     )
 
-    client = authenticated_client(manager)
-
-    name_response = client.patch(
+    response = authenticated_client(manager).patch(
         reverse(
             "school-detail",
             kwargs={"pk": school_a.pk},
         ),
         {
-            "name": "Updated School Name",
+            "name": "Forbidden School Name",
         },
         format="json",
     )
 
-    assert name_response.status_code == status.HTTP_200_OK
+    assert response.status_code == status.HTTP_403_FORBIDDEN
 
     school_a.refresh_from_db()
 
-    assert school_a.name == "Updated School Name"
-
-    deactivate_response = client.patch(
-        reverse(
-            "school-detail",
-            kwargs={"pk": school_a.pk},
-        ),
-        {
-            "is_active": False,
-        },
-        format="json",
-    )
-
-    assert deactivate_response.status_code == status.HTTP_403_FORBIDDEN
-    assert deactivate_response.json()["code"] == "school_access_denied"
-
-    school_a.refresh_from_db()
-
-    assert school_a.is_active is True
+    assert school_a.name == "School A"
