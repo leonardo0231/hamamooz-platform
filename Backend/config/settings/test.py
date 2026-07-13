@@ -12,8 +12,22 @@ MIDDLEWARE = [
 ]
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 
-if not os.getenv("DATABASE_URL"):
-    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
+if (
+    os.getenv(
+        "REQUIRE_POSTGRES_TESTS",
+        "false",
+    ).lower()
+    in {
+        "1",
+        "true",
+        "yes",
+    }
+    and DATABASES["default"]["ENGINE"]
+    != "django.db.backends.postgresql"
+):
+    raise RuntimeError(
+        "This test run requires PostgreSQL."
+    )
 
 if os.getenv("TEST_USE_REDIS", "false").lower() not in {"1", "true", "yes"}:
     CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}

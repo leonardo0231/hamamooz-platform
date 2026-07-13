@@ -1,6 +1,8 @@
 name: Backend CI
 
 on:
+  workflow_dispatch:
+
   pull_request:
     paths:
       - "Backend/**"
@@ -15,112 +17,116 @@ on:
       - "Backend/**"
       - ".github/workflows/backend-ci.yml"
 
+permissions:
+  contents: read
 
 jobs:
   test:
-
     runs-on: ubuntu-latest
 
     defaults:
       run:
         working-directory: Backend
 
-
     services:
-
       postgres:
         image: postgres:16
         env:
           POSTGRES_DB: hamamooz_test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-
         ports:
           - 5432:5432
-
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres -d hamamooz_test"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
-
+          --health-retries 10
 
       redis:
         image: redis:7
-
         ports:
           - 6379:6379
-
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
 
     env:
-
       DJANGO_SETTINGS_MODULE: config.settings.test
+
+      DJANGO_SECRET_KEY: ci-django-secret-key-000000000000000000000000000000000000
+      JWT_SIGNING_KEY: ci-jwt-signing-key-000000000000000000000000000000000000
 
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/hamamooz_test
 
       REDIS_URL: redis://localhost:6379/0
 
+      TEST_USE_REDIS: "true"
+      REQUIRE_POSTGRES_TESTS: "true"
+      USE_S3: "false"
 
     steps:
-
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
-
       - name: Setup Python
         uses: actions/setup-python@v5
-
         with:
           python-version: "3.13"
-
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-
       - name: Validate lockfile
-        run: |
-          uv lock --check
-      
+        run: uv lock --check
+
       - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Ruff check
+        run: uv run ruff check .
+
+      - name: Format check
+        run: uv run ruff format --check .
+
+      - name: Django check
+        run: uv run python manage.py check
+
+      - name: Migration drift check
         run: |
-          uv sync --locked
-
-
-      - name: Django Check
-
-        run: |
-          uv run python manage.py check
-
-
-      - name: Migration Check
-
-        run: |
-          uv run python manage.py makemigrations --check --dry-run
-
+          uv run python manage.py \
+            makemigrations \
+            --check \
+            --dry-run
 
       - name: Apply migrations
+        run: uv run python manage.py migrate --noinput
 
+      - name: Run tests
+        run: uv run pytest
+
+      - name: Validate production settings
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.production
+          DJANGO_SECRET_KEY: production-check-django-secret-000000000000000000000000000000000000
+          JWT_SIGNING_KEY: production-check-jwt-secret-000000000000000000000000000000000000
+          DJANGO_ALLOWED_HOSTS: example.com
+          DJANGO_DEBUG: "false"
+          USE_S3: "false"
         run: |
-          uv run python manage.py migrate
+          uv run python manage.py check --deploy
 
-
-      - name: Ruff Check
-
-        run: |
-          uv run ruff check .
-
-
-      - name: Run Tests
-
-        run: |
-          uv run pytest
-
-
-      - name: OpenAPI Validation
-
+      - name: Generate OpenAPI candidate
         run: |
           uv run python manage.py spectacular \
-            --file docs/openapi-schema.yml \
+            --file /tmp/openapi-schema.yml \
             --validate
+
+      - name: Check OpenAPI drift
+        run: |
+          diff \
+            --unified \
+            docs/openapi-schema.yml \
+            /tmp/openapi-schema.yml
