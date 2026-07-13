@@ -10,6 +10,7 @@ on:
     branches:
       - main
       - develop
+      - "backend/mvp-bootstrap"
     paths:
       - "Backend/**"
       - ".github/workflows/backend-ci.yml"
