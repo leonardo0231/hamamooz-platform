@@ -1,0 +1,30 @@
+name: Backend Docker Build
+
+
+on:
+
+  pull_request:
+    paths:
+      - "Backend/**"
+
+
+jobs:
+
+  docker:
+
+    runs-on: ubuntu-latest
+
+
+    steps:
+
+
+      - uses: actions/checkout@v4
+
+
+      - name: Build Backend Image
+
+        run: |
+
+          docker build \
+          -t hamamooz-backend-test \
+          ./Backend
