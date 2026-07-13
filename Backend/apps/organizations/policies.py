@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from apps.accounts.models import User
     from apps.organizations.models import (
         Organization,
+        RoleAssignment,
         School,
         SchoolMembership,
     )
@@ -32,10 +33,15 @@ def has_role(
     )
 
     if school is not None:
-        if not school.is_active or not school.organization.is_active:
+        if (
+            not school.is_active
+            or not school.organization.is_active
+        ):
             return False
 
-        memberships = memberships.filter(school=school)
+        memberships = memberships.filter(
+            school=school,
+        )
 
     if organization is not None:
         if not organization.is_active:
@@ -69,7 +75,10 @@ def can_create_school_in_organization(
     user: User,
     organization: Organization,
 ) -> bool:
-    return can_manage_organization(user, organization)
+    return can_manage_organization(
+        user,
+        organization,
+    )
 
 
 def can_manage_school(
@@ -79,13 +88,16 @@ def can_manage_school(
     """
     Manage the School record itself.
 
-    School managers are intentionally read-only for the School entity.
+    School managers are read-only for the School entity.
     """
 
     if user.is_superuser:
         return True
 
-    if not school.is_active or not school.organization.is_active:
+    if (
+        not school.is_active
+        or not school.organization.is_active
+    ):
         return False
 
     return has_role(
@@ -102,7 +114,10 @@ def can_manage_school_memberships(
     if user.is_superuser:
         return True
 
-    if not school.is_active or not school.organization.is_active:
+    if (
+        not school.is_active
+        or not school.organization.is_active
+    ):
         return False
 
     if has_role(
@@ -140,15 +155,49 @@ def can_grant_role(
     if user.is_superuser:
         return True
 
-    if not membership.is_active:
+    if (
+        not membership.is_active
+        or not membership.user.is_active
+        or not membership.school.is_active
+        or not membership.school.organization.is_active
+    ):
         return False
-
-    school = membership.school
 
     if role == SystemRole.ORGANIZATION_MANAGER:
         return False
 
     if role == SystemRole.SCHOOL_MANAGER:
+        return has_role(
+            user,
+            SystemRole.ORGANIZATION_MANAGER,
+            organization=membership.school.organization,
+        )
+
+    return can_manage_school_memberships(
+        user,
+        membership.school,
+    )
+
+
+def can_revoke_role(
+    user: User,
+    assignment: RoleAssignment,
+) -> bool:
+    if user.is_superuser:
+        return True
+
+    school = assignment.membership.school
+
+    if (
+        not school.is_active
+        or not school.organization.is_active
+    ):
+        return False
+
+    if assignment.role == SystemRole.ORGANIZATION_MANAGER:
+        return False
+
+    if assignment.role == SystemRole.SCHOOL_MANAGER:
         return has_role(
             user,
             SystemRole.ORGANIZATION_MANAGER,

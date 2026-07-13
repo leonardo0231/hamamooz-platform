@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils import timezone
 
@@ -8,13 +7,28 @@ from apps.accounts.models import User
 from apps.organizations.models import (
     AccessAuditEvent,
     RoleAssignment,
+    School,
     SchoolMembership,
 )
-from apps.permissions.models import SystemRole
-from apps.permissions.policies import (
+from apps.organizations.policies import (
     can_grant_role,
     can_manage_membership,
+    can_manage_school_memberships,
+    can_revoke_role,
 )
+from apps.permissions.models import SystemRole
+
+
+class AccessServiceError(Exception):
+    pass
+
+
+class AccessDeniedError(AccessServiceError):
+    pass
+
+
+class AccessValidationError(AccessServiceError):
+    pass
 
 
 def _create_access_event(
@@ -33,18 +47,14 @@ def _create_access_event(
         membership=membership,
         action=action,
         role=role,
-        reason=reason,
+        reason=reason.strip(),
     )
 
 
-@transaction.atomic
-def activate_membership(
-    *,
+def _locked_membership(
     membership: SchoolMembership,
-    actor: User,
-    reason: str = "",
 ) -> SchoolMembership:
-    locked = (
+    return (
         SchoolMembership.objects
         .select_for_update()
         .select_related(
@@ -55,13 +65,91 @@ def activate_membership(
         .get(pk=membership.pk)
     )
 
+
+@transaction.atomic
+def create_membership(
+    *,
+    user: User,
+    school: School,
+    actor: User,
+    reason: str = "",
+) -> SchoolMembership:
+    locked_school = (
+        School.objects
+        .select_for_update()
+        .select_related("organization")
+        .get(pk=school.pk)
+    )
+
+    if not user.is_active:
+        raise AccessValidationError(
+            "An inactive user cannot receive a membership."
+        )
+
+    if not can_manage_school_memberships(
+        actor,
+        locked_school,
+    ):
+        raise AccessDeniedError(
+            "You are not allowed to create "
+            "memberships for this school."
+        )
+
+    existing = SchoolMembership.objects.filter(
+        user=user,
+        school=locked_school,
+    ).first()
+
+    if existing is not None:
+        if existing.is_active:
+            raise AccessValidationError(
+                "An active membership already exists."
+            )
+
+        raise AccessValidationError(
+            "An inactive membership already exists. "
+            "Use the activate action."
+        )
+
+    membership = SchoolMembership.objects.create(
+        user=user,
+        school=locked_school,
+        is_active=True,
+    )
+
+    _create_access_event(
+        action=AccessAuditEvent.Action.MEMBERSHIP_CREATED,
+        actor=actor,
+        membership=membership,
+        reason=reason,
+    )
+
+    return membership
+
+
+@transaction.atomic
+def activate_membership(
+    *,
+    membership: SchoolMembership,
+    actor: User,
+    reason: str = "",
+) -> SchoolMembership:
+    locked = _locked_membership(membership)
+
     if not can_manage_membership(actor, locked):
-        raise PermissionDenied(
-            "You are not allowed to activate this membership."
+        raise AccessDeniedError(
+            "You are not allowed to activate "
+            "this membership."
         )
 
     if locked.is_active:
         return locked
+
+    if not locked.user.is_active:
+        raise AccessValidationError(
+            "An inactive user cannot have "
+            "an active membership."
+        )
 
     locked.is_active = True
     locked.deactivated_at = None
@@ -95,25 +183,19 @@ def deactivate_membership(
     actor: User,
     reason: str,
 ) -> SchoolMembership:
-    if not reason.strip():
-        raise ValidationError(
+    reason = reason.strip()
+
+    if not reason:
+        raise AccessValidationError(
             "A deactivation reason is required."
         )
 
-    locked = (
-        SchoolMembership.objects
-        .select_for_update()
-        .select_related(
-            "user",
-            "school",
-            "school__organization",
-        )
-        .get(pk=membership.pk)
-    )
+    locked = _locked_membership(membership)
 
     if not can_manage_membership(actor, locked):
-        raise PermissionDenied(
-            "You are not allowed to deactivate this membership."
+        raise AccessDeniedError(
+            "You are not allowed to deactivate "
+            "this membership."
         )
 
     if not locked.is_active:
@@ -121,13 +203,13 @@ def deactivate_membership(
 
     now = timezone.now()
 
-    active_roles = list(
-        locked.roles.select_for_update().filter(
-            is_active=True,
-        )
+    assignments = list(
+        locked.roles
+        .select_for_update()
+        .filter(is_active=True)
     )
 
-    for assignment in active_roles:
+    for assignment in assignments:
         assignment.is_active = False
         assignment.revoked_at = now
         assignment.revoked_by = actor
@@ -169,7 +251,10 @@ def deactivate_membership(
     )
 
     _create_access_event(
-        action=AccessAuditEvent.Action.MEMBERSHIP_DEACTIVATED,
+        action=(
+            AccessAuditEvent.Action
+            .MEMBERSHIP_DEACTIVATED
+        ),
         actor=actor,
         membership=locked,
         reason=reason,
@@ -189,22 +274,18 @@ def grant_role(
     try:
         normalized_role = SystemRole(role)
     except ValueError as exc:
-        raise ValidationError("Unknown school-scoped role.") from exc
+        raise AccessValidationError(
+            "Unknown school-scoped role."
+        ) from exc
 
-    locked_membership = (
-        SchoolMembership.objects
-        .select_for_update()
-        .select_related(
-            "user",
-            "school",
-            "school__organization",
-        )
-        .get(pk=membership.pk)
+    locked_membership = _locked_membership(
+        membership
     )
 
     if not locked_membership.is_active:
-        raise ValidationError(
-            "Roles cannot be granted to an inactive membership."
+        raise AccessValidationError(
+            "Roles cannot be granted to "
+            "an inactive membership."
         )
 
     if not can_grant_role(
@@ -212,18 +293,20 @@ def grant_role(
         locked_membership,
         normalized_role.value,
     ):
-        raise PermissionDenied(
+        raise AccessDeniedError(
             "You are not allowed to grant this role."
         )
 
-    assignment, created = RoleAssignment.objects.get_or_create(
-        membership=locked_membership,
-        role=normalized_role.value,
-        defaults={
-            "is_active": True,
-            "granted_by": actor,
-            "granted_at": timezone.now(),
-        },
+    assignment, created = (
+        RoleAssignment.objects.get_or_create(
+            membership=locked_membership,
+            role=normalized_role.value,
+            defaults={
+                "is_active": True,
+                "granted_by": actor,
+                "granted_at": timezone.now(),
+            },
+        )
     )
 
     if not created and assignment.is_active:
@@ -268,44 +351,43 @@ def revoke_role(
     actor: User,
     reason: str,
 ) -> RoleAssignment:
-    if not reason.strip():
-        raise ValidationError(
+    reason = reason.strip()
+
+    if not reason:
+        raise AccessValidationError(
             "A revocation reason is required."
         )
 
     try:
         normalized_role = SystemRole(role)
     except ValueError as exc:
-        raise ValidationError("Unknown school-scoped role.") from exc
+        raise AccessValidationError(
+            "Unknown school-scoped role."
+        ) from exc
 
-    locked_membership = (
-        SchoolMembership.objects
-        .select_for_update()
-        .select_related(
-            "user",
-            "school",
-            "school__organization",
-        )
-        .get(pk=membership.pk)
+    locked_membership = _locked_membership(
+        membership
     )
-
-    if not can_grant_role(
-        actor,
-        locked_membership,
-        normalized_role.value,
-    ):
-        raise PermissionDenied(
-            "You are not allowed to revoke this role."
-        )
 
     assignment = (
         RoleAssignment.objects
         .select_for_update()
-        .get(
+        .filter(
             membership=locked_membership,
             role=normalized_role.value,
         )
+        .first()
     )
+
+    if assignment is None:
+        raise AccessValidationError(
+            "The requested role assignment does not exist."
+        )
+
+    if not can_revoke_role(actor, assignment):
+        raise AccessDeniedError(
+            "You are not allowed to revoke this role."
+        )
 
     if not assignment.is_active:
         return assignment

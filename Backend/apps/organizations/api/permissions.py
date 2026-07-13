@@ -1,17 +1,25 @@
 from __future__ import annotations
 
-from rest_framework.permissions import SAFE_METHODS, BasePermission
+from rest_framework.permissions import (
+    SAFE_METHODS,
+    BasePermission,
+)
 from rest_framework.request import Request
 from rest_framework.views import APIView
 
-from apps.organizations.models import Organization, School
-from apps.permissions.policies import (
+from apps.organizations.models import (
+    Organization,
+    School,
+)
+from apps.organizations.policies import (
     can_manage_organization,
     can_manage_school,
 )
 
 
-class OrganizationAccessPermission(BasePermission):
+class OrganizationAccessPermission(
+    BasePermission
+):
     def has_permission(
         self,
         request: Request,
@@ -38,7 +46,10 @@ class OrganizationAccessPermission(BasePermission):
 
         action = getattr(view, "action", None)
 
-        if action in {"update", "partial_update"}:
+        if action in {
+            "update",
+            "partial_update",
+        }:
             return can_manage_organization(
                 request.user,
                 obj,
@@ -71,7 +82,10 @@ class SchoolAccessPermission(BasePermission):
 
         action = getattr(view, "action", None)
 
-        if action in {"update", "partial_update"}:
+        if action in {
+            "update",
+            "partial_update",
+        }:
             return can_manage_school(
                 request.user,
                 obj,

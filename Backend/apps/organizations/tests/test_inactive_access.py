@@ -14,10 +14,11 @@ from apps.organizations.selectors import (
     accessible_organizations,
     accessible_schools,
 )
-from apps.permissions.models import SystemRole
-from apps.permissions.policies import (
+from apps.organizations.policies import (
     can_manage_organization,
 )
+
+from apps.permissions.models import SystemRole
 
 
 @pytest.fixture

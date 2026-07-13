@@ -255,6 +255,10 @@ class Migration(migrations.Migration):
                     models.CharField(
                         choices=[
                             (
+                                "MEMBERSHIP_CREATED",
+                                "عضویت ایجاد شد",
+                            ),
+                            (
                                 "MEMBERSHIP_ACTIVATED",
                                 "عضویت فعال شد",
                             ),

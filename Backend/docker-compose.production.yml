@@ -27,22 +27,35 @@ services:
 
   redis:
     image: redis:7-alpine
+
+    env_file:
+      - .env.production
+
     command:
-      - redis-server
-      - --appendonly
-      - "yes"
+      - /bin/sh
+      - -ec
+      - |
+        : "$${REDIS_PASSWORD:?REDIS_PASSWORD is required}"
+
+        exec redis-server \
+          --appendonly yes \
+          --requirepass "$${REDIS_PASSWORD}"
+
     volumes:
       - redis_data:/data
+
     networks:
       - backend
+
     restart: unless-stopped
+
     healthcheck:
       test:
         [
-          "CMD",
-          "redis-cli",
-          "ping",
+          "CMD-SHELL",
+          "REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping | grep -q PONG",
         ]
+
       interval: 5s
       timeout: 3s
       retries: 20
@@ -201,6 +214,25 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  minio-client:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+
+    profiles:
+      - ops
+
+    env_file:
+      - .env.production
+
+    networks:
+      - backend
+
+    volumes:
+      - ${BACKUP_WORKDIR:-./backups}:/backup
+
+    entrypoint:
+      - /bin/sh
+      - -ec
 
 networks:
   edge:

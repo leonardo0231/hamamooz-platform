@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
 import os
 
 from django.core.exceptions import ImproperlyConfigured
@@ -96,3 +98,43 @@ SECURE_PROXY_SSL_HEADER = (
 )
 
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
+
+def require_authenticated_redis_url(
+    name: str,
+    value: str,
+) -> None:
+    parsed = urlparse(value)
+
+    if parsed.scheme not in {
+        "redis",
+        "rediss",
+    }:
+        raise ImproperlyConfigured(
+            f"{name} must be a Redis URL."
+        )
+
+    if not parsed.hostname:
+        raise ImproperlyConfigured(
+            f"{name} must include a hostname."
+        )
+
+    if not parsed.password:
+        raise ImproperlyConfigured(
+            f"{name} must include authentication."
+        )
+
+
+require_authenticated_redis_url(
+    "REDIS_URL",
+    CACHES["default"]["LOCATION"],  # noqa: F405
+)
+
+require_authenticated_redis_url(
+    "CELERY_BROKER_URL",
+    CELERY_BROKER_URL,  # noqa: F405
+)
+
+require_authenticated_redis_url(
+    "CELERY_RESULT_BACKEND",
+    CELERY_RESULT_BACKEND,  # noqa: F405
+)

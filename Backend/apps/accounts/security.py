@@ -13,7 +13,10 @@ from rest_framework_simplejwt.token_blacklist.models import (
     OutstandingToken,
 )
 
-from apps.accounts.models import LoginAttempt, User
+from apps.accounts.models import (
+    LoginAttempt,
+    User,
+)
 
 
 def canonicalize_email(email: str) -> str:
@@ -28,28 +31,71 @@ def hash_login_identifier(email: str) -> str:
     ).hexdigest()
 
 
-def get_request_ip(request: Request | None) -> str | None:
-    if request is None:
-        return None
-
-    value = request.META.get("REMOTE_ADDR")
-
+def _parse_ip(value: str | None) -> str | None:
     if not value:
         return None
 
     try:
-        return str(ipaddress.ip_address(value))
+        return str(
+            ipaddress.ip_address(
+                value.strip()
+            )
+        )
     except ValueError:
         return None
 
 
+def get_request_ip(
+    request: Request | None,
+) -> str | None:
+    if request is None:
+        return None
+
+    proxy_count = int(
+        getattr(
+            settings,
+            "TRUSTED_PROXY_COUNT",
+            0,
+        )
+    )
+
+    if proxy_count <= 0:
+        return _parse_ip(
+            request.META.get("REMOTE_ADDR")
+        )
+
+    forwarded = request.META.get(
+        "HTTP_X_FORWARDED_FOR",
+        "",
+    )
+
+    addresses = [
+        item.strip()
+        for item in forwarded.split(",")
+        if item.strip()
+    ]
+
+    if len(addresses) < proxy_count:
+        return None
+
+    candidate = addresses[-proxy_count]
+
+    return _parse_ip(candidate)
+
+
 def is_login_locked(email: str) -> bool:
-    identifier_hash = hash_login_identifier(email)
+    identifier_hash = hash_login_identifier(
+        email
+    )
 
-    now = timezone.now()
-
-    window_start = now - timedelta(
-        seconds=settings.LOGIN_FAILURE_WINDOW_SECONDS
+    window_start = (
+        timezone.now()
+        - timedelta(
+            seconds=(
+                settings
+                .LOGIN_FAILURE_WINDOW_SECONDS
+            )
+        )
     )
 
     last_success_at = (
@@ -78,7 +124,10 @@ def is_login_locked(email: str) -> bool:
         created_at__gte=window_start,
     ).count()
 
-    return failures >= settings.LOGIN_FAILURE_LIMIT
+    return (
+        failures
+        >= settings.LOGIN_FAILURE_LIMIT
+    )
 
 
 def record_login_attempt(
@@ -89,7 +138,9 @@ def record_login_attempt(
     user: User | None = None,
 ) -> LoginAttempt:
     return LoginAttempt.objects.create(
-        identifier_hash=hash_login_identifier(email),
+        identifier_hash=(
+            hash_login_identifier(email)
+        ),
         ip_address=get_request_ip(request),
         succeeded=succeeded,
         user=user if succeeded else None,

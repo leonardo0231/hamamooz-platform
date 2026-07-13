@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import ClassVar
 
+from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -160,6 +161,10 @@ class RoleAssignment(models.Model):
 
 class AccessAuditEvent(models.Model):
     class Action(models.TextChoices):
+        MEMBERSHIP_CREATED = (
+            "MEMBERSHIP_CREATED",
+            "عضویت ایجاد شد",
+        )
         MEMBERSHIP_ACTIVATED = (
             "MEMBERSHIP_ACTIVATED",
             "عضویت فعال شد",
@@ -258,3 +263,22 @@ class AccessAuditEvent(models.Model):
 
     def __str__(self) -> str:
         return f"{self.action} at {self.created_at.isoformat()}"
+    
+    def save(self, *args, **kwargs) -> None:
+        if (
+            self.pk is not None
+            and type(self).objects.filter(
+                pk=self.pk
+            ).exists()
+        ):
+            raise ValidationError(
+                "Access audit events are immutable."
+            )
+
+        super().save(*args, **kwargs)
+
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError(
+            "Access audit events cannot be deleted."
+        )

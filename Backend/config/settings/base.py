@@ -26,6 +26,11 @@ JWT_SIGNING_KEY = env(
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 
+TRUSTED_PROXY_COUNT = env.int(
+    "TRUSTED_PROXY_COUNT",
+    default=0,
+)
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -53,6 +58,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.core.middleware.RequestLoggingMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -151,6 +157,7 @@ REST_FRAMEWORK = {
         "login_identifier": "5/min",
         "readiness": "30/min",
     },
+    "NUM_PROXIES": TRUSTED_PROXY_COUNT,
 }
 
 SIMPLE_JWT = {
@@ -217,19 +224,55 @@ SECURE_REFERRER_POLICY = "same-origin"
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "filters": {"trace_id": {"()": "apps.core.logging.TraceIdFilter"}},
+    "filters": {
+        "request_context": {
+            "()": (
+                "apps.core.logging."
+                "RequestContextFilter"
+            ),
+        },
+        "sensitive_data": {
+            "()": (
+                "apps.core.logging."
+                "SensitiveDataFilter"
+            ),
+        },
+    },
     "formatters": {
-        "verbose": {
-            "format": "{asctime} {levelname} trace_id={trace_id} {name} {message}",
-            "style": "{",
-        }
+        "json": {
+            "()": (
+                "apps.core.logging."
+                "JsonFormatter"
+            ),
+        },
     },
     "handlers": {
         "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "verbose",
-            "filters": ["trace_id"],
-        }
+            "class": (
+                "logging.StreamHandler"
+            ),
+            "formatter": "json",
+            "filters": [
+                "request_context",
+                "sensitive_data",
+            ],
+        },
     },
-    "root": {"handlers": ["console"], "level": env("LOG_LEVEL", default="INFO")},
+    "root": {
+        "handlers": ["console"],
+        "level": env(
+            "LOG_LEVEL",
+            default="INFO",
+        ),
+    },
+    "loggers": {
+        "hamamooz.requests": {
+            "handlers": ["console"],
+            "level": env(
+                "LOG_LEVEL",
+                default="INFO",
+            ),
+            "propagate": False,
+        },
+    },
 }
