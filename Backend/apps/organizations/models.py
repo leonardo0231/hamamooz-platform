@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
 
+from typing import ClassVar
+
 from apps.permissions.models import SystemRole
 
 
@@ -19,7 +21,7 @@ class Organization(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ("name",)
+        ordering: ClassVar[list[str]] = ["name"]
 
     def __str__(self) -> str:
         return self.name
