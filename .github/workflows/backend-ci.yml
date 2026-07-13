@@ -1,0 +1,122 @@
+name: Backend CI
+
+on:
+  pull_request:
+    paths:
+      - "Backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - "Backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+
+jobs:
+  test:
+
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: Backend
+
+
+    services:
+
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: hamamooz_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+
+        ports:
+          - 5432:5432
+
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+
+      redis:
+        image: redis:7
+
+        ports:
+          - 6379:6379
+
+
+    env:
+
+      DJANGO_SETTINGS_MODULE: config.settings.test
+
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/hamamooz_test
+
+      REDIS_URL: redis://localhost:6379/0
+
+
+    steps:
+
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+
+        with:
+          python-version: "3.13"
+
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+
+      - name: Install dependencies
+
+        run: |
+          uv sync
+
+
+      - name: Django Check
+
+        run: |
+          uv run python manage.py check
+
+
+      - name: Migration Check
+
+        run: |
+          uv run python manage.py makemigrations --check --dry-run
+
+
+      - name: Apply migrations
+
+        run: |
+          uv run python manage.py migrate
+
+
+      - name: Ruff Check
+
+        run: |
+          uv run ruff check .
+
+
+      - name: Run Tests
+
+        run: |
+          uv run pytest
+
+
+      - name: OpenAPI Validation
+
+        run: |
+          uv run python manage.py spectacular \
+            --file docs/openapi-schema.yml \
+            --validate
