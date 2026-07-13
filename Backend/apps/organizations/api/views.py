@@ -15,7 +15,6 @@ from apps.organizations.api.serializers import (
     OrganizationSerializer,
     SchoolSerializer,
 )
-from apps.organizations.models import Organization, School
 from apps.organizations.selectors import (
     accessible_organizations,
     accessible_schools,
