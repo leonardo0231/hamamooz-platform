@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from rest_framework.permissions import BasePermission, SAFE_METHODS
+from rest_framework.permissions import SAFE_METHODS, BasePermission
 from rest_framework.request import Request
 from rest_framework.views import APIView
 
@@ -25,10 +25,7 @@ class OrganizationAccessPermission(BasePermission):
         if action == "create":
             return request.user.is_superuser
 
-        if action == "destroy":
-            return False
-
-        return True
+        return action != "destroy"
 
     def has_object_permission(
         self,
@@ -61,10 +58,7 @@ class SchoolAccessPermission(BasePermission):
 
         action = getattr(view, "action", None)
 
-        if action == "destroy":
-            return False
-
-        return True
+        return action != "destroy"
 
     def has_object_permission(
         self,
