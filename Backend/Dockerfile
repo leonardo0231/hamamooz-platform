@@ -14,10 +14,7 @@ RUN apt-get update \
         libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=ghcr.io/astral-sh/uv:0.8.14 \
-    /uv \
-    /uvx \
-    /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.8.14 /uv /uvx /bin/
 
 WORKDIR /app
 
@@ -51,15 +48,4 @@ USER appuser
 
 EXPOSE 8000
 
-CMD [
-    "uv",
-    "run",
-    "gunicorn",
-    "config.wsgi:application",
-    "--bind",
-    "0.0.0.0:8000",
-    "--workers",
-    "3",
-    "--timeout",
-    "120"
-]
+CMD ["uv", "run", "gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120"]
