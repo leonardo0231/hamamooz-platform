@@ -19,6 +19,10 @@ if (BASE_DIR / ".env").exists():
     environ.Env.read_env(BASE_DIR / ".env")
 
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="unsafe-development-only-secret")
+JWT_SIGNING_KEY = env(
+    "JWT_SIGNING_KEY",
+    default=SECRET_KEY,
+)
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 
@@ -140,7 +144,13 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
     ],
-    "DEFAULT_THROTTLE_RATES": {"anon": "60/min", "user": "600/min"},
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "60/min",
+        "user": "600/min",
+        "login_ip": "10/min",
+        "login_identifier": "5/min",
+        "readiness": "30/min",
+    },
 }
 
 SIMPLE_JWT = {
@@ -148,9 +158,22 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
+    "CHECK_REVOKE_TOKEN": True,
     "UPDATE_LAST_LOGIN": False,
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": JWT_SIGNING_KEY,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
+
+LOGIN_FAILURE_LIMIT = env.int(
+    "LOGIN_FAILURE_LIMIT",
+    default=5,
+)
+
+LOGIN_FAILURE_WINDOW_SECONDS = env.int(
+    "LOGIN_FAILURE_WINDOW_SECONDS",
+    default=15 * 60,
+)
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "HamAmooz Backend API",
