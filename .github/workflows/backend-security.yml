@@ -1,0 +1,26 @@
+name: Backend Security
+
+
+on:
+
+  pull_request:
+    paths:
+      - "Backend/**"
+
+
+jobs:
+
+  security:
+
+    runs-on: ubuntu-latest
+
+
+    steps:
+
+
+      - uses: actions/checkout@v4
+
+
+      - name: Python Security Scan
+
+        uses: pypa/gh-action-pip-audit@v1
