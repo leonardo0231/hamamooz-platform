@@ -1,8 +1,20 @@
-# HamAmooz Platform
+# هم‌آموز (HamAmoz) - MVP Backend
 
-Monorepo for the HamAmooz educational platform.
+این بسته، پیاده‌سازی Backend نسخه MVP سامانه چندشعبه‌ای مدارس است. تمام کد اجرایی در `Backend/` قرار دارد و مسیر `Frontend/` عمداً ایجاد یا تغییر داده نشده است.
 
-- `Backend/`: Django REST Framework backend owned by the backend team.
-- `Frontend/`: reserved for the frontend team. The backend workflow must not modify it.
+شروع سریع:
 
-Backend setup, architecture, API and development instructions are documented in [`Backend/README.md`](Backend/README.md).
+```bash
+cd Backend
+cp .env.example .env
+docker compose up --build
+```
+
+پس از آماده‌شدن سرویس‌ها:
+
+- API: `http://localhost:8000/api/v1/`
+- Swagger: `http://localhost:8000/api/v1/docs/`
+- ReDoc: `http://localhost:8000/api/v1/redoc/`
+- Django Admin: `http://localhost:8000/admin/`
+
+جزئیات نصب، معماری، مدل داده، دسترسی‌ها و عملیات در [Backend/README.md](Backend/README.md) و پوشه [Backend/docs](Backend/docs) آمده است.

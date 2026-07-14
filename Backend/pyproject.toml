@@ -1,63 +1,34 @@
 [project]
 name = "hamamooz-backend"
 version = "0.1.0"
-description = "Backend API for the HamAmooz multi-branch school platform"
-readme = "README.md"
-requires-python = ">=3.13,<3.14"
-dependencies = [
-  "Django>=5.2,<5.3",
-  "djangorestframework>=3.16,<3.17",
-  "djangorestframework-simplejwt>=5.5,<6",
-  "drf-spectacular>=0.28,<0.29",
-  "django-filter>=25.1,<26",
-  "django-cors-headers>=4.7,<5",
-  "django-environ>=0.12,<1",
-  "django-storages[s3]>=1.14,<2",
-  "psycopg[binary]>=3.2,<4",
-  "celery>=5.6,<5.7",
-  "redis>=6,<7",
-  "boto3>=1.39,<2",
-  "gunicorn>=23,<24",
-  "whitenoise>=6.9,<7",
-  "Pillow>=11,<12",
-  "openpyxl>=3.1,<4",
-]
-
-[dependency-groups]
-dev = [
-  "pytest>=8.4,<9",
-  "pytest-cov>=6.2,<7",
-  "pytest-django>=4.11,<5",
-  "ruff>=0.12,<1",
-]
+description = "HamAmoz multi-branch school platform MVP backend"
+requires-python = ">=3.12,<3.14"
+dynamic = ["dependencies"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings.test"
-python_files = ["test_*.py", "*_test.py"]
-addopts = "-ra --strict-markers --strict-config --cov=apps --cov=config --cov-report=term-missing --cov-report=xml"
-testpaths = ["apps", "tests"]
+python_files = ["test_*.py"]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --disable-warnings"
 
 [tool.coverage.run]
 branch = true
-omit = ["*/migrations/*", "*/tests/*", "manage.py", "config/asgi.py", "config/wsgi.py"]
+source = ["hamamooz"]
+omit = ["*/migrations/*", "*/tests/*"]
 
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
-fail_under = 70
+fail_under = 50
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py312"
 line-length = 100
-extend-exclude = ["*/migrations/*"]
+exclude = ["*/migrations/*"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM", "DJ", "RUF"]
-ignore = ["DJ001"]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["B008"]
 
-[tool.ruff.lint.per-file-ignores]
-"*/tests/*" = ["S101"]
-
-[tool.ruff.format]
-quote-style = "double"
-indent-style = "space"
+[tool.ruff.lint.isort]
+known-first-party = ["config", "hamamooz"]

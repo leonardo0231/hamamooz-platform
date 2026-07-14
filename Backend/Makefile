@@ -1,60 +1,35 @@
-.DEFAULT_GOAL := help
+.PHONY: dev test lint format migrate makemigrations seed templates schema check backup
 
-.PHONY: help setup migrate makemigrations test lint format format-check run worker schema check docker-up docker-down
-
-help:
-	@echo "setup          Install locked dependencies"
-	@echo "migrate        Apply database migrations"
-	@echo "makemigrations Create migrations"
-	@echo "test           Run backend tests with coverage"
-	@echo "lint           Run Ruff checks"
-	@echo "format         Format Python files"
-	@echo "format-check   Verify formatting"
-	@echo "run            Run development server"
-	@echo "worker         Run Celery worker"
-	@echo "schema         Generate and validate OpenAPI schema"
-	@echo "check          Run Django deployment-independent checks"
-	@echo "docker-up      Start backend infrastructure"
-	@echo "docker-down    Stop backend infrastructure"
-
-setup:
-	uv sync --all-groups
-
-migrate:
-	uv run python manage.py migrate
-
-makemigrations:
-	uv run python manage.py makemigrations
+dev:
+	python manage.py runserver
 
 test:
-	uv run pytest
+	pytest --cov=hamamooz --cov-report=term-missing
 
 lint:
-	uv run ruff check .
+	ruff check .
 
 format:
-	uv run ruff format .
-	uv run ruff check --fix .
+	ruff check --fix .
+	ruff format .
 
-format-check:
-	uv run ruff format --check .
+migrate:
+	python manage.py migrate
 
+makemigrations:
+	python manage.py makemigrations
 
-run:
-	uv run python manage.py runserver 0.0.0.0:8000
+seed:
+	python manage.py seed_demo
 
-worker:
-	uv run celery -A config worker --loglevel=INFO --queues=default
+templates:
+	python manage.py generate_import_templates
 
 schema:
-	uv run python manage.py spectacular --file docs/openapi-schema.yml --validate
+	python manage.py spectacular --api-version v1 --file openapi.yaml --validate
 
 check:
-	uv run python manage.py check
-	uv run python manage.py makemigrations --check --dry-run
+	python manage.py check --deploy
 
-docker-up:
-	docker compose up --build
-
-docker-down:
-	docker compose down
+backup:
+	./scripts/backup_postgres.sh

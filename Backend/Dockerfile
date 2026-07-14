@@ -1,28 +1,28 @@
-# syntax=docker/dockerfile:1.7
-FROM python:3.13-slim-bookworm AS runtime
+FROM python:3.12-slim-bookworm AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy
+    PIP_NO_CACHE_DIR=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    fonts-dejavu-core \
     libjpeg62-turbo \
+    libopenjp2-7 \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
     libpq5 \
+    shared-mime-info \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=ghcr.io/astral-sh/uv:0.8.14 /uv /uvx /bin/
 WORKDIR /app
 
-COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
+COPY requirements/production.txt requirements/base.txt /app/requirements/
+RUN pip install --upgrade pip && pip install -r requirements/production.txt
 
-COPY . .
-RUN uv sync --frozen --no-dev && uv run python manage.py collectstatic --noinput
-
-RUN useradd --create-home --uid 10001 appuser && chown -R appuser:appuser /app
-USER appuser
+COPY . /app
+RUN chmod +x /app/scripts/*.sh && mkdir -p /app/media /app/staticfiles
 
 EXPOSE 8000
-CMD ["uv", "run", "gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120"]
+ENTRYPOINT ["/app/scripts/entrypoint.sh"]
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--threads", "2", "--timeout", "120", "--access-logfile", "-"]
