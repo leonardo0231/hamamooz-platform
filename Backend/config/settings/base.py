@@ -6,6 +6,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 BASE_DIR = Path(__file__).resolve().parents[2]
 
 
+<<<<<<< HEAD
 def env_bool(name: str, default: bool = False) -> bool:
     return os.getenv(name, str(default)).strip().lower() in {"1", "true", "yes", "on"}
 
@@ -42,6 +43,20 @@ def database_config(url: str) -> dict:
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "unsafe-development-key-change-before-production")
 DEBUG = env_bool("DJANGO_DEBUG", False)
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
+=======
+SECRET_KEY = env("DJANGO_SECRET_KEY", default="unsafe-development-only-secret")
+JWT_SIGNING_KEY = env(
+    "JWT_SIGNING_KEY",
+    default=SECRET_KEY,
+)
+DEBUG = env.bool("DJANGO_DEBUG", default=False)
+ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+>>>>>>> d1ab717a752428a109c9478b838e8338dccd9265
+
+TRUSTED_PROXY_COUNT = env.int(
+    "TRUSTED_PROXY_COUNT",
+    default=0,
+)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -74,6 +89,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.core.middleware.RequestLoggingMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "hamamooz.apps.core.middleware.RequestIDMiddleware",
@@ -157,9 +173,21 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": (
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
+<<<<<<< HEAD
     ),
     "DEFAULT_THROTTLE_RATES": {"anon": "30/min", "user": "1200/hour", "login": "10/min"},
     "DATETIME_FORMAT": "%Y-%m-%dT%H:%M:%S%z",
+=======
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "60/min",
+        "user": "600/min",
+        "login_ip": "10/min",
+        "login_identifier": "5/min",
+        "readiness": "30/min",
+    },
+    "NUM_PROXIES": TRUSTED_PROXY_COUNT,
+>>>>>>> d1ab717a752428a109c9478b838e8338dccd9265
 }
 
 SIMPLE_JWT = {
@@ -167,11 +195,28 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=int(os.getenv("JWT_REFRESH_DAYS", "7"))),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
+<<<<<<< HEAD
     "UPDATE_LAST_LOGIN": True,
     "ALGORITHM": "HS256",
     "SIGNING_KEY": SECRET_KEY,
+=======
+    "CHECK_REVOKE_TOKEN": True,
+    "UPDATE_LAST_LOGIN": False,
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": JWT_SIGNING_KEY,
+>>>>>>> d1ab717a752428a109c9478b838e8338dccd9265
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
+
+LOGIN_FAILURE_LIMIT = env.int(
+    "LOGIN_FAILURE_LIMIT",
+    default=5,
+)
+
+LOGIN_FAILURE_WINDOW_SECONDS = env.int(
+    "LOGIN_FAILURE_WINDOW_SECONDS",
+    default=15 * 60,
+)
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "HamAmoz School Platform API",
@@ -216,6 +261,7 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+<<<<<<< HEAD
     "formatters": {"json": {"()": "hamamooz.apps.core.logging.JSONFormatter"}},
     "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "json"}},
     "root": {"handlers": ["console"], "level": LOG_LEVEL},
@@ -234,3 +280,57 @@ if SENTRY_DSN:
         traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.05")),
         environment=os.getenv("SENTRY_ENVIRONMENT", "unknown"),
     )
+=======
+    "filters": {
+        "request_context": {
+            "()": (
+                "apps.core.logging."
+                "RequestContextFilter"
+            ),
+        },
+        "sensitive_data": {
+            "()": (
+                "apps.core.logging."
+                "SensitiveDataFilter"
+            ),
+        },
+    },
+    "formatters": {
+        "json": {
+            "()": (
+                "apps.core.logging."
+                "JsonFormatter"
+            ),
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": (
+                "logging.StreamHandler"
+            ),
+            "formatter": "json",
+            "filters": [
+                "request_context",
+                "sensitive_data",
+            ],
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": env(
+            "LOG_LEVEL",
+            default="INFO",
+        ),
+    },
+    "loggers": {
+        "hamamooz.requests": {
+            "handlers": ["console"],
+            "level": env(
+                "LOG_LEVEL",
+                default="INFO",
+            ),
+            "propagate": False,
+        },
+    },
+}
+>>>>>>> d1ab717a752428a109c9478b838e8338dccd9265

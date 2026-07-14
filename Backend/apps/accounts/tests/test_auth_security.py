@@ -31,7 +31,7 @@ def test_login_accepts_email_case_variation() -> None:
     )
 
     response = APIClient().post(
-        reverse("auth-login"),
+        reverse("login"),
         {
             "email": "USER@EXAMPLE.COM",
             "password": "StrongPass-12345",
@@ -40,12 +40,13 @@ def test_login_accepts_email_case_variation() -> None:
     )
 
     assert response.status_code == status.HTTP_200_OK
+
     assert "access" in response.json()
     assert "refresh" in response.json()
 
 
 @pytest.mark.django_db
-def test_password_change_revokes_old_tokens() -> None:
+def test_password_change_revokes_old_access_and_refresh_tokens() -> None:
     User.objects.create_user(
         email="user@example.com",
         password="OldStrongPass-12345",
@@ -54,7 +55,7 @@ def test_password_change_revokes_old_tokens() -> None:
     client = APIClient()
 
     login_response = client.post(
-        reverse("auth-login"),
+        reverse("login"),
         {
             "email": "user@example.com",
             "password": "OldStrongPass-12345",
@@ -62,34 +63,20 @@ def test_password_change_revokes_old_tokens() -> None:
         format="json",
     )
 
-    assert (
-        login_response.status_code
-        == status.HTTP_200_OK
-    )
+    assert login_response.status_code == status.HTTP_200_OK
 
-    access_token = (
-        login_response.json()["access"]
-    )
-
-    refresh_token = (
-        login_response.json()["refresh"]
-    )
+    access_token = login_response.json()["access"]
+    refresh_token = login_response.json()["refresh"]
 
     client.credentials(
-        HTTP_AUTHORIZATION=(
-            f"Bearer {access_token}"
-        )
+        HTTP_AUTHORIZATION=f"Bearer {access_token}"
     )
 
     change_response = client.post(
-        reverse("auth-change-password"),
+        reverse("change-password"),
         {
-            "old_password": (
-                "OldStrongPass-12345"
-            ),
-            "new_password": (
-                "NewStrongPass-12345"
-            ),
+            "old_password": "OldStrongPass-12345",
+            "new_password": "NewStrongPass-12345",
         },
         format="json",
     )
@@ -100,13 +87,11 @@ def test_password_change_revokes_old_tokens() -> None:
     )
 
     client.credentials(
-        HTTP_AUTHORIZATION=(
-            f"Bearer {access_token}"
-        )
+        HTTP_AUTHORIZATION=f"Bearer {access_token}"
     )
 
     me_response = client.get(
-        reverse("auth-me")
+        reverse("me")
     )
 
     assert (
@@ -117,7 +102,7 @@ def test_password_change_revokes_old_tokens() -> None:
     client.credentials()
 
     refresh_response = client.post(
-        reverse("auth-refresh"),
+        reverse("token-refresh"),
         {
             "refresh": refresh_token,
         },

@@ -1,12 +1,40 @@
 .git
 .github
+<<<<<<< HEAD
 .env
 .venv
 __pycache__
 *.pyc
 .pytest_cache
+=======
+
+.venv
+.env
+.env.production
+
+__pycache__
+*.py[cod]
+
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+>>>>>>> d1ab717a752428a109c9478b838e8338dccd9265
 .coverage
 htmlcov
+
 media
 staticfiles
+<<<<<<< HEAD
 backups
+=======
+
+docs
+tests
+apps/**/tests
+
+docker-compose.yml
+docker-compose.production.yml
+
+Makefile
+>>>>>>> d1ab717a752428a109c9478b838e8338dccd9265
