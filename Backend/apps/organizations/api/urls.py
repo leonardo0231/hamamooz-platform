@@ -2,7 +2,6 @@ from rest_framework.routers import DefaultRouter
 
 from apps.organizations.api.views import (
     OrganizationViewSet,
-    SchoolMembershipViewSet,
     SchoolViewSet,
 )
 
@@ -18,12 +17,6 @@ router.register(
     "schools",
     SchoolViewSet,
     basename="school",
-)
-
-router.register(
-    "memberships",
-    SchoolMembershipViewSet,
-    basename="membership",
 )
 
 urlpatterns = router.urls

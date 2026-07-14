@@ -7,8 +7,8 @@ from apps.organizations.models import (
     School,
     SchoolMembership,
 )
-from apps.organizations.policies import can_manage_school, has_role
 from apps.permissions.models import SystemRole
+from apps.permissions.policies import can_manage_school, has_role
 
 
 @pytest.fixture

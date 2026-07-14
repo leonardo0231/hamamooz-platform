@@ -2,6 +2,11 @@ from django.db import models
 
 
 class SystemRole(models.TextChoices):
+    SYSTEM_ADMIN = (
+        "SYSTEM_ADMIN",
+        "مدیر کل سامانه",
+    )
+
     ORGANIZATION_MANAGER = (
         "ORGANIZATION_MANAGER",
         "مدیر مجموعه",
