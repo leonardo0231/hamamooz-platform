@@ -1,0 +1,1 @@
+﻿# HamAmoz Platform
