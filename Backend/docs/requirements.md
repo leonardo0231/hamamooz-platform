@@ -2,7 +2,7 @@
 
 ## Product boundary
 
-The backend owns data modeling, business workflows, API security, imports, calculations, reports, asynchronous jobs, internal administration, audit, deployment and technical documentation. It does not own the React/Next.js frontend.
+The backend owns data modeling, business workflows, API security, imports, calculations, reports, asynchronous jobs, internal administration, audit, deployment and technical documentation. A user interface is outside this repository's scope.
 
 ## MVP scope summary
 

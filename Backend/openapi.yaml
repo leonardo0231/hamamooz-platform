@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: HamAmoz School Platform API
-  version: 1.0.0
+  version: 1.0.0 (v1)
   description: API نسخه MVP سامانه چندشعبه‌ای هم‌آموز
 paths:
   /api/v1/academic-years/:
@@ -989,91 +989,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/CalculationPolicy'
           description: ''
-    put:
-      operationId: calculation_policies_update
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this calculation policy.
-        required: true
-      tags:
-      - calculation-policies
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CalculationPolicyRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/CalculationPolicyRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/CalculationPolicyRequest'
-        required: true
-      security:
-      - jwtAuth: []
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CalculationPolicy'
-          description: ''
-    patch:
-      operationId: calculation_policies_partial_update
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this calculation policy.
-        required: true
-      tags:
-      - calculation-policies
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedCalculationPolicyRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedCalculationPolicyRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedCalculationPolicyRequest'
-      security:
-      - jwtAuth: []
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CalculationPolicy'
-          description: ''
-    delete:
-      operationId: calculation_policies_destroy
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this calculation policy.
-        required: true
-      tags:
-      - calculation-policies
-      security:
-      - jwtAuth: []
-      - jwtAuth: []
-      responses:
-        '204':
-          description: No response body
   /api/v1/classes/:
     get:
       operationId: classes_list
@@ -4604,6 +4519,7 @@ components:
         is_deleted:
           type: boolean
           readOnly: true
+          default: false
         deleted_at:
           type: string
           format: date-time
@@ -6062,43 +5978,6 @@ components:
         organization:
           type: string
           format: uuid
-    PatchedCalculationPolicyRequest:
-      type: object
-      properties:
-        version:
-          type: string
-          minLength: 1
-          maxLength: 30
-        title:
-          type: string
-          minLength: 1
-          maxLength: 150
-        overall_pass_mark:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
-        decimal_places:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: 0
-          format: int64
-        rounding_mode:
-          $ref: '#/components/schemas/RoundingModeEnum'
-        unexcused_absence_as_zero:
-          type: boolean
-        is_active:
-          type: boolean
-        organization:
-          type: string
-          format: uuid
-        academic_year:
-          type: string
-          format: uuid
-          nullable: true
-        grade_level:
-          type: string
-          format: uuid
-          nullable: true
     PatchedClassSectionRequest:
       type: object
       properties:
@@ -6433,8 +6312,6 @@ components:
           title: فعال
           description: نشان می‌دهد که آیا این کاربر اجازهٔ فعالیت دارد یا خیر. به
             جای حذف کاربر این تیک را بردارید.
-        must_change_password:
-          type: boolean
     RelationshipEnum:
       enum:
       - father
@@ -7302,6 +7179,7 @@ components:
             جای حذف کاربر این تیک را بردارید.
         must_change_password:
           type: boolean
+          readOnly: true
         role_assignments:
           type: array
           items:
@@ -7323,6 +7201,7 @@ components:
       - email
       - id
       - last_login
+      - must_change_password
       - role_assignments
       - username
     UserRequest:
@@ -7365,8 +7244,6 @@ components:
           title: فعال
           description: نشان می‌دهد که آیا این کاربر اجازهٔ فعالیت دارد یا خیر. به
             جای حذف کاربر این تیک را بردارید.
-        must_change_password:
-          type: boolean
       required:
       - email
       - username

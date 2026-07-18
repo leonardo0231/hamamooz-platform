@@ -4,13 +4,12 @@
 
 | سرویس | نقش |
 |---|---|
-| `frontend` | Nginx + خروجی Build رابط React؛ Proxy مسیر `/api/` به Web |
 | `web` | Gunicorn + Django API |
 | `worker` | Celery برای Import، PDF و محاسبات |
 | `db` | PostgreSQL 17 |
 | `redis` | Broker، Result backend و Cache |
 | `minio` | Object Storage خصوصی |
-| `minio-init` | ساخت Bucket و بستن Anonymous access |
+| `minio-init` | ساخت Bucket، فعال‌سازی Versioning و بستن Anonymous access |
 | `backup` | اجرای دوره‌ای pg_dump و Retention |
 
 Compose فعلی برای سرور ۴ vCPU و ۸ GB RAM محافظه‌کارانه تنظیم شده است: Web با ۳ Worker و ۲ Thread، Celery با concurrency=2 و Redis با سقف ۵۱۲ MB. قبل از تغییر این اعداد، Load Test انجام شود.
@@ -29,6 +28,7 @@ Compose فعلی برای سرور ۴ vCPU و ۸ GB RAM محافظه‌کارا�
 [ ] Restore روی محیط جدا تست شده
 [ ] seed_demo با Credential موقت اجرا/مدیر تغییر داده شده
 [ ] OpenAPI و تست‌ها در CI موفق‌اند
+[ ] `.env.production.example` مبنا بوده و تمام placeholderها جایگزین شده‌اند
 ```
 
 ## Migration
@@ -81,4 +81,6 @@ export PGPASSWORD=...
 - گزارش و Import در Worker انجام می‌شوند.
 - در ۲ تا ۴ هزار دانش‌آموز نیازی به Microservice یا Read replica نیست.
 
-برای Load Test واقعی باید سناریوی ۱۳ شعبه، ثبت نمره هم‌زمان دبیران، گزارش گروهی و Import اجرا شود. این بسته Load Test عددی را ادعا نمی‌کند.
+تست خودکار Import تعداد ۲۰۰۰ دانش‌آموز را پوشش می‌دهد و CI رقابت هم‌زمان روی آخرین ظرفیت
+کلاس را با قفل سطری PostgreSQL بررسی می‌کند. برای Load Test کامل هنوز باید سناریوی ۱۳ شعبه،
+ثبت نمره هم‌زمان دبیران، گزارش گروهی و Import روی سخت‌افزار مقصد اجرا شود.

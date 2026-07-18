@@ -16,16 +16,6 @@ x-app: &app
     - media_data:/app/media
 
 services:
-  frontend:
-    build:
-      context: ../Frontend
-    restart: unless-stopped
-    depends_on:
-      web:
-        condition: service_healthy
-    ports:
-      - "3000:80"
-
   web:
     <<: *app
     expose:
@@ -64,7 +54,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-hamamooz}
       POSTGRES_USER: ${POSTGRES_USER:-hamamooz}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -90,12 +80,12 @@ services:
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID:-hamamooz}
-      MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY:-change-me-minio}
+      MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID:?AWS_ACCESS_KEY_ID must be set}
+      MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY:?AWS_SECRET_ACCESS_KEY must be set}
     volumes:
       - minio_data:/data
     ports:
-      - "9001:9001"
+      - "127.0.0.1:9001:9001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 10s
@@ -109,9 +99,10 @@ services:
         condition: service_healthy
     entrypoint: >
       /bin/sh -c "
-      mc alias set local http://minio:9000 $${AWS_ACCESS_KEY_ID:-hamamooz} $${AWS_SECRET_ACCESS_KEY:-change-me-minio} &&
-      mc mb --ignore-existing local/$${AWS_STORAGE_BUCKET_NAME:-hamamooz-private} &&
-      mc anonymous set none local/$${AWS_STORAGE_BUCKET_NAME:-hamamooz-private}
+      mc alias set local http://minio:9000 $${AWS_ACCESS_KEY_ID:?AWS_ACCESS_KEY_ID must be set} $${AWS_SECRET_ACCESS_KEY:?AWS_SECRET_ACCESS_KEY must be set} &&
+      mc mb --ignore-existing local/$${AWS_STORAGE_BUCKET_NAME:?AWS_STORAGE_BUCKET_NAME must be set} &&
+      mc version enable local/$${AWS_STORAGE_BUCKET_NAME:?AWS_STORAGE_BUCKET_NAME must be set} &&
+      mc anonymous set none local/$${AWS_STORAGE_BUCKET_NAME:?AWS_STORAGE_BUCKET_NAME must be set}
       "
     env_file: .env
 
@@ -126,7 +117,7 @@ services:
       PGHOST: db
       PGDATABASE: ${POSTGRES_DB:-hamamooz}
       PGUSER: ${POSTGRES_USER:-hamamooz}
-      PGPASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       BACKUP_DIR: /backups
     volumes:
       - ./scripts:/scripts:ro

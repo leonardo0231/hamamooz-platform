@@ -23,4 +23,4 @@
 | MVP-DSH-01 | Initial operational dashboard metrics | 9 | scoped aggregate API tests |
 | MVP-AUD-01 | Initial audit logging and audit API | 9 | audit creation/access tests |
 | MVP-OPS-01 | Backup, restore test, security and performance hardening | 10 | restore drill and regression suite |
-| MVP-OPS-02 | Backend-only CI and no Frontend changes | 0+ | path filters and changed-file review |
+| MVP-OPS-02 | Backend-only repository and CI | 0+ | path filters and changed-file review |

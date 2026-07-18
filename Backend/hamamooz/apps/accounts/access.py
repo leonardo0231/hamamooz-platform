@@ -30,6 +30,23 @@ def accessible_organization_ids(user):
     )
 
 
+def administered_organization_ids(user):
+    if not user or not user.is_authenticated:
+        return []
+    if is_system_admin(user):
+        return list(Organization.objects.values_list("id", flat=True))
+    return list(
+        RoleAssignment.objects.filter(
+            user=user,
+            role=Role.ORGANIZATION_ADMIN,
+            is_active=True,
+            organization__isnull=False,
+        )
+        .values_list("organization_id", flat=True)
+        .distinct()
+    )
+
+
 def accessible_school_ids(user):
     if not user or not user.is_authenticated:
         return []
@@ -71,6 +88,14 @@ def user_has_role(user, roles, *, organization_id=None, school_id=None):
         return True
     query = RoleAssignment.objects.filter(user=user, role__in=roles, is_active=True)
     if school_id:
+        school_organization_id = (
+            School.objects.filter(id=school_id).values_list("organization_id", flat=True).first()
+        )
+        if school_organization_id is None:
+            return False
+        if organization_id and str(organization_id) != str(school_organization_id):
+            return False
+        organization_id = school_organization_id
         query = query.filter(
             models.Q(school_id=school_id)
             | models.Q(role=Role.ORGANIZATION_ADMIN, organization_id=organization_id)
@@ -78,6 +103,26 @@ def user_has_role(user, roles, *, organization_id=None, school_id=None):
     elif organization_id:
         query = query.filter(organization_id=organization_id)
     return query.exists()
+
+
+def can_manage_role_assignment(user, assignment):
+    """Return whether ``user`` may manage the holder of this exact role scope."""
+    if is_system_admin(user):
+        return True
+    if assignment.role == Role.SYSTEM_ADMIN:
+        return False
+    if assignment.role == Role.ORGANIZATION_ADMIN:
+        return user_has_role(
+            user,
+            [Role.ORGANIZATION_ADMIN],
+            organization_id=assignment.organization_id,
+        )
+    return user_has_role(
+        user,
+        [Role.ORGANIZATION_ADMIN, Role.SCHOOL_MANAGER],
+        organization_id=assignment.organization_id,
+        school_id=assignment.school_id,
+    )
 
 
 def allowed_class_ids(user, school_ids):

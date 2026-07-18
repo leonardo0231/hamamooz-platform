@@ -10,7 +10,6 @@
 hamamooz-platform/
 ├── .github/workflows/backend-ci.yml   # CI بک‌اند
 ├── README.md                          # نقطه شروع مخزن
-├── Frontend/                          # رابط سبک React/Vite برای بررسی MVP
 └── Backend/
     ├── config/                        # تنظیمات dev/test/prod، URL، ASGI/WSGI و Celery
     ├── hamamooz/apps/
@@ -22,7 +21,7 @@ hamamooz-platform/
     │   ├── imports/                   # Import اتمیک XLSX و Queue
     │   ├── reports/                   # Snapshot، HTML/PDF و آرشیو رسمی
     │   └── dashboard/                 # شاخص‌های عملیاتی
-    ├── tests/                         # ۱۷ تست خودکار Domain/API/PDF
+    ├── tests/                         # تست‌های Domain/API/PDF/Security/Operations
     ├── templates/reports/             # قالب فارسی A4
     ├── docs/                          # مستندات فارسی و قالب‌های واقعی XLSX
     ├── scripts/                       # Entry point، Backup و Restore
@@ -40,12 +39,13 @@ hamamooz-platform/
 | Django system check | بدون خطا |
 | Migration drift | تغییری شناسایی نشد |
 | OpenAPI validation | بدون هشدار یا خطا |
-| Pytest | ۱۷ از ۱۷ موفق |
-| Coverage | ۶۳٫۳۹٪؛ Gate برابر ۵۰٪ |
+| Pytest | ۶۴ تست محلی موفق + یک تست concurrency ویژه PostgreSQL CI |
+| Coverage | ۸۳٫۰۷٪ branch-aware؛ Gate برابر ۷۸٪ |
+| Dependency audit | بدون آسیب‌پذیری شناخته‌شده |
+| Backup/restore | Dump، checksum و Restore ایزوله در CI |
 | PDF | تولید واقعی، یک صفحه A4، RTL و بازبینی تصویری |
 | Shell scripts | عبور از `bash -n` |
 | Docker Compose | YAML و ارتباط سرویس‌ها بررسی شد |
-| Frontend production build | موفق با Vite |
 
 ## شروع پیشنهادی
 
@@ -53,4 +53,4 @@ hamamooz-platform/
 
 ## مرز آگاهانه MVP
 
-هوش مصنوعی/ML، تحلیل پیشرفته، حضور و غیاب کامل، رفتار، مشاوره، پنل مستقل اولیا/دانش‌آموز و طراحی نهایی Frontend عمداً وارد این بسته نشده‌اند. رابط موجود فقط برای بررسی عملی Backend و جریان‌های اصلی است. مدل داده، Audit و مرز ماژول‌ها امکان افزودن قابلیت‌های بعدی را فراهم می‌کند، اما بسته حاضر ادعای قابلیت پیاده‌سازی‌نشده ندارد.
+رابط کاربری، هوش مصنوعی/ML، تحلیل پیشرفته، حضور و غیاب کامل، رفتار، مشاوره و پنل مستقل اولیا/دانش‌آموز عمداً وارد این بسته نشده‌اند. مدل داده، Audit و مرز ماژول‌ها امکان افزودن قابلیت‌های بعدی را فراهم می‌کند، اما بسته حاضر ادعای قابلیت پیاده‌سازی‌نشده ندارد.

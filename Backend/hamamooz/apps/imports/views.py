@@ -4,7 +4,6 @@ from rest_framework.response import Response
 
 from hamamooz.apps.accounts.access import selected_school_ids
 from hamamooz.apps.accounts.models import Role
-from hamamooz.apps.core.services import record_audit
 from hamamooz.apps.core.viewsets import AuditedModelViewSet
 
 from .models import ImportJob
@@ -33,17 +32,15 @@ class ImportJobViewSet(AuditedModelViewSet):
         ).select_related("school", "organization", "requested_by")
 
     def perform_create(self, serializer):
-        job = serializer.save()
-        transaction.on_commit(lambda: process_import_job_task.delay(str(job.id)))
-        record_audit(
+        job = self.perform_audited_create(
+            serializer,
             action="import.queued",
-            actor=self.request.user,
-            request=self.request,
-            entity=job,
-            organization_id=job.organization_id,
-            school_id=job.school_id,
-            metadata={"type": job.import_type, "checksum": job.checksum},
+            metadata=lambda instance: {
+                "type": instance.import_type,
+                "checksum": instance.checksum,
+            },
         )
+        transaction.on_commit(lambda: process_import_job_task.delay(str(job.id)))
 
     @action(detail=True, methods=["post"])
     def retry(self, request, pk=None):

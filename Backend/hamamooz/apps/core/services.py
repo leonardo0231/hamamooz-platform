@@ -1,12 +1,16 @@
 from ipaddress import ip_address
 
+from django.conf import settings
+
 from .models import AuditEvent
 
 
 def get_client_ip(request):
     if not request:
         return None
-    forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
+    forwarded = ""
+    if settings.TRUST_X_FORWARDED_FOR:
+        forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
     value = forwarded or request.META.get("REMOTE_ADDR")
     try:
         return str(ip_address(value)) if value else None

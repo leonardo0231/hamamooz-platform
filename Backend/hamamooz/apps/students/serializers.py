@@ -3,6 +3,7 @@ from rest_framework import serializers
 from hamamooz.apps.accounts.access import accessible_organization_ids, accessible_school_ids
 
 from .models import Enrollment, EnrollmentEvent, Guardian, Student, StudentGuardian
+from .services import create_enrollment
 
 
 class StudentGuardianSerializer(serializers.ModelSerializer):
@@ -149,6 +150,9 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             if count >= instance.class_section.capacity:
                 raise serializers.ValidationError({"class_section": "ظرفیت کلاس تکمیل است."})
         return attrs
+
+    def create(self, validated_data):
+        return create_enrollment(**validated_data)
 
 
 class LinkGuardianSerializer(serializers.Serializer):

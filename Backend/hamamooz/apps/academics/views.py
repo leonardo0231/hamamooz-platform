@@ -170,14 +170,10 @@ class AssessmentViewSet(AuditedModelViewSet):
         )
 
     def perform_create(self, serializer):
-        instance = serializer.save(created_by=self.request.user)
-        record_audit(
+        self.perform_audited_create(
+            serializer,
             action="assessment.created",
-            actor=self.request.user,
-            request=self.request,
-            entity=instance,
-            organization_id=instance.course_offering.class_section.school.organization_id,
-            school_id=instance.school_id,
+            created_by=self.request.user,
         )
 
     def perform_update(self, serializer):
@@ -328,10 +324,9 @@ class ScoreViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Ge
 class CalculationPolicyViewSet(AuditedModelViewSet):
     queryset = CalculationPolicy.objects.none()
     serializer_class = CalculationPolicySerializer
+    http_method_names = ["get", "post", "head", "options"]
     filterset_fields = ["organization", "academic_year", "grade_level", "is_active"]
-    required_roles_by_action = {
-        action: ORG_ACADEMIC_ADMIN for action in ["create", "update", "partial_update", "destroy"]
-    }
+    required_roles_by_action = {"create": ORG_ACADEMIC_ADMIN}
 
     def get_queryset(self):
         return CalculationPolicy.objects.filter(

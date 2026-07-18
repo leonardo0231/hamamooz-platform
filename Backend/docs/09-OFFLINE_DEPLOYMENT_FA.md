@@ -5,12 +5,11 @@
 ## ساخت Bundle روی ماشین متصل
 
 ```bash
-docker compose build web worker frontend
+docker compose build web worker
 docker compose pull db redis minio minio-init backup
 docker image save -o hamamooz-images.tar \
   hamamooz-mvp-web \
   hamamooz-mvp-worker \
-  hamamooz-mvp-frontend \
   postgres:17-alpine \
   redis:7.4-alpine \
   minio/minio:RELEASE.2025-04-22T22-12-26Z \
@@ -27,7 +26,6 @@ hamamooz-images.tar
 hamamooz-images.tar.sha256
 Backend/docker-compose.yml
 Backend/.env تکمیل‌شده در مقصد
-Frontend/ برای حفظ Build context تعریف‌شده در Compose
 ```
 
 ## بارگذاری در سرور مقصد
@@ -46,7 +44,7 @@ Credential واقعی را داخل Archive عمومی قرار ندهید. `.en
 
 ```bash
 docker compose run --rm web python manage.py migrate --noinput
-docker compose up -d --no-build web worker frontend
+docker compose up -d --no-build web worker
 ```
 
 قبل از Migration بکاپ و تست Restore لازم است. برای Rollback، Image نسخه قبلی و Migration compatibility باید از قبل نگهداری شود.

@@ -142,10 +142,6 @@ class Enrollment(SoftDeleteModel):
         ordering = ["-academic_year__starts_on", "class_section", "student__last_name"]
         constraints = [
             models.UniqueConstraint(
-                fields=["student", "academic_year", "school"],
-                name="uq_enrollment_student_year_school",
-            ),
-            models.UniqueConstraint(
                 fields=["student", "academic_year"],
                 condition=models.Q(status="active", is_deleted=False),
                 name="uq_active_enrollment_student_year",

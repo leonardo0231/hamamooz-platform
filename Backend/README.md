@@ -32,7 +32,6 @@ docker compose exec web python manage.py seed_demo \
 
 آدرس‌ها:
 
-- پنل اولیه: `http://localhost:3000/`
 - Swagger: `http://localhost:8000/api/v1/docs/`
 - ReDoc: `http://localhost:8000/api/v1/redoc/`
 - OpenAPI YAML آماده: `openapi.yaml`
@@ -78,7 +77,10 @@ Authorization: Bearer <access-token>
 X-School-ID: <school-uuid>
 ```
 
-اگر هدر ارسال نشود، Query فقط روی مجموع شعب مجاز کاربر اجرا می‌شود. ارسال UUID شعبه غیرمجاز پاسخ 403 می‌دهد. محدودسازی فقط در UI نیست؛ QuerySet، Serializer و Object Permission هر سه محدوده را بررسی می‌کنند.
+در خواندن، نبود هدر Query را به مجموع شعب مجاز کاربر محدود می‌کند. در نوشتن، کاربر غیر از
+`system_admin` باید `X-School-ID` یا `X-Organization-ID` صریح بفرستد. UUID نامعتبر، حوزه
+غیرمجاز، هدرهای متعارض و تفاوت حوزه هدر با شیء مقصد پاسخ 403 می‌گیرند. محدودسازی فقط در UI
+نیست؛ QuerySet، Serializer، Object Permission و Service همگی محدوده را بررسی می‌کنند.
 
 ## دستورات کنترل کیفیت
 
@@ -90,7 +92,17 @@ python manage.py spectacular --api-version v1 --file openapi.yaml --validate
 pytest --cov=hamamooz --cov-report=term-missing
 ```
 
-در بسته تحویلی ۱۷ تست وجود دارد و پوشش اندازه‌گیری‌شده ۶۳٫۳۹٪ است. تست‌ها روی دسترسی بین شعب، دسترسی دبیر، گردش نمره، محاسبات، Import اتمیک و فایل خراب، انتقال، احراز هویت/Audit، منع حذف کاربر و تولید واقعی PDF تمرکز دارند.
+اجرای محلی SQLite شامل ۶۴ تست موفق و یک تست ویژه PostgreSQL است؛ پوشش branch-aware برابر
+۸۳٫۰۷٪ و Gate برابر ۷۸٪ است. CI علاوه بر آن وابستگی‌ها، Redis/Celery، MinIO خصوصی، Import
+دو هزار ردیفی، رقابت هم‌زمان ظرفیت کلاس روی PostgreSQL و بازیابی واقعی بکاپ را کنترل می‌کند.
+
+برای Production از نمونه fail-closed استفاده کنید و تمام placeholderها را جایگزین کنید:
+
+```bash
+cp .env.production.example .env
+docker compose config
+docker compose up --build -d
+```
 
 ## ساختار مستندات
 
@@ -105,7 +117,3 @@ pytest --cov=hamamooz --cov-report=term-missing
 - `docs/09-OFFLINE_DEPLOYMENT_FA.md`: انتقال به سرور فاقد دسترسی GitHub/سایت‌های خارجی
 - `docs/10-DELIVERY_MANIFEST_FA.md`: نقشه بسته، کنترل‌های نهایی و مرز آگاهانه MVP
 - `docs/import_templates/`: سه قالب ثابت XLSX قابل استفاده
-
-## رابط بررسی اولیه
-
-پوشه `../Frontend/` یک رابط React/Vite سبک برای ورود، انتخاب شعبه، داشبورد، فهرست دانش‌آموزان و کلاس‌ها، گردش ارزیابی، گزارش PDF و Import دارد. این رابط برای مشاهده و تست قابلیت‌های موجود است؛ پنل مستقل والدین/دانش‌آموز و طراحی نهایی محصول همچنان خارج از MVP هستند.

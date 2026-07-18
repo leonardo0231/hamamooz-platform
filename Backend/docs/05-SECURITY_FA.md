@@ -18,6 +18,8 @@
 - JWT کوتاه‌عمر، Refresh چرخشی و blacklist پس از Logout
 - غیرفعال‌سازی کاربر بدون حذف تاریخچه
 - محدودسازی Query و Object در سطح Branch/Class/Course
+- الزام هدر صریح حوزه برای Write و تطبیق هدر با Tenant شیء قبل از Commit
+- جلوگیری از مدیریت مدیر مجموعه/کل توسط مدیر شعبه و منع تغییر رمز عمومی بدون عملیات اختصاصی
 - فایل‌های S3 خصوصی با URL امضاشده
 - محدودیت Upload: فقط XLSX و حداکثر ۱۰ MiB برای Import؛ تصویر حداکثر ۲ MiB
 - جلوگیری از Mass assignment برای statusهای workflow و actorها
@@ -25,13 +27,14 @@
 - Audit ورود/خروج، CRUD مهم، تغییر نمره، انتقال، Import و گزارش
 - Request ID و JSON log بدون فعال‌سازی PII در Sentry
 - Security headerهای Production، HSTS، Secure Cookie و Proxy SSL header
+- رد خودکار secretهای کوتاه/placeholder و `ALLOWED_HOSTS=*` در تنظیمات Production
 - Rate limit عمومی و Rate limit سخت‌تر برای Login
 - حذف منطقی برای داده‌های دامنه
 
 ## نکات مهم عملیات
 
 1. `DJANGO_SECRET_KEY`، رمز DB/MinIO و Credentialها نباید Commit شوند.
-2. MinIO Console مستقیماً روی اینترنت منتشر نشود؛ Port نمونه برای شبکه مدیریت است.
+2. MinIO Console فقط روی loopback نمونه Bind شده و نباید مستقیماً روی اینترنت منتشر شود.
 3. TLS باید در Reverse Proxy/Load Balancer خاتمه یابد.
 4. دسترسی Admin فقط برای IP/VPN مدیریتی توصیه می‌شود.
 5. بکاپ باید خارج از همان Host نیز کپی و رمزنگاری شود.

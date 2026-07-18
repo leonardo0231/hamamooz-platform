@@ -12,6 +12,7 @@ htmlcov/
 .env
 *.sqlite3
 media/
+Backend/.test-media/
 staticfiles/
 backups/
 *.log

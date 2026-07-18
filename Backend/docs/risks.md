@@ -8,4 +8,4 @@
 | Duplicate async reports | Medium | unique job keys, idempotent tasks and locked state transitions |
 | RTL PDF font/render differences | Medium | bundled deployment font policy and rendered PDF regression tests |
 | Main branch initialized because repository was empty | Low | only minimal root commit; all backend work continues on feature branches |
-| Frontend contract drift | High | validated OpenAPI, changelog and explicit migration guidance |
+| API client contract drift | High | validated OpenAPI, changelog and explicit migration guidance |

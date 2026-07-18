@@ -7,6 +7,7 @@ from hamamooz.apps.core.services import record_audit
 from .access import (
     accessible_organization_ids,
     accessible_school_ids,
+    can_manage_role_assignment,
     is_system_admin,
     user_has_role,
 )
@@ -38,6 +39,10 @@ class RoleAssignmentSerializer(serializers.ModelSerializer):
         instance.full_clean(exclude=["id"])
         request = self.context.get("request")
         if request and not request.user.is_superuser:
+            if self.instance:
+                original = RoleAssignment.objects.get(pk=self.instance.pk)
+                if not can_manage_role_assignment(request.user, original):
+                    raise serializers.ValidationError("اجازه تغییر تخصیص نقش فعلی را ندارید.")
             organization = attrs.get("organization", getattr(instance, "organization", None))
             school = attrs.get("school", getattr(instance, "school", None))
             if organization and organization.id not in set(
@@ -96,7 +101,20 @@ class UserSerializer(serializers.ModelSerializer):
             "last_login",
             "date_joined",
         ]
-        read_only_fields = ["id", "last_login", "date_joined", "role_assignments"]
+        read_only_fields = [
+            "id",
+            "must_change_password",
+            "last_login",
+            "date_joined",
+            "role_assignments",
+        ]
+
+    def validate(self, attrs):
+        if self.instance and "password" in attrs:
+            raise serializers.ValidationError(
+                {"password": "برای تغییر رمز از عملیات change_password استفاده کنید."}
+            )
+        return attrs
 
     def create(self, validated_data):
         password = validated_data.pop("password", None)

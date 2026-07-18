@@ -5,6 +5,40 @@ from rest_framework.exceptions import ValidationError
 from .models import Assessment, Score, ScoreRevision
 
 
+def _lock_assessment(assessment):
+    return (
+        Assessment.objects.select_for_update()
+        .select_related("course_offering__class_section")
+        .get(pk=assessment.pk)
+    )
+
+
+def validate_score_completeness(assessment):
+    active_enrollment_ids = set(
+        assessment.course_offering.class_section.enrollments.filter(status="active").values_list(
+            "id", flat=True
+        )
+    )
+    entered_enrollment_ids = set(
+        assessment.scores.exclude(status=Score.Status.NOT_ENTERED).values_list(
+            "enrollment_id", flat=True
+        )
+    )
+    missing = active_enrollment_ids - entered_enrollment_ids
+    unexpected = entered_enrollment_ids - active_enrollment_ids
+    if not active_enrollment_ids or missing or unexpected:
+        raise ValidationError(
+            {
+                "scores": (
+                    "نمرات با فهرست فعلی دانش‌آموزان فعال منطبق نیست. "
+                    f"فعال: {len(active_enrollment_ids)}، ثبت‌شده معتبر: "
+                    f"{len(active_enrollment_ids & entered_enrollment_ids)}، "
+                    f"فاقد نمره: {len(missing)}، خارج از فهرست فعال: {len(unexpected)}."
+                )
+            }
+        )
+
+
 def _transition(assessment, *, allowed, target, actor, reason=""):
     if assessment.status not in allowed:
         raise ValidationError(
@@ -28,12 +62,8 @@ def _transition(assessment, *, allowed, target, actor, reason=""):
 
 @transaction.atomic
 def submit_assessment(assessment, actor):
-    expected = assessment.course_offering.class_section.enrollments.filter(status="active").count()
-    entered = assessment.scores.exclude(status=Score.Status.NOT_ENTERED).count()
-    if expected == 0 or entered < expected:
-        raise ValidationError(
-            {"scores": f"نمرات کامل نیست. {entered} از {expected} دانش‌آموز ثبت شده است."}
-        )
+    assessment = _lock_assessment(assessment)
+    validate_score_completeness(assessment)
     return _transition(
         assessment,
         allowed=[Assessment.Status.DRAFT, Assessment.Status.REJECTED],
@@ -44,6 +74,7 @@ def submit_assessment(assessment, actor):
 
 @transaction.atomic
 def approve_assessment(assessment, actor):
+    assessment = _lock_assessment(assessment)
     return _transition(
         assessment,
         allowed=[Assessment.Status.SUBMITTED],
@@ -54,6 +85,7 @@ def approve_assessment(assessment, actor):
 
 @transaction.atomic
 def reject_assessment(assessment, actor, reason):
+    assessment = _lock_assessment(assessment)
     if not reason.strip():
         raise ValidationError({"reason": "دلیل رد الزامی است."})
     return _transition(
@@ -67,6 +99,8 @@ def reject_assessment(assessment, actor, reason):
 
 @transaction.atomic
 def lock_assessment(assessment, actor):
+    assessment = _lock_assessment(assessment)
+    validate_score_completeness(assessment)
     return _transition(
         assessment,
         allowed=[Assessment.Status.APPROVED],
@@ -113,6 +147,7 @@ def _write_score(*, assessment, enrollment, value, status, note, actor, reason="
 
 @transaction.atomic
 def bulk_upsert_scores(*, assessment, entries, actor):
+    assessment = _lock_assessment(assessment)
     if assessment.status not in [Assessment.Status.DRAFT, Assessment.Status.REJECTED]:
         raise ValidationError("نمرات فقط در وضعیت پیش‌نویس یا ردشده قابل ویرایش‌اند.")
     results = []
@@ -124,6 +159,8 @@ def bulk_upsert_scores(*, assessment, entries, actor):
         seen.add(enrollment.id)
         if enrollment.class_section_id != assessment.course_offering.class_section_id:
             raise ValidationError({"entries": f"دانش‌آموز {enrollment.id} عضو این کلاس نیست."})
+        if enrollment.status != enrollment.Status.ACTIVE:
+            raise ValidationError({"entries": f"ثبت‌نام دانش‌آموز {enrollment.id} فعال نیست."})
         results.append(
             _write_score(
                 assessment=assessment,
@@ -139,7 +176,8 @@ def bulk_upsert_scores(*, assessment, entries, actor):
 
 @transaction.atomic
 def correct_locked_score(*, score, value, status, note, reason, actor):
-    assessment = score.assessment
+    assessment = _lock_assessment(score.assessment)
+    score = Score.objects.select_for_update().select_related("enrollment").get(pk=score.pk)
     if assessment.status != Assessment.Status.LOCKED:
         raise ValidationError("این عملیات فقط برای نمره قفل‌شده است.")
     if len(reason.strip()) < 5:

@@ -9,6 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: Backend
@@ -43,8 +44,94 @@ jobs:
           cache: pip
           cache-dependency-path: Backend/requirements/*.txt
       - run: pip install -r requirements/dev.txt
+      - run: python -m pip check
+      - run: pip-audit --cache-dir /tmp/pip-audit-cache -r requirements/production.txt
       - run: ruff check .
+      - run: ruff format --check hamamooz config tests
       - run: python manage.py makemigrations --check --dry-run
       - run: python manage.py migrate --noinput
       - run: python manage.py spectacular --api-version v1 --file /tmp/openapi.yaml --validate
+      - name: Smoke test Redis and Celery broker
+        run: |
+          python - <<'PY'
+          import os
+          import redis
+          from config.celery import app
+
+          assert redis.Redis.from_url(os.environ["REDIS_URL"]).ping()
+          with app.connection_for_write() as connection:
+              connection.ensure_connection(max_retries=1)
+          PY
+      - name: Smoke test private S3 storage against MinIO
+        env:
+          AWS_ACCESS_KEY_ID: hamamooz-ci
+          AWS_SECRET_ACCESS_KEY: hamamooz-ci-secret
+          AWS_STORAGE_BUCKET_NAME: hamamooz-ci-private
+          AWS_S3_ENDPOINT_URL: http://localhost:9000
+          AWS_S3_REGION_NAME: us-east-1
+          USE_S3: "true"
+        run: |
+          trap 'docker rm --force hamamooz-minio-ci >/dev/null 2>&1 || true' EXIT
+          docker run --detach --name hamamooz-minio-ci \
+            --publish 9000:9000 \
+            --env MINIO_ROOT_USER="$AWS_ACCESS_KEY_ID" \
+            --env MINIO_ROOT_PASSWORD="$AWS_SECRET_ACCESS_KEY" \
+            minio/minio:RELEASE.2025-04-22T22-12-26Z server /data
+          for attempt in $(seq 1 30); do
+            curl --fail --silent http://localhost:9000/minio/health/live && break
+            sleep 1
+          done
+          curl --fail --silent http://localhost:9000/minio/health/live
+          python - <<'PY'
+          import os
+          import boto3
+
+          client = boto3.client(
+              "s3",
+              endpoint_url=os.environ["AWS_S3_ENDPOINT_URL"],
+              aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+              aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+              region_name=os.environ["AWS_S3_REGION_NAME"],
+          )
+          bucket = os.environ["AWS_STORAGE_BUCKET_NAME"]
+          client.create_bucket(Bucket=bucket)
+          client.put_bucket_versioning(
+              Bucket=bucket,
+              VersioningConfiguration={"Status": "Enabled"},
+          )
+          assert client.get_bucket_versioning(Bucket=bucket)["Status"] == "Enabled"
+          client.put_object(Bucket=bucket, Key="smoke/health.txt", Body=b"ok")
+          assert client.get_object(Bucket=bucket, Key="smoke/health.txt")["Body"].read() == b"ok"
+          client.delete_object(Bucket=bucket, Key="smoke/health.txt")
+          PY
       - run: pytest --cov=hamamooz --cov-report=xml
+      - name: PostgreSQL backup and restore drill
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGDATABASE: hamamooz_test
+          PGUSER: hamamooz
+          PGPASSWORD: test-password
+          BACKUP_DIR: /tmp/hamamooz-backups
+        run: |
+          mkdir --parents "$BACKUP_DIR"
+          docker run --rm --network host \
+            --env PGHOST --env PGPORT --env PGDATABASE --env PGUSER --env PGPASSWORD \
+            --env BACKUP_DIR=/backups \
+            --volume "$PWD/scripts:/scripts:ro" --volume "$BACKUP_DIR:/backups" \
+            postgres:17-alpine /scripts/backup_postgres.sh > /tmp/backup-path.txt
+          backup_name="$(basename "$(cat /tmp/backup-path.txt)")"
+          docker run --rm --network host \
+            --env PGHOST --env PGPORT --env PGUSER --env PGPASSWORD \
+            postgres:17-alpine createdb --maintenance-db=postgres hamamooz_restore
+          docker run --rm --network host \
+            --env PGHOST --env PGPORT --env PGUSER --env PGPASSWORD \
+            --env PGDATABASE=hamamooz_restore \
+            --volume "$PWD/scripts:/scripts:ro" --volume "$BACKUP_DIR:/backups:ro" \
+            postgres:17-alpine /scripts/restore_postgres.sh "/backups/$backup_name"
+          restored_migrations="$(docker run --rm --network host \
+            --env PGHOST --env PGPORT --env PGUSER --env PGPASSWORD \
+            --env PGDATABASE=hamamooz_restore postgres:17-alpine \
+            psql --tuples-only --no-align \
+            --command 'SELECT COUNT(*) FROM django_migrations;')"
+          test "$restored_migrations" -gt 0

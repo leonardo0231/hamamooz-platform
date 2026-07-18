@@ -205,6 +205,7 @@ def _validate_scores(job, rows):
                 student__organization=job.organization,
                 student__national_id=national_id,
                 class_section=assessment.course_offering.class_section,
+                status=Enrollment.Status.ACTIVE,
             )
             key = (assessment.id, enrollment.id)
             if key in seen:
@@ -248,13 +249,27 @@ def _validate_scores(job, rows):
 
 
 def process_import_job(job_id):
-    job = ImportJob.objects.get(pk=job_id)
-    if job.status not in [ImportJob.Status.QUEUED, ImportJob.Status.FAILED]:
-        return job
-    job.status = ImportJob.Status.PROCESSING
-    job.started_at = timezone.now()
-    job.errors = []
-    job.save(update_fields=["status", "started_at", "errors", "updated_at"])
+    with transaction.atomic():
+        job = ImportJob.objects.select_for_update().get(pk=job_id)
+        if job.status not in [ImportJob.Status.QUEUED, ImportJob.Status.FAILED]:
+            return job
+        job.status = ImportJob.Status.PROCESSING
+        job.started_at = timezone.now()
+        job.finished_at = None
+        job.successful_rows = 0
+        job.error_count = 0
+        job.errors = []
+        job.save(
+            update_fields=[
+                "status",
+                "started_at",
+                "finished_at",
+                "successful_rows",
+                "error_count",
+                "errors",
+                "updated_at",
+            ]
+        )
     try:
         rows = _load_rows(job)
         validators = {
@@ -273,6 +288,25 @@ def process_import_job(job_id):
             return job
         with transaction.atomic():
             if job.import_type in [ImportJob.ImportType.STUDENTS, ImportJob.ImportType.ENROLLMENTS]:
+                if job.import_type == ImportJob.ImportType.ENROLLMENTS:
+                    class_ids = sorted({item.class_section_id for item in prepared}, key=str)
+                    locked_classes = {
+                        item.id: item
+                        for item in ClassSection.objects.select_for_update()
+                        .filter(id__in=class_ids)
+                        .order_by("id")
+                    }
+                    added_by_class = defaultdict(int)
+                    for item in prepared:
+                        added_by_class[item.class_section_id] += 1
+                    for class_id, added in added_by_class.items():
+                        section = locked_classes[class_id]
+                        current = Enrollment.objects.filter(
+                            class_section=section,
+                            status=Enrollment.Status.ACTIVE,
+                        ).count()
+                        if current + added > section.capacity:
+                            raise ValueError(f"ظرفیت کلاس {section.title} کافی نیست.")
                 for instance in prepared:
                     instance.save()
                 successful = len(prepared)
@@ -289,10 +323,27 @@ def process_import_job(job_id):
         job.error_count = 0
         job.finished_at = timezone.now()
         job.save()
-    except (ValueError, IntegrityError, OSError, BadZipFile, InvalidFileException) as exc:
+    except OSError:
+        job.status = ImportJob.Status.QUEUED
+        job.save(update_fields=["status", "updated_at"])
+        raise
+    except (ValueError, IntegrityError, BadZipFile, InvalidFileException) as exc:
         job.status = ImportJob.Status.FAILED
         job.error_count = 1
         job.errors = [{"row": None, "message": str(exc)}]
+        job.finished_at = timezone.now()
+        job.save()
+    return job
+
+
+def mark_import_job_failed(job_id, exc):
+    with transaction.atomic():
+        job = ImportJob.objects.select_for_update().get(pk=job_id)
+        if job.status == ImportJob.Status.COMPLETED:
+            return job
+        job.status = ImportJob.Status.FAILED
+        job.error_count = 1
+        job.errors = [{"row": None, "message": str(exc)[:2000]}]
         job.finished_at = timezone.now()
         job.save()
     return job

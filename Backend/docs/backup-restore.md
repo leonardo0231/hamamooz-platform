@@ -1,5 +1,9 @@
 # Backup and Restore
 
-The definitive backup/restore implementation and recorded restore drill belong to Slice 10. The target design uses PostgreSQL-native `pg_dump`/`pg_restore`, separate object-storage backup/versioning, encrypted off-host retention, checksums and a periodic restore into an isolated database.
+The bundled backup service uses PostgreSQL-native `pg_dump` with checksum sidecars and retention.
+Restore validates the checksum before `pg_restore`. CI creates a live dump, restores it into an
+isolated PostgreSQL database and verifies migration history on every backend change.
 
-No restore test has been claimed in Slice 0.
+The bundled private MinIO bucket has versioning enabled. Versioning is not an off-site backup:
+production operators must replicate object storage and the database backup volume to encrypted,
+access-isolated storage and periodically rehearse full application recovery.

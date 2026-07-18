@@ -317,9 +317,41 @@ class CalculationPolicy(SoftDeleteModel):
         ordering = ["organization", "-created_at"]
         constraints = [
             models.UniqueConstraint(
+                fields=["organization", "version"],
+                condition=models.Q(
+                    academic_year__isnull=True,
+                    grade_level__isnull=True,
+                    is_deleted=False,
+                ),
+                name="uq_calc_policy_org_version",
+            ),
+            models.UniqueConstraint(
+                fields=["organization", "academic_year", "version"],
+                condition=models.Q(
+                    academic_year__isnull=False,
+                    grade_level__isnull=True,
+                    is_deleted=False,
+                ),
+                name="uq_calc_policy_year_version",
+            ),
+            models.UniqueConstraint(
+                fields=["organization", "grade_level", "version"],
+                condition=models.Q(
+                    academic_year__isnull=True,
+                    grade_level__isnull=False,
+                    is_deleted=False,
+                ),
+                name="uq_calc_policy_grade_version",
+            ),
+            models.UniqueConstraint(
                 fields=["organization", "academic_year", "grade_level", "version"],
-                name="uq_calculation_policy_scope_version",
-            )
+                condition=models.Q(
+                    academic_year__isnull=False,
+                    grade_level__isnull=False,
+                    is_deleted=False,
+                ),
+                name="uq_calc_policy_full_version",
+            ),
         ]
 
     def clean(self):

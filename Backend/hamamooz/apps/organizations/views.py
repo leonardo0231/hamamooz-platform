@@ -1,4 +1,6 @@
+from django.db import transaction
 from django.db.models import Count, Q
+from rest_framework.exceptions import ValidationError
 
 from hamamooz.apps.accounts.access import accessible_organization_ids, selected_school_ids
 from hamamooz.apps.accounts.models import Role
@@ -111,3 +113,13 @@ class ClassSectionViewSet(AuditedModelViewSet):
                 )
             )
         )
+
+    def perform_update(self, serializer):
+        with transaction.atomic():
+            locked = ClassSection.objects.select_for_update().get(pk=serializer.instance.pk)
+            capacity = serializer.validated_data.get("capacity", locked.capacity)
+            enrolled = locked.enrollments.filter(status="active").count()
+            if capacity < enrolled:
+                raise ValidationError({"capacity": "ظرفیت کمتر از تعداد ثبت‌نام فعال است."})
+            serializer.instance = locked
+            super().perform_update(serializer)

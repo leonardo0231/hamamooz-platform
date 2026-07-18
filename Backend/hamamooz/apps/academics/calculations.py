@@ -151,9 +151,9 @@ def recalculate_class_term(class_section, term):
     )
     rank = 0
     previous = None
-    for index, result in enumerate(ranked, start=1):
+    for result in ranked:
         if previous is None or result.average != previous:
-            rank = index
+            rank += 1
         result.class_rank = rank
         result.save(update_fields=["class_rank", "updated_at"])
         previous = result.average

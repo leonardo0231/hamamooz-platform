@@ -5,7 +5,7 @@ Every school-scoped resource must be filtered from the authenticated user's acti
 Forbidden:
 
 - filtering only in serializer
-- trusting frontend school_id
+- trusting a client-provided school_id
 - checking only role name
 
 
@@ -16,3 +16,8 @@ Required:
 - service validation
 - async task validation
 - export/report validation
+
+For unsafe API methods, non-system administrators must send an explicit `X-School-ID` or
+`X-Organization-ID` header. A school header also derives and validates its organization; conflicting
+headers and malformed UUIDs are rejected. Transfers require write authority in both source and
+destination scope.

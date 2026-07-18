@@ -290,10 +290,10 @@ class RejectAssessmentSerializer(serializers.Serializer):
 
 class CorrectLockedScoreSerializer(serializers.Serializer):
     value = serializers.DecimalField(
-        max_digits=7, decimal_places=2, required=False, allow_null=True
+        max_digits=7, decimal_places=2, required=False, allow_null=True, default=None
     )
     status = serializers.ChoiceField(choices=Score.Status.choices)
-    note = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    note = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
     reason = serializers.CharField(min_length=5)
 
 

@@ -1,5 +1,7 @@
 from collections import defaultdict
+from copy import deepcopy
 from decimal import Decimal
+from pathlib import Path
 
 from django.conf import settings
 from django.core.files.base import ContentFile
@@ -9,6 +11,7 @@ from django.utils import timezone
 from weasyprint import HTML
 
 from hamamooz.apps.academics.calculations import (
+    calculate_enrollment_term,
     get_policy,
     normalized_score,
     quantize,
@@ -50,8 +53,15 @@ def _decimal_string(value, decimal_places=2):
     return f"{value:.{decimal_places}f}" if value is not None else None
 
 
-def build_student_snapshot(enrollment, term):
-    recalculate_class_term(enrollment.class_section, term)
+def build_student_snapshot(enrollment, term, *, recalculate=True):
+    if recalculate:
+        if enrollment.status == Enrollment.Status.ACTIVE:
+            recalculate_class_term(enrollment.class_section, term)
+        else:
+            term_result = calculate_enrollment_term(enrollment, term)
+            if term_result.class_rank is not None:
+                term_result.class_rank = None
+                term_result.save(update_fields=["class_rank", "updated_at"])
     policy = get_policy(enrollment)
     term_result = TermResult.objects.get(enrollment=enrollment, term=term)
     offerings = CourseOffering.objects.filter(
@@ -71,9 +81,7 @@ def build_student_snapshot(enrollment, term):
             {
                 "title": offering.grade_subject.subject.title,
                 "coefficient": str(offering.grade_subject.coefficient),
-                "continuous": _decimal_string(
-                    categories.get("continuous"), policy.decimal_places
-                ),
+                "continuous": _decimal_string(categories.get("continuous"), policy.decimal_places),
                 "midterm": _decimal_string(categories.get("midterm"), policy.decimal_places),
                 "final": _decimal_string(categories.get("final"), policy.decimal_places),
                 "average": _decimal_string(
@@ -119,10 +127,15 @@ def build_student_snapshot(enrollment, term):
 def build_report_snapshot(report_type, term, enrollment=None, class_section=None):
     if report_type == ReportArchive.ReportType.STUDENT_REPORT_CARD:
         return {"reports": [build_student_snapshot(enrollment, term)]}
-    enrollments = Enrollment.objects.filter(
-        class_section=class_section, status=Enrollment.Status.ACTIVE
-    ).select_related("student", "school", "academic_year", "grade_level", "class_section")
-    return {"reports": [build_student_snapshot(item, term) for item in enrollments]}
+    enrollments = list(
+        Enrollment.objects.filter(
+            class_section=class_section, status=Enrollment.Status.ACTIVE
+        ).select_related("student", "school", "academic_year", "grade_level", "class_section")
+    )
+    recalculate_class_term(class_section, term)
+    return {
+        "reports": [build_student_snapshot(item, term, recalculate=False) for item in enrollments]
+    }
 
 
 def render_report_html(snapshot, *, preview=False):
@@ -132,9 +145,32 @@ def render_report_html(snapshot, *, preview=False):
     )
 
 
+def _local_media_file_url(url):
+    if not url or not url.startswith(settings.MEDIA_URL):
+        return url
+    relative = url.removeprefix(settings.MEDIA_URL).lstrip("/")
+    media_root = Path(settings.MEDIA_ROOT).resolve()
+    candidate = (media_root / relative).resolve()
+    if not candidate.is_relative_to(media_root):
+        return ""
+    return candidate.as_uri()
+
+
+def _pdf_snapshot(snapshot):
+    rendered = deepcopy(snapshot)
+    for report in rendered.get("reports", []):
+        report["school"]["logo_url"] = _local_media_file_url(report["school"].get("logo_url", ""))
+        report["student"]["photo_url"] = _local_media_file_url(
+            report["student"].get("photo_url", "")
+        )
+    return rendered
+
+
 def render_report_pdf(snapshot):
-    html = render_report_html(snapshot)
-    return HTML(string=html, base_url=str(settings.BASE_DIR)).write_pdf()
+    html = render_report_html(_pdf_snapshot(snapshot))
+    return HTML(string=html, base_url=Path(settings.BASE_DIR).as_uri()).write_pdf(
+        presentational_hints=False
+    )
 
 
 def generate_report(report_id):

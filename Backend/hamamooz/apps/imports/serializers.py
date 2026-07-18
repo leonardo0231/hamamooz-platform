@@ -1,6 +1,7 @@
 import hashlib
 from pathlib import Path
 
+from django.db import IntegrityError, transaction
 from rest_framework import serializers
 
 from hamamooz.apps.accounts.access import accessible_school_ids
@@ -94,9 +95,15 @@ class ImportJobSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         checksum = validated_data.pop("_checksum")
         school = validated_data["school"]
-        return ImportJob.objects.create(
-            organization=school.organization,
-            requested_by=self.context["request"].user,
-            checksum=checksum,
-            **validated_data,
-        )
+        try:
+            with transaction.atomic():
+                return ImportJob.objects.create(
+                    organization=school.organization,
+                    requested_by=self.context["request"].user,
+                    checksum=checksum,
+                    **validated_data,
+                )
+        except IntegrityError as exc:
+            raise serializers.ValidationError(
+                "این فایل قبلاً برای همین شعبه و نوع Import ثبت شده است."
+            ) from exc

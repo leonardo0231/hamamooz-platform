@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from django.db.models import Q
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -12,8 +14,15 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from hamamooz.apps.core.services import record_audit
 from hamamooz.apps.core.viewsets import AuditedModelViewSet
+from hamamooz.apps.organizations.models import School
 
-from .access import accessible_organization_ids, accessible_school_ids, user_has_role
+from .access import (
+    administered_organization_ids,
+    can_manage_role_assignment,
+    is_system_admin,
+    selected_school_ids,
+    user_has_role,
+)
 from .models import Role, RoleAssignment, User
 from .serializers import (
     ChangePasswordSerializer,
@@ -24,6 +33,39 @@ from .serializers import (
 )
 
 ADMIN_ROLES = [Role.SYSTEM_ADMIN, Role.ORGANIZATION_ADMIN, Role.SCHOOL_MANAGER]
+
+
+def membership_scope(request):
+    school_ids = selected_school_ids(request)
+    administered_org_ids = set(administered_organization_ids(request.user))
+    selected_organization = request.headers.get("X-Organization-ID")
+    if selected_organization:
+        selected_organization = UUID(selected_organization)
+        administered_org_ids.intersection_update({selected_organization})
+        school_ids = list(
+            School.objects.filter(
+                id__in=school_ids,
+                organization_id=selected_organization,
+            ).values_list("id", flat=True)
+        )
+    school_org_ids = set(
+        School.objects.filter(id__in=school_ids).values_list("organization_id", flat=True)
+    )
+    return school_ids, administered_org_ids, school_org_ids
+
+
+def membership_scope_q(request, prefix="role_assignments__"):
+    school_ids, administered_org_ids, school_org_ids = membership_scope(request)
+    if request.headers.get("X-School-ID"):
+        return Q(**{f"{prefix}school_id__in": school_ids}) | Q(
+            **{
+                f"{prefix}school__isnull": True,
+                f"{prefix}organization_id__in": school_org_ids,
+            }
+        )
+    return Q(**{f"{prefix}organization_id__in": administered_org_ids}) | Q(
+        **{f"{prefix}school_id__in": school_ids}
+    )
 
 
 class LoginView(TokenObtainPairView):
@@ -63,23 +105,55 @@ class UserViewSet(AuditedModelViewSet):
     search_fields = ["username", "email", "first_name", "last_name", "phone"]
     filterset_fields = ["is_active"]
     required_roles_by_action = {
-        action: ADMIN_ROLES
-        for action in ["create", "update", "partial_update", "deactivate"]
+        action: ADMIN_ROLES for action in ["create", "update", "partial_update", "deactivate"]
     }
 
     def get_queryset(self):
         if not user_has_role(self.request.user, ADMIN_ROLES):
-            return User.objects.filter(id=self.request.user.id)
-        organization_ids = accessible_organization_ids(self.request.user)
-        school_ids = accessible_school_ids(self.request.user)
-        return User.objects.filter(
-            Q(id=self.request.user.id)
-            | Q(
-                role_assignments__organization_id__in=organization_ids,
-                role_assignments__is_active=True,
+            return User.objects.filter(id=self.request.user.id).order_by("id")
+        return (
+            User.objects.filter(
+                Q(id=self.request.user.id)
+                | (membership_scope_q(self.request) & Q(role_assignments__is_active=True))
             )
-            | Q(role_assignments__school_id__in=school_ids, role_assignments__is_active=True)
-        ).distinct()
+            .distinct()
+            .order_by("id")
+        )
+
+    def _ensure_can_manage_user(self, target):
+        if target == self.request.user or is_system_admin(self.request.user):
+            return
+        assignments = list(
+            target.role_assignments.filter(is_active=True).only(
+                "role", "organization_id", "school_id"
+            )
+        )
+        if not assignments:
+            self.permission_denied(
+                self.request, "فقط مدیر کل می‌تواند حساب بدون حوزه فعال را مدیریت کند."
+            )
+        selected_school = self.request.headers.get("X-School-ID")
+        selected_organization = self.request.headers.get("X-Organization-ID")
+        for assignment in assignments:
+            if selected_school and str(assignment.school_id) != selected_school:
+                self.permission_denied(
+                    self.request,
+                    "حوزه درخواست با تمام نقش‌های فعال این حساب منطبق نیست.",
+                )
+            if selected_organization and str(assignment.organization_id) != selected_organization:
+                self.permission_denied(
+                    self.request,
+                    "حوزه درخواست با مجموعه نقش فعال این حساب منطبق نیست.",
+                )
+            if not can_manage_role_assignment(self.request.user, assignment):
+                self.permission_denied(
+                    self.request,
+                    "این حساب در حوزه‌ای خارج از اختیار شما نقش فعال دارد.",
+                )
+
+    def perform_update(self, serializer):
+        self._ensure_can_manage_user(serializer.instance)
+        super().perform_update(serializer)
 
     @action(detail=True, methods=["post"])
     def change_password(self, request, pk=None):
@@ -87,8 +161,7 @@ class UserViewSet(AuditedModelViewSet):
         serializer = ChangePasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         if user != request.user:
-            if not user_has_role(request.user, ADMIN_ROLES):
-                self.permission_denied(request, "اجازه تغییر رمز این کاربر را ندارید.")
+            self._ensure_can_manage_user(user)
         elif not user.check_password(serializer.validated_data.get("current_password", "")):
             return Response({"current_password": "رمز عبور فعلی نادرست است."}, status=400)
         user.set_password(serializer.validated_data["new_password"])
@@ -102,6 +175,7 @@ class UserViewSet(AuditedModelViewSet):
     @action(detail=True, methods=["post"])
     def deactivate(self, request, pk=None):
         user = self.get_object()
+        self._ensure_can_manage_user(user)
         if user == request.user:
             return Response({"detail": "غیرفعال‌کردن حساب خودتان مجاز نیست."}, status=400)
         user.is_active = False
@@ -124,7 +198,13 @@ class RoleAssignmentViewSet(AuditedModelViewSet):
                 "user", "organization", "school"
             )
         return RoleAssignment.objects.filter(
-            Q(organization_id__in=accessible_organization_ids(self.request.user))
-            | Q(school_id__in=accessible_school_ids(self.request.user))
-            | Q(user=self.request.user)
+            membership_scope_q(self.request, prefix="") | Q(user=self.request.user)
         ).select_related("user", "organization", "school")
+
+    def perform_destroy(self, instance):
+        if not can_manage_role_assignment(self.request.user, instance):
+            self.permission_denied(
+                self.request,
+                "اجازه حذف این تخصیص نقش را ندارید.",
+            )
+        super().perform_destroy(instance)

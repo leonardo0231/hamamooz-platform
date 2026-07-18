@@ -73,6 +73,18 @@ def test_official_report_api_requires_all_assessments_to_be_locked(api_client, b
     )
     assert response.status_code == 400
 
+    bulk_upsert_scores(
+        assessment=assessment,
+        entries=[
+            {
+                "enrollment": enrollment,
+                "value": Decimal("18"),
+                "status": Score.Status.PRESENT,
+            }
+            for enrollment in base_data["enrollments"]
+        ],
+        actor=base_data["teacher1"],
+    )
     assessment.status = Assessment.Status.LOCKED
     assessment.save(update_fields=["status"])
     response = api_client.post(

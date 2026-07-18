@@ -12,6 +12,8 @@ def first_attr(obj, paths):
 
 
 def object_school_id(obj):
+    if getattr(getattr(obj, "_meta", None), "label_lower", None) == "organizations.school":
+        return obj.pk
     value = first_attr(
         obj,
         [
@@ -27,6 +29,8 @@ def object_school_id(obj):
 
 
 def object_organization_id(obj):
+    if getattr(getattr(obj, "_meta", None), "label_lower", None) == "organizations.organization":
+        return obj.pk
     value = first_attr(
         obj,
         [

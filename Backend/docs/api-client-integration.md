@@ -1,4 +1,4 @@
-# Frontend Integration
+# API Client Integration
 
 ## Authentication
 
@@ -19,10 +19,10 @@
 }
 ```
 
-The frontend may send `X-Request-ID`; the backend returns the effective value in the same response header and error body.
+An API client may send `X-Request-ID`; the backend returns the effective value in the same response header and error body.
 
 ## Pagination
 
 List endpoints use `count`, `next`, `previous`, and `results`. `page_size` is capped at 100.
 
-The frontend must never treat hidden controls as authorization. The backend remains authoritative for every action and object.
+Clients must never treat hidden controls as authorization. The backend remains authoritative for every action and object.

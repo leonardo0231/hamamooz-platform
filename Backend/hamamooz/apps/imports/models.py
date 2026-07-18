@@ -40,6 +40,16 @@ class ImportJob(SoftDeleteModel):
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "school", "import_type", "checksum"],
+                condition=models.Q(
+                    is_deleted=False,
+                    status__in=["queued", "processing", "completed"],
+                ),
+                name="uq_active_import_file_scope",
+            )
+        ]
         indexes = [
             models.Index(fields=["school", "import_type", "status"]),
             models.Index(fields=["organization", "checksum", "import_type"]),

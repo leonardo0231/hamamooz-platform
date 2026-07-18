@@ -1,11 +1,17 @@
-from django.db.models import Avg, Count
+from collections import defaultdict
+
+from django.db.models import Avg, Count, Q
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from hamamooz.apps.academics.models import Assessment, CourseOffering, Score, TermResult
-from hamamooz.apps.accounts.access import allowed_class_ids, selected_school_ids
+from hamamooz.apps.accounts.access import (
+    allowed_class_ids,
+    broad_access_school_ids,
+    selected_school_ids,
+)
 from hamamooz.apps.core.models import AuditEvent
 from hamamooz.apps.organizations.models import ClassSection
 from hamamooz.apps.students.models import Enrollment
@@ -16,6 +22,7 @@ class DashboardSummaryView(APIView):
     def get(self, request):
         school_ids = selected_school_ids(request)
         class_ids = allowed_class_ids(request.user, school_ids)
+        broad_school_ids = broad_access_school_ids(request.user, school_ids)
         enrollments = Enrollment.objects.filter(
             school_id__in=school_ids,
             class_section_id__in=class_ids,
@@ -26,35 +33,37 @@ class DashboardSummaryView(APIView):
             class_section_id__in=class_ids,
             class_section__school_id__in=school_ids,
             is_active=True,
-        )
-        if (
-            request.user.role_assignments.filter(role="teacher", is_active=True).exists()
-            and not request.user.role_assignments.exclude(role="teacher")
-            .filter(is_active=True)
-            .exists()
-        ):
-            offerings = offerings.filter(teacher=request.user)
+        ).filter(Q(class_section__school_id__in=broad_school_ids) | Q(teacher=request.user))
         assessments = Assessment.objects.filter(course_offering__in=offerings)
 
-        missing_scores = 0
         open_assessments = assessments.filter(
             status__in=[
                 Assessment.Status.DRAFT,
                 Assessment.Status.SUBMITTED,
                 Assessment.Status.REJECTED,
             ]
-        ).select_related("course_offering__class_section")
-        for assessment in open_assessments:
-            expected = Enrollment.objects.filter(
-                class_section=assessment.course_offering.class_section,
-                status=Enrollment.Status.ACTIVE,
-            ).count()
-            entered = (
-                Score.objects.filter(assessment=assessment)
-                .exclude(status=Score.Status.NOT_ENTERED)
-                .count()
+        ).values("id", "course_offering__class_section_id")
+        assessment_rows = list(open_assessments)
+        active_by_class = defaultdict(set)
+        for class_id, enrollment_id in Enrollment.objects.filter(
+            class_section_id__in=class_ids,
+            status=Enrollment.Status.ACTIVE,
+        ).values_list("class_section_id", "id"):
+            active_by_class[class_id].add(enrollment_id)
+        entered_by_assessment = defaultdict(set)
+        for assessment_id, enrollment_id in (
+            Score.objects.filter(assessment_id__in=[row["id"] for row in assessment_rows])
+            .exclude(status=Score.Status.NOT_ENTERED)
+            .values_list("assessment_id", "enrollment_id")
+        ):
+            entered_by_assessment[assessment_id].add(enrollment_id)
+        missing_scores = sum(
+            len(
+                active_by_class[row["course_offering__class_section_id"]]
+                - entered_by_assessment[row["id"]]
             )
-            missing_scores += max(expected - entered, 0)
+            for row in assessment_rows
+        )
 
         class_averages = list(
             TermResult.objects.filter(enrollment__class_section_id__in=class_ids)
@@ -67,9 +76,9 @@ class DashboardSummaryView(APIView):
             for item in assessments.values("status").annotate(count=Count("id"))
         }
         activities = list(
-            AuditEvent.objects.filter(school_id__in=school_ids).values(
-                "id", "action", "entity_type", "entity_id", "actor_id", "created_at"
-            )[:10]
+            AuditEvent.objects.filter(
+                Q(school_id__in=broad_school_ids) | Q(school_id__in=school_ids, actor=request.user)
+            ).values("id", "action", "entity_type", "entity_id", "actor_id", "created_at")[:10]
         )
         by_school = list(
             enrollments.values("school_id", "school__name")

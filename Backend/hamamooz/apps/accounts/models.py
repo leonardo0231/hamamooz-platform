@@ -51,8 +51,28 @@ class RoleAssignment(SoftDeleteModel):
         ordering = ["user", "organization", "school", "role"]
         constraints = [
             models.UniqueConstraint(
-                fields=["user", "organization", "school", "role"], name="uq_user_role_scope"
-            )
+                fields=["user", "role"],
+                condition=models.Q(
+                    organization__isnull=True,
+                    school__isnull=True,
+                    is_deleted=False,
+                ),
+                name="uq_user_role_global_scope",
+            ),
+            models.UniqueConstraint(
+                fields=["user", "organization", "role"],
+                condition=models.Q(
+                    organization__isnull=False,
+                    school__isnull=True,
+                    is_deleted=False,
+                ),
+                name="uq_user_role_org_scope",
+            ),
+            models.UniqueConstraint(
+                fields=["user", "school", "role"],
+                condition=models.Q(school__isnull=False, is_deleted=False),
+                name="uq_user_role_school_scope",
+            ),
         ]
         indexes = [
             models.Index(fields=["user", "is_active", "role"]),

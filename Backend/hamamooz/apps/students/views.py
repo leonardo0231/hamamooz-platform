@@ -2,7 +2,7 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from hamamooz.apps.accounts.access import allowed_class_ids, selected_school_ids
+from hamamooz.apps.accounts.access import allowed_class_ids, selected_school_ids, user_has_role
 from hamamooz.apps.accounts.models import Role
 from hamamooz.apps.core.services import record_audit
 from hamamooz.apps.core.viewsets import AuditedModelViewSet
@@ -158,6 +158,14 @@ class EnrollmentViewSet(AuditedModelViewSet):
         enrollment = self.get_object()
         serializer = TransferEnrollmentSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
+        target_school = serializer.validated_data["school"]
+        if not user_has_role(
+            request.user,
+            STUDENT_WRITERS,
+            organization_id=target_school.organization_id,
+            school_id=target_school.id,
+        ):
+            self.permission_denied(request, "در شعبه مقصد مجوز ثبت‌نام ندارید.")
         target = transfer_enrollment(
             enrollment=enrollment, actor=request.user, **serializer.validated_data
         )

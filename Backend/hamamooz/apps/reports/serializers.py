@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from hamamooz.apps.academics.models import Assessment, CourseOffering
+from hamamooz.apps.academics.services import validate_score_completeness
 from hamamooz.apps.accounts.access import accessible_school_ids, allowed_class_ids
 
 from .models import ReportArchive
@@ -49,10 +50,23 @@ def validate_official_report_readiness(attrs):
     if not offerings.exists():
         raise serializers.ValidationError("برای این کلاس و نوبت هیچ درس فعالی تعریف نشده است.")
 
+    should_validate_roster = (
+        attrs["report_type"] == ReportArchive.ReportType.CLASS_REPORT_CARDS
+        or attrs["enrollment"].status == "active"
+    )
     incomplete = []
     for offering in offerings:
-        statuses = list(offering.assessments.values_list("status", flat=True))
-        if not statuses or any(status != Assessment.Status.LOCKED for status in statuses):
+        assessments = list(offering.assessments.all())
+        is_incomplete = not assessments or any(
+            assessment.status != Assessment.Status.LOCKED for assessment in assessments
+        )
+        if not is_incomplete and should_validate_roster:
+            try:
+                for assessment in assessments:
+                    validate_score_completeness(assessment)
+            except serializers.ValidationError:
+                is_incomplete = True
+        if is_incomplete:
             incomplete.append(offering.grade_subject.subject.title)
     if incomplete:
         titles = "، ".join(incomplete[:10])

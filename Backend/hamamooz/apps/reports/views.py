@@ -1,9 +1,10 @@
 from django.db import transaction
+from django.db.models import Q
 from django.http import FileResponse
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from hamamooz.apps.accounts.access import selected_school_ids
+from hamamooz.apps.accounts.access import allowed_class_ids, selected_school_ids
 from hamamooz.apps.accounts.models import Role
 from hamamooz.apps.core.services import record_audit
 from hamamooz.apps.core.viewsets import AuditedModelViewSet
@@ -39,24 +40,11 @@ class ReportArchiveViewSet(AuditedModelViewSet):
     required_roles_by_action = {"create": REPORTERS, "preview": REPORTERS}
 
     def get_queryset(self):
-        queryset = ReportArchive.objects.filter(school_id__in=selected_school_ids(self.request))
-        if self.request.user.role_assignments.filter(role=Role.TEACHER, is_active=True).exists():
-            broad = self.request.user.role_assignments.filter(
-                role__in=[
-                    Role.SYSTEM_ADMIN,
-                    Role.ORGANIZATION_ADMIN,
-                    Role.SCHOOL_MANAGER,
-                    Role.EDUCATIONAL_DEPUTY,
-                    Role.OPERATOR,
-                ],
-                is_active=True,
-            ).exists()
-            if not broad:
-                queryset = queryset.filter(
-                    class_section__course_offerings__teacher=self.request.user
-                ) | queryset.filter(
-                    enrollment__class_section__course_offerings__teacher=self.request.user
-                )
+        school_ids = selected_school_ids(self.request)
+        class_ids = allowed_class_ids(self.request.user, school_ids)
+        queryset = ReportArchive.objects.filter(school_id__in=school_ids).filter(
+            Q(class_section_id__in=class_ids) | Q(enrollment__class_section_id__in=class_ids)
+        )
         return queryset.select_related(
             "school",
             "academic_year",
@@ -67,17 +55,12 @@ class ReportArchiveViewSet(AuditedModelViewSet):
         ).distinct()
 
     def perform_create(self, serializer):
-        report = serializer.save()
-        transaction.on_commit(lambda: generate_report_task.delay(str(report.id)))
-        record_audit(
+        report = self.perform_audited_create(
+            serializer,
             action="report.queued",
-            actor=self.request.user,
-            request=self.request,
-            entity=report,
-            organization_id=report.organization_id,
-            school_id=report.school_id,
-            metadata={"report_type": report.report_type},
+            metadata=lambda instance: {"report_type": instance.report_type},
         )
+        transaction.on_commit(lambda: generate_report_task.delay(str(report.id)))
 
     @action(detail=False, methods=["post"])
     def preview(self, request):

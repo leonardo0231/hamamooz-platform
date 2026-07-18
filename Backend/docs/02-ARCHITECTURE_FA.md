@@ -6,7 +6,7 @@ Modular Monolith انتخاب شده است. هر دامنه مدل، Serializer
 
 ```mermaid
 flowchart TB
-    Client["Frontend / API Client"] --> API["DRF API v1"]
+    Client["API Client"] --> API["DRF API v1"]
     API --> Domains["Domain modules + service layer"]
     Domains --> DB[(PostgreSQL)]
     Domains --> Queue["Celery + Redis"]
