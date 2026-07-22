@@ -41,12 +41,17 @@ services:
   worker:
     <<: *app
     entrypoint: []
-    command: celery -A config worker -l INFO -Q default,imports,reports,calculations --concurrency=2
+    command: celery -A config worker -l INFO -Q default,imports,reports,calculations,notifications --concurrency=2
     healthcheck:
       test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME | grep -q pong"]
       interval: 30s
       timeout: 10s
       retries: 5
+
+  beat:
+    <<: *app
+    entrypoint: []
+    command: celery -A config beat -l INFO --schedule=/tmp/celerybeat-schedule
 
   db:
     image: postgres:17-alpine

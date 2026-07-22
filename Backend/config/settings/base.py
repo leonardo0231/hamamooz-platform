@@ -2,6 +2,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
+from celery.schedules import crontab
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 
@@ -64,6 +65,7 @@ INSTALLED_APPS = [
     "hamamooz.apps.imports",
     "hamamooz.apps.reports",
     "hamamooz.apps.dashboard",
+    "hamamooz.apps.attendance",
 ]
 
 MIDDLEWARE = [
@@ -206,9 +208,46 @@ CELERY_TASK_ROUTES = {
     "hamamooz.apps.imports.tasks.*": {"queue": "imports"},
     "hamamooz.apps.reports.tasks.*": {"queue": "reports"},
     "hamamooz.apps.academics.tasks.*": {"queue": "calculations"},
+    "hamamooz.apps.attendance.tasks.dispatch_parent_notification": {
+        "queue": "notifications"
+    },
+    "hamamooz.apps.attendance.tasks.evaluate_attendance_alerts": {
+        "queue": "calculations"
+    },
 }
 CELERY_TASK_ALWAYS_EAGER = env_bool("CELERY_TASK_ALWAYS_EAGER", False)
 CELERY_TASK_EAGER_PROPAGATES = True
+
+ATTENDANCE_MAX_EVIDENCE_SIZE = int(
+    os.getenv("ATTENDANCE_MAX_EVIDENCE_SIZE", str(5 * 1024 * 1024))
+)
+ATTENDANCE_ASYNC_NOTIFICATIONS = env_bool("ATTENDANCE_ASYNC_NOTIFICATIONS", True)
+ATTENDANCE_AUTO_ALERTS_ENABLED = env_bool("ATTENDANCE_AUTO_ALERTS_ENABLED", True)
+ATTENDANCE_SMS_BACKEND = os.getenv(
+    "ATTENDANCE_SMS_BACKEND",
+    "hamamooz.apps.attendance.notifications.DisabledSMSBackend",
+)
+ATTENDANCE_ALERT_HOUR = int(os.getenv("ATTENDANCE_ALERT_HOUR", "16"))
+ATTENDANCE_ALERT_MINUTE = int(os.getenv("ATTENDANCE_ALERT_MINUTE", "0"))
+
+CELERY_BEAT_SCHEDULE = {
+    "evaluate-attendance-alerts-daily": {
+        "task": "hamamooz.apps.attendance.tasks.evaluate_attendance_alerts",
+        "schedule": crontab(hour=ATTENDANCE_ALERT_HOUR, minute=ATTENDANCE_ALERT_MINUTE),
+    }
+}
+
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend"
+)
+EMAIL_HOST = os.getenv("EMAIL_HOST", "")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@hamamooz.local")
+
 
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024
