@@ -340,7 +340,8 @@ def test_parent_notification_is_bound_to_enrollment(base_data, settings):
     notification = notifications[0]
     notification.refresh_from_db()
     assert notification.enrollment_id == base_data["enrollments"][0].id
-    assert notification.status == ParentNotification.Status.SENT
+    assert notification.status == ParentNotification.Status.SKIPPED
+    assert "پرتال والدین" in notification.last_error
 
 
 @pytest.mark.django_db

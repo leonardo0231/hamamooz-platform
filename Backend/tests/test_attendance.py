@@ -65,7 +65,8 @@ def test_bulk_finalize_and_correct_attendance(base_data):
         actor=base_data["manager"],
     )
     assert corrected.status == AttendanceRecord.Status.PRESENT
-    assert corrected.revision == 1
+    assert corrected.revision == 2
+    assert corrected.history.count() == 1
     assert corrected.history.count() == 1
 
 

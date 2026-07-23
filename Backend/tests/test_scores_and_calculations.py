@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
@@ -191,7 +191,7 @@ def test_submit_requires_exact_current_active_enrollment_set(base_data):
     )
     departed = base_data["enrollments"][1]
     departed.status = Enrollment.Status.WITHDRAWN
-    departed.left_on = date(2026, 10, 11)
+    departed.left_on = assessment.assessment_date - timedelta(days=1)
     departed.save(update_fields=["status", "left_on"])
     add_enrollment(base_data, national_id="0012345688", student_number="103")
 
@@ -266,7 +266,7 @@ def test_scores_cannot_be_added_for_inactive_enrollment(base_data):
     assessment = make_assessment(base_data)
     enrollment = base_data["enrollments"][0]
     enrollment.status = Enrollment.Status.WITHDRAWN
-    enrollment.left_on = date(2026, 10, 11)
+    enrollment.left_on = assessment.assessment_date - timedelta(days=1)
     enrollment.save(update_fields=["status", "left_on"])
 
     with pytest.raises(ValidationError):

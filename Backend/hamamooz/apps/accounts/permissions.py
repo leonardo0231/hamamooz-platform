@@ -19,6 +19,11 @@ class RolePermission(BasePermission):
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
+
+        allowed_methods = getattr(view, "http_method_names", [])
+        if request.method.lower() not in allowed_methods:
+            return True
+
         selected_school = request.headers.get("X-School-ID")
         organization = request.headers.get("X-Organization-ID")
         try:

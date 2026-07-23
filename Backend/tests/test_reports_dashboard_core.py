@@ -128,7 +128,7 @@ def test_group_report_readiness_detects_changed_active_roster(api_client, base_d
         grade_level=base_data["grade"],
         class_section=base_data["class1"],
         student_number="missing-score",
-        enrolled_on=date(2026, 12, 21),
+        enrolled_on=date(2026, 12, 20),
     )
     api_client.force_authenticate(base_data["manager"])
 
