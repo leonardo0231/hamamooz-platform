@@ -1,25 +1,23 @@
 # Backend نسخه MVP سامانه هم‌آموز
 
-این پروژه یک Backend اجرایی برای مدیریت آموزشی چندشعبه‌ای است. طراحی برای ۱۳ شعبه و حدود ۲ تا ۴ هزار دانش‌آموز انجام شده و ساختار آن Modular Monolith است؛ یعنی مرز دامنه‌ها مستقل است، اما استقرار و تراکنش‌های بین ماژولی در یک سرویس Django باقی می‌ماند.
+این پروژه Backend اجرایی سامانه آموزشی چندشعبه‌ای هم‌آموز است. طراحی فعلی برای ۱۳ شعبه و حدود ۲ تا ۴ هزار دانش‌آموز انجام شده و از سبک **Modular Monolith** استفاده می‌کند: مرز دامنه‌ها مستقل است، اما API، تراکنش‌ها و استقرار در یک سرویس Django باقی می‌مانند.
 
 ## قابلیت‌های پیاده‌سازی‌شده
 
-- مجموعه، ۱۳ شعبه، سال تحصیلی، نوبت، پایه و کلاس با ظرفیت
-- Custom User، JWT، خروج امن با blacklist و نقش متفاوت در شعب مختلف
-- محدودسازی داده در سطح مجموعه، شعبه، کلاس و درس دبیر
-- دانش‌آموز، ولی، ارتباط چندفرزندی، ثبت‌نام سالانه، تغییر کلاس و انتقال بین شعب
-- درس پایه، ارائه درس، تخصیص و تغییر دبیر
-- ارزیابی مستمر، میان‌ترم و پایانی با سقف و وزن قابل تنظیم
-- ثبت گروهی نمره، غیبت موجه/غیرموجه و نمره ثبت‌نشده
+- مجموعه، شعبه، سال تحصیلی، نوبت، پایه و کلاس با ظرفیت
+- Custom User، JWT چرخشی، blacklist خروج و نقش متفاوت در شعب مختلف
+- جداسازی داده در سطح مجموعه، شعبه، کلاس و درس دبیر
+- دانش‌آموز، ولی، ارتباط چندفرزندی، ثبت‌نام تاریخ‌مند، تغییر کلاس و انتقال
+- درس پایه، ارائه درس، تخصیص دبیر، ارزیابی و ثبت گروهی نمره
 - گردش `draft -> submitted -> approved -> locked` و مسیر رد برای اصلاح
-- تاریخچه همه ثبت/اصلاح‌های نمره و اصلاح کنترل‌شده نمره قفل‌شده با دلیل
-- موتور مستقل محاسبه نمره نرمال‌شده، معدل درس، معدل نوبت، قبولی و رتبه Dense کلاس
-- سیاست محاسبات نسخه‌دار برای مجموعه/سال/پایه
-- Import اتمیک XLSX برای دانش‌آموز، ثبت‌نام و نمره با گزارش ردیف خطادار
-- کارنامه A4 فارسی و راست‌چین برای دانش‌آموز یا کل کلاس، پیش‌نمایش و آرشیو Snapshot/PDF
+- تاریخچه اصلاح نمره و اصلاح کنترل‌شده نمره قفل‌شده همراه دلیل
+- محاسبه نمره نرمال‌شده، معدل درس، معدل نوبت، قبولی و رتبه Dense کلاس
+- سیاست محاسبات نسخه‌دار در سطح مجموعه، سال و پایه
+- Import اتمیک XLSX برای دانش‌آموز، ثبت‌نام و نمره
+- کارنامه A4 فارسی، پیش‌نمایش و آرشیو Snapshot/PDF
 - حضور و غیاب روزانه/زنگ، توجیه غیبت، هشدار و اعلان والدین
-- داشبورد عملیاتی، OpenAPI پویا، Audit، JSON logging، Sentry اختیاری و Health Check
-- PostgreSQL، Redis، Celery، MinIO/S3، Docker Compose و بکاپ زمان‌بندی‌شده
+- داشبورد عملیاتی، Audit، JSON logging، Health Check و Sentry اختیاری
+- PostgreSQL، Redis، Celery، FileSystem یا MinIO/S3، Docker Compose و بکاپ دوره‌ای
 
 ## شروع سریع با Docker
 
@@ -27,42 +25,46 @@
 cp .env.example .env
 # رمزها و DJANGO_SECRET_KEY را در .env تغییر دهید
 docker compose up --build -d
+
 docker compose exec web python manage.py seed_demo \
   --admin-password 'A-Strong-Temporary-Password'
 ```
 
-آدرس‌ها:
+آدرس‌های پیش‌فرض:
 
+- API: `http://localhost:8000/api/v1/`
 - Swagger: `http://localhost:8000/api/v1/docs/`
 - ReDoc: `http://localhost:8000/api/v1/redoc/`
-- قرارداد OpenAPI پویا: `http://localhost:8000/api/v1/schema/`
+- Schema زنده: `http://localhost:8000/api/v1/schema/`
 - Admin: `http://localhost:8000/admin/`
 - Liveness: `http://localhost:8000/api/v1/health/live/`
 - Readiness: `http://localhost:8000/api/v1/health/ready/`
 
-دستور `seed_demo` یک مجموعه، دقیقاً ۱۳ شعبه، سال ۱۴۰۵-۱۴۰۶، دو نوبت، ۱۲ پایه، کلاس‌های نمونه، انواع ارزیابی، سیاست محاسبات و مدیر اولیه می‌سازد. اجرای دوباره آن idempotent است. رمز فقط از آرگومان یا متغیر `SEED_ADMIN_PASSWORD` گرفته می‌شود و داخل کد وجود ندارد.
+سرویس `release` قبل از `web`، `worker` و `beat`، Migration و `collectstatic` را یک‌بار اجرا می‌کند. در استقرار چند Replica همین الگو باید حفظ شود و Migration داخل هر Replica اجرا نشود.
 
 ## اجرای توسعه بدون Docker
 
-Python 3.12، PostgreSQL و Redis پیشنهاد می‌شود. برای تست سریع می‌توان از SQLite و اجرای هم‌زمان Taskها استفاده کرد:
+Python 3.12، PostgreSQL و Redis مسیر مرجع هستند. SQLite فقط برای توسعه سریع و تست‌هایی که به locking واقعی نیاز ندارند مناسب است.
 
 ```bash
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements/dev.txt
+
 export DJANGO_SETTINGS_MODULE=config.settings.development
 export DATABASE_URL=sqlite:///db.sqlite3
 export USE_S3=false
 export CELERY_TASK_ALWAYS_EAGER=true
 export DJANGO_SECRET_KEY="development-only-secret"
+
 python manage.py migrate
 python manage.py generate_import_templates
 python manage.py runserver
 ```
 
-## احراز هویت و انتخاب شعبه
+## احراز هویت و Scope درخواست
 
-ورود:
+ورود با username یا email انجام می‌شود:
 
 ```http
 POST /api/v1/auth/token/
@@ -71,48 +73,54 @@ Content-Type: application/json
 {"username":"teacher1","password":"..."}
 ```
 
-در درخواست‌های چندشعبه‌ای، شعبه فعال با هدر زیر انتخاب می‌شود:
+در درخواست‌های چندشعبه‌ای:
 
 ```http
 Authorization: Bearer <access-token>
 X-School-ID: <school-uuid>
 ```
 
-در خواندن، نبود هدر Query را به مجموع شعب مجاز کاربر محدود می‌کند. در نوشتن، کاربر غیر از
-`system_admin` باید `X-School-ID` یا `X-Organization-ID` صریح بفرستد. UUID نامعتبر، حوزه
-غیرمجاز، هدرهای متعارض و تفاوت حوزه هدر با شیء مقصد پاسخ 403 می‌گیرند. محدودسازی فقط در UI
-نیست؛ QuerySet، Serializer، Object Permission و Service همگی محدوده را بررسی می‌کنند.
+برای منابع مجموعه‌ای می‌توان از `X-Organization-ID` استفاده کرد. در خواندن، نبود هدر، Query را به کل حوزه مجاز کاربر محدود می‌کند. در نوشتن، کاربر غیر از `system_admin` باید Scope صریح بفرستد. UUID نامعتبر، حوزه غیرمجاز، هدرهای متعارض یا تفاوت Scope هدر با شیء مقصد پاسخ 403 می‌گیرند.
 
-## دستورات کنترل کیفیت
+## کنترل کیفیت
 
 ```bash
 ruff check .
+ruff format --check .
 python manage.py check
 python manage.py makemigrations --check --dry-run
-./scripts/generate_openapi.sh
 pytest --cov=hamamooz --cov-report=term-missing
+./scripts/generate_openapi.sh build/openapi.yaml
 ```
 
-نتیجه قطعی تست باید در محیط نصب‌شده با `pytest` ثبت شود. تست رقابت قفل ردیف فقط روی PostgreSQL اجرا می‌شود؛ SQLite برای آن مرجع معتبر نیست.
+تست‌های `select_for_update` و سناریوهای رقابت هم‌زمان باید روی PostgreSQL اجرا شوند. اجرای SQLite برای اثبات رفتار locking معتبر نیست.
 
-برای Production از نمونه fail-closed استفاده کنید و تمام placeholderها را جایگزین کنید:
+## قرارداد OpenAPI
+
+منبع حقیقت قرارداد API، Schema زنده `/api/v1/schema/` و خروجی تولیدشده با دستور زیر است:
 
 ```bash
-cp .env.production.example .env
-docker compose config
-docker compose up --build -d
+./scripts/generate_openapi.sh build/openapi.yaml
 ```
 
-## ساختار مستندات
+فایل‌های تاریخی `openapi.yaml` و `docs/openapi-schema.yml` ممکن است با کد جاری همگام نباشند و نباید بدون تولید مجدد مبنای Client قرار گیرند.
 
-- `docs/01-MVP_SCOPE_FA.md`: دامنه دقیق و وضعیت پیاده‌سازی
+## نقشه مستندات
+
+- `docs/00-INDEX_FA.md`: نمایه، منبع حقیقت و قواعد نگهداری مستندات
+- `docs/01-MVP_SCOPE_FA.md`: دامنه دقیق و وضعیت قابلیت‌ها
 - `docs/02-ARCHITECTURE_FA.md`: معماری، مرز ماژول‌ها و جریان‌ها
-- `docs/03-DATA_MODEL_FA.md`: مدل داده، قیود و فرمول محاسبات
-- `docs/04-API_FA.md`: راهنمای Endpointها و نمونه درخواست
-- `docs/05-SECURITY_FA.md`: RBAC، Tenant isolation و کنترل‌های امنیتی
-- `docs/06-OPERATIONS_FA.md`: استقرار، Workerها، بکاپ و بازیابی
-- `docs/07-TESTING_FA.md`: راهبرد و نتیجه تست
-- `docs/08-DECISIONS_FA.md`: تصمیم‌های معماری و چرایی آنها
-- `docs/09-OFFLINE_DEPLOYMENT_FA.md`: انتقال به سرور فاقد دسترسی GitHub/سایت‌های خارجی
-- `docs/10-DELIVERY_MANIFEST_FA.md`: نقشه بسته، کنترل‌های نهایی و مرز آگاهانه MVP
-- `docs/import_templates/`: سه قالب ثابت XLSX قابل استفاده
+- `docs/03-DATA_MODEL_FA.md`: مدل داده، قیود، state machine و محاسبات
+- `docs/04-API_FA.md`: راهنمای Endpointها، Scope و نمونه درخواست
+- `docs/05-SECURITY_FA.md`: RBAC، tenant isolation و کنترل‌های امنیتی
+- `docs/06-OPERATIONS_FA.md`: استقرار، Workerها، بکاپ، بازیابی و مانیتورینگ
+- `docs/07-TESTING_FA.md`: راهبرد تست و کنترل کیفیت
+- `docs/08-DECISIONS_FA.md`: تصمیم‌های معماری و چرایی آن‌ها
+- `docs/09-OFFLINE_DEPLOYMENT_FA.md`: استقرار در شبکه محدود
+- `docs/10-DELIVERY_MANIFEST_FA.md`: نقشه بسته و کنترل تحویل
+- `docs/11-CONFIGURATION_FA.md`: مرجع متغیرهای محیطی
+- `docs/12-DEVELOPMENT_FA.md`: راهنمای توسعه و افزودن قابلیت
+- `docs/13-RUNBOOK_FA.md`: Runbook خطاها و عملیات نگهداری
+- `docs/14-BACKEND_REVIEW_FA.md`: نتیجه بازبینی Backend و ریسک‌های باقی‌مانده
+- `docs/API_REFERENCE_FA.md`: مرجع تفصیلی حضور و غیاب
+- `docs/import_templates/`: سه قالب ثابت XLSX

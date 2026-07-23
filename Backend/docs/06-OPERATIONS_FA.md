@@ -1,86 +1,176 @@
 # استقرار و عملیات
 
-## سرویس‌ها
+## سرویس‌های Compose
 
-| سرویس | نقش |
-|---|---|
-| `web` | Gunicorn + Django API |
-| `worker` | Celery برای Import، PDF و محاسبات |
-| `db` | PostgreSQL 17 |
-| `redis` | Broker، Result backend و Cache |
-| `minio` | Object Storage خصوصی |
-| `minio-init` | ساخت Bucket، فعال‌سازی Versioning و بستن Anonymous access |
-| `backup` | اجرای دوره‌ای pg_dump و Retention |
+| سرویس | نقش | همیشه فعال |
+|---|---|---:|
+| `release` | Migration و collectstatic یک‌بارمصرف | بله |
+| `web` | Gunicorn + Django API | بله |
+| `gateway` | Nginx، static و media محلی | بله |
+| `worker` | Celery queueها | بله |
+| `beat` | Scheduler هشدار Attendance | بله |
+| `db` | PostgreSQL 17 | بله |
+| `redis-cache` | Cache با `allkeys-lru` | بله |
+| `redis-broker` | Broker/Result با AOF و `noeviction` | بله |
+| `minio`, `minio-init` | Object storage خصوصی | فقط profile `s3` |
+| `backup-db` | pg_dump دوره‌ای | بله |
+| `backup-media` | archive رسانه محلی | بله |
+| `backup-storage` | mirror bucket | فقط profile `s3` |
 
-Compose فعلی برای سرور ۴ vCPU و ۸ GB RAM محافظه‌کارانه تنظیم شده است: Web با ۳ Worker و ۲ Thread، Celery با concurrency=2 و Redis با سقف ۵۱۲ MB. قبل از تغییر این اعداد، Load Test انجام شود.
+Web با ۳ Worker و ۲ Thread و Celery با concurrency=2 شروع می‌شود. این اعداد baseline هستند و باید با Load test مقصد تنظیم شوند.
 
-## Production checklist
+## راه‌اندازی
 
-```text
-[ ] DJANGO_SETTINGS_MODULE=config.settings.production
-[ ] DJANGO_SECRET_KEY تصادفی و خارج از Git
-[ ] تمام passwordهای نمونه تغییر کرده‌اند
-[ ] ALLOWED_HOSTS/CORS/CSRF محدود شده‌اند
-[ ] TLS فعال و SECURE_SSL_REDIRECT=true
-[ ] MinIO و PostgreSQL پورت عمومی ندارند
-[ ] SENTRY_DSN یا سامانه مانیتورینگ تنظیم شده
-[ ] بکاپ خارج Host کپی می‌شود
-[ ] Restore روی محیط جدا تست شده
-[ ] seed_demo با Credential موقت اجرا/مدیر تغییر داده شده
-[ ] OpenAPI و تست‌ها در CI موفق‌اند
-[ ] `.env.production.example` مبنا بوده و تمام placeholderها جایگزین شده‌اند
+FileSystem محلی:
+
+```bash
+cp .env.example .env
+# USE_S3=false
+docker compose up --build -d
 ```
 
-## Migration
+MinIO/S3 profile:
 
-Entry point قبل از Start وب `migrate --noinput` و `collectstatic` را اجرا می‌کند. برای استقرار چند Instance، Migration باید به Job جداگانه Deployment منتقل شود تا هم‌زمان روی چند Container اجرا نشود.
+```bash
+# USE_S3=true و AWS_* کامل
+docker compose --profile s3 up --build -d
+```
+
+وضعیت:
+
+```bash
+docker compose ps
+docker compose logs -f release web worker beat gateway
+curl -fsS http://localhost:8000/api/v1/health/live/
+curl -fsS http://localhost:8000/api/v1/health/ready/
+```
+
+## Migration و Release
+
+`entrypoint.sh` فقط command را اجرا می‌کند و Migration داخل web/worker نیست. سرویس `release` قبل از سایر سرویس‌های برنامه این دو دستور را اجرا می‌کند:
+
+```bash
+python manage.py migrate --noinput
+python manage.py collectstatic --noinput
+```
+
+برای استقرار orchestrated، همین رفتار باید به Job یک‌بارمصرف منتقل شود. اجرای هم‌زمان Migration در چند Replica ممنوع است.
+
+## Queueها و Scheduler
+
+Worker Queueهای زیر را مصرف می‌کند:
+
+```text
+default, imports, reports, calculations, notifications
+```
+
+Beat فقط `evaluate-attendance-alerts-daily` را بر اساس ساعت و دقیقه تنظیم‌شده اجرا می‌کند. این عملیات باید جداگانه Schedule شوند:
+
+```bash
+python manage.py dispatch_attendance_notifications --limit 100
+python manage.py purge_expired_files --apply
+```
+
+برای آن‌ها CronJob، systemd timer یا scheduler پلتفرم تعریف کنید.
+
+## Health
+
+- Liveness فقط زنده بودن Process را بررسی می‌کند.
+- Readiness اتصال DB و Cache را بررسی می‌کند؛ Storage در تنظیم پایه فعال است.
+- Production بررسی Broker و Storage را اجباری می‌کند.
+- شکست readiness باید ترافیک را از Replica خارج کند، نه اینکه Container را الزاماً restart کند.
 
 ## بکاپ
 
-سرویس `backup` هر `BACKUP_INTERVAL_SECONDS` ثانیه یک Custom-format dump و SHA-256 می‌سازد و فایل‌های قدیمی‌تر از `BACKUP_RETENTION_DAYS` را حذف می‌کند.
+### دیتابیس
 
-اجرای دستی:
-
-```bash
-docker compose exec backup /scripts/backup_postgres.sh
-```
-
-نمایش Volume بکاپ:
+`backup-db` هر `BACKUP_INTERVAL_SECONDS` یک dump فرمت custom و SHA-256 می‌سازد و فایل‌های قدیمی‌تر از `BACKUP_RETENTION_DAYS` را حذف می‌کند.
 
 ```bash
-docker volume inspect hamamooz-mvp_backup_data
+docker compose exec backup-db /scripts/backup_postgres.sh
 ```
 
-Restore باید روی DB خالی/آزمایشی انجام شود:
+### رسانه محلی
+
+`backup-media` از volume رسانه archive فشرده و checksum می‌سازد.
+
+### S3/MinIO
+
+`backup-storage` bucket را در مسیر timestampدار mirror می‌کند. Versioning bucket فعال است، اما mirror محلی جای off-host backup را نمی‌گیرد.
+
+### بازیابی دیتابیس
+
+روی محیط آزمایشی یا Change Window:
 
 ```bash
 export PGHOST=...
 export PGDATABASE=...
 export PGUSER=...
 export PGPASSWORD=...
-./scripts/restore_postgres.sh /path/hamamooz_YYYYMMDDTHHMMSSZ.dump
+./scripts/restore_postgres.sh /path/hamamooz_TIMESTAMP.dump
 ```
 
-اسکریپت در صورت وجود فایل checksum آن را قبل از Restore کنترل می‌کند. اجرای Restore روی Production داده فعلی را Clean می‌کند و باید در Change Window انجام شود.
+اسکریپت checksum را در صورت وجود کنترل و سپس `pg_restore --clean --if-exists` اجرا می‌کند؛ داده فعلی مقصد تغییر می‌کند.
+
+### بازیابی رسانه
+
+```bash
+export MEDIA_TARGET_DIR=/media
+./scripts/restore_media.sh /path/hamamooz_media_TIMESTAMP.tar.gz
+```
+
+Restore drill باید دوره‌ای اجرا و RPO/RTO واقعی ثبت شود.
+
+## Retention فایل
+
+| نوع | متغیر پیش‌فرض |
+|---|---:|
+| Import source | `IMPORT_FILE_RETENTION_DAYS=90` |
+| Report PDF | `REPORT_FILE_RETENTION_DAYS=365` |
+| Attendance evidence | `EVIDENCE_FILE_RETENTION_DAYS=730` |
+
+ابتدا dry-run:
+
+```bash
+python manage.py purge_expired_files
+```
+
+سپس:
+
+```bash
+python manage.py purge_expired_files --apply
+```
 
 ## مانیتورینگ
 
-- `/health/live/`: فقط زنده‌بودن Process
-- `/health/ready/`: اتصال DB و Cache؛ در شکست HTTP 503
-- JSON log: timestamp، level، logger، message و Request ID
-- Sentry اختیاری و بدون `send_default_pii`
-- Celery worker healthcheck با `inspect ping`
+حداقل alertها:
 
-شاخص‌های پیشنهادی برای مرحله بعد: latency p95، نرخ 5xx، Queue depth، زمان PDF، زمان Import، تعداد Connection DB، Slow query و درصد Assessmentهای ناقص.
+- نرخ 5xx و 429
+- latency p50/p95/p99
+- readiness failure
+- Queue depth و oldest message age
+- task retry/failure/dead-letter
+- زمان Import و PDF
+- Connection و slow query PostgreSQL
+- فضای DB، backup volume و object storage
+- عمر آخرین backup موفق
+- تعداد Assessment ناقص و Attendance session نهایی‌نشده
 
-## مقیاس و Performance
+JSON log شامل timestamp، level، logger، message و Request ID است. Metrics exporter در MVP وجود ندارد و باید در زیرساخت افزوده شود.
 
-- Pagination تا سقف ۲۰۰ رکورد از بار حافظه جلوگیری می‌کند.
-- Indexهای ترکیبی روی Enrollment، Assessment، Score، Result و Audit قرار دارند.
-- Queryهای پرتکرار `select_related/prefetch_related` دارند.
-- گزارش و Import در Worker انجام می‌شوند.
-- در ۲ تا ۴ هزار دانش‌آموز نیازی به Microservice یا Read replica نیست.
+## Production checklist
 
-تست خودکار Import تعداد ۲۰۰۰ دانش‌آموز را پوشش می‌دهد و CI رقابت هم‌زمان روی آخرین ظرفیت
-کلاس را با قفل سطری PostgreSQL بررسی می‌کند. برای Load Test کامل هنوز باید سناریوی ۱۳ شعبه،
-ثبت نمره هم‌زمان دبیران، گزارش گروهی و Import روی سخت‌افزار مقصد اجرا شود.
+```text
+[ ] DJANGO_SETTINGS_MODULE=config.settings.production
+[ ] Secretها و passwordهای نمونه جایگزین شده‌اند
+[ ] ALLOWED_HOSTS/CORS/CSRF محدود هستند
+[ ] TLS واقعی فعال و SECURE_SSL_REDIRECT=true است
+[ ] DB/Redis/MinIO مستقیم منتشر نشده‌اند
+[ ] SMTP/SMS/S3 واقعی و تست‌شده‌اند
+[ ] release job فقط یک‌بار اجرا می‌شود
+[ ] backup off-host و رمزگذاری‌شده است
+[ ] restore drill موفق ثبت شده است
+[ ] scheduler پاک‌سازی و notification recovery فعال است
+[ ] OpenAPI از همان Commit تولید و validate شده است
+[ ] تست‌ها روی PostgreSQL موفق‌اند
+```

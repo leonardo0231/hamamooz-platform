@@ -1,25 +1,30 @@
-# API Inventory
+# API Inventory (Legacy Pointer)
 
-All routes are under `/api/v1/`.
+این فایل قبلاً Inventory مرحله ابتدایی پروژه بود و مسیرهایی مانند `auth/login/` و `health/` را نشان می‌داد که با API جاری سازگار نیستند.
 
-## Implemented in Slice 0
+برای قرارداد فعلی از منابع زیر استفاده کنید:
 
-| Method | URL | Authentication | Purpose |
-|---|---|---|---|
-| POST | `/auth/login/` | Public | Obtain access and refresh JWTs |
-| POST | `/auth/refresh/` | Refresh token | Rotate refresh token |
-| POST | `/auth/verify/` | Token payload | Verify JWT |
-| POST | `/auth/logout/` | Bearer JWT | Blacklist refresh token |
-| GET | `/auth/me/` | Bearer JWT | Current user profile |
-| POST | `/auth/change-password/` | Bearer JWT | Change current password |
-| GET | `/health/` | Public | Liveness probe |
-| GET | `/readiness/` | Public | Database/cache readiness |
-| GET | `/schema/` | Public | OpenAPI schema |
-| GET | `/docs/` | Public | Swagger UI |
-| GET | `/redoc/` | Public | ReDoc |
+1. Schema زنده: `/api/v1/schema/`
+2. Swagger: `/api/v1/docs/`
+3. ReDoc: `/api/v1/redoc/`
+4. راهنمای فارسی: `04-API_FA.md`
+5. مرجع Attendance: `API_REFERENCE_FA.md`
 
-## Planned MVP route groups
+Artifact قابل تحویل باید از همان Commit تولید شود:
 
-`users`, `roles`, `memberships`, `organizations`, `schools`, `academic-years`, `terms`, `grade-levels`, `class-sections`, `students`, `guardians`, `enrollments`, `subjects`, `grade-subjects`, `course-offerings`, `teacher-assignments`, `assessment-types`, `assessments`, `scores`, `calculations`, `imports`, `reports`, `dashboard-metrics`, and `audit-logs`.
+```bash
+./scripts/generate_openapi.sh build/openapi.yaml
+```
 
-Sensitive workflow transitions will use explicit action endpoints rather than generic updates.
+فهرست کلی Resourceهای جاری:
+
+```text
+organizations, schools, academic-years, terms, grade-levels, classes
+users, role-assignments
+students, guardians, enrollments
+subjects, grade-subjects, course-offerings
+assessment-types, assessments, scores, calculation-policies
+attendance-sessions, attendance-records, attendance-policies
+attendance-alerts, parent-notifications, attendance-reports
+imports, reports, dashboard
+```

@@ -1,9 +1,30 @@
 # OpenAPI
 
-منبع قرارداد API، schema پویای drf-spectacular در `/api/v1/schema/` است. فایل static قدیمی حذف شده تا contract منسوخ در repository باقی نماند.
+منبع حقیقت قرارداد API، endpoint زیر در Runtime همان Commit است:
 
-```bash
-./scripts/generate_openapi.sh
+```text
+/api/v1/schema/
 ```
 
-خروجی پیش‌فرض در `build/openapi.yaml` قرار می‌گیرد و در CI باید با `--validate` تولید شود.
+UIها:
+
+```text
+/api/v1/docs/
+/api/v1/redoc/
+```
+
+تولید و اعتبارسنجی artifact:
+
+```bash
+./scripts/generate_openapi.sh build/openapi.yaml
+```
+
+فایل‌های `openapi.yaml` و `docs/openapi-schema.yml` که در تاریخچه شاخه وجود دارند، تا زمان تولید مجدد از همان Commit canonical نیستند. Client generation و contract test باید فقط از `build/openapi.yaml` تازه یا Schema زنده استفاده کنند.
+
+کنترل پیشنهادی CI:
+
+```bash
+python manage.py spectacular --api-version v1 \
+  --file build/openapi.yaml --validate
+git diff --exit-code -- build/openapi.yaml
+```

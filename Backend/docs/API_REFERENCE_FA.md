@@ -11,6 +11,7 @@
 | GET | `attendance-sessions/{id}/roster/` | roster کلاس همراه رکوردهای فعلی |
 | POST | `attendance-sessions/{id}/bulk-mark/` | ثبت یا اصلاح گروهی draft |
 | POST | `attendance-sessions/{id}/finalize/` | نهایی‌سازی پس از تکمیل roster |
+| POST | `attendance-sessions/{id}/cancel/` | لغو جلسه و خارج‌کردن از گزارش‌های فعال |
 
 نمونه جلسه روزانه:
 
