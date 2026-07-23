@@ -121,6 +121,19 @@ class CourseOfferingSerializer(ScopedCleanSerializer):
             accessible_school_ids(self.context["request"].user)
         ):
             raise serializers.ValidationError("به شعبه این کلاس دسترسی ندارید.")
+        if self.instance:
+            structural = {"class_section", "grade_subject", "term"}
+            changed = {
+                field
+                for field in structural
+                if field in attrs and attrs[field] != getattr(self.instance, field)
+            }
+            if changed and (
+                self.instance.assessments.exists() or self.instance.attendance_sessions.exists()
+            ):
+                raise serializers.ValidationError(
+                    "کلاس، درس و نوبتِ ارائه دارای سابقه قابل تغییر نیستند."
+                )
         teacher = attrs.get("teacher", getattr(self.instance, "teacher", None))
         if class_section and teacher:
             from hamamooz.apps.accounts.models import Role, RoleAssignment
@@ -250,6 +263,15 @@ class AssessmentSerializer(ScopedCleanSerializer):
                 raise serializers.ValidationError(
                     "دبیر فقط برای درس‌های خودش می‌تواند ارزیابی بسازد."
                 )
+        if self.instance and self.instance.scores.exists():
+            structural = {"course_offering", "assessment_type", "max_score"}
+            changed = {
+                field
+                for field in structural
+                if field in attrs and attrs[field] != getattr(self.instance, field)
+            }
+            if changed:
+                raise serializers.ValidationError("ساختار ارزیابی پس از ثبت نمره قابل تغییر نیست.")
         if self.instance and self.instance.status not in [
             Assessment.Status.DRAFT,
             Assessment.Status.REJECTED,
@@ -298,6 +320,21 @@ class CorrectLockedScoreSerializer(serializers.Serializer):
 
 
 class CalculationPolicySerializer(ScopedCleanSerializer):
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if self.instance:
+            immutable = {"organization", "academic_year", "grade_level", "version"}
+            changed = {
+                field
+                for field in immutable
+                if field in attrs and attrs[field] != getattr(self.instance, field)
+            }
+            if changed:
+                raise serializers.ValidationError(
+                    "دامنه و نسخه سیاست محاسبه پس از ایجاد قابل تغییر نیست."
+                )
+        return attrs
+
     class Meta:
         model = CalculationPolicy
         fields = "__all__"

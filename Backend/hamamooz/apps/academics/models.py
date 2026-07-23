@@ -352,6 +352,46 @@ class CalculationPolicy(SoftDeleteModel):
                 ),
                 name="uq_calc_policy_full_version",
             ),
+            models.UniqueConstraint(
+                fields=["organization"],
+                condition=models.Q(
+                    academic_year__isnull=True,
+                    grade_level__isnull=True,
+                    is_active=True,
+                    is_deleted=False,
+                ),
+                name="uq_active_calc_policy_org_scope",
+            ),
+            models.UniqueConstraint(
+                fields=["organization", "academic_year"],
+                condition=models.Q(
+                    academic_year__isnull=False,
+                    grade_level__isnull=True,
+                    is_active=True,
+                    is_deleted=False,
+                ),
+                name="uq_active_calc_policy_year_scope",
+            ),
+            models.UniqueConstraint(
+                fields=["organization", "grade_level"],
+                condition=models.Q(
+                    academic_year__isnull=True,
+                    grade_level__isnull=False,
+                    is_active=True,
+                    is_deleted=False,
+                ),
+                name="uq_active_calc_policy_grade_scope",
+            ),
+            models.UniqueConstraint(
+                fields=["organization", "academic_year", "grade_level"],
+                condition=models.Q(
+                    academic_year__isnull=False,
+                    grade_level__isnull=False,
+                    is_active=True,
+                    is_deleted=False,
+                ),
+                name="uq_active_calc_policy_full_scope",
+            ),
         ]
 
     def clean(self):
@@ -362,6 +402,17 @@ class CalculationPolicy(SoftDeleteModel):
             errors["grade_level"] = "پایه متعلق به مجموعه سیاست نیست."
         if self.decimal_places > 4:
             errors["decimal_places"] = "حداکثر چهار رقم اعشار مجاز است."
+        if self.is_active and self.organization_id:
+            duplicate = CalculationPolicy.objects.filter(
+                organization_id=self.organization_id,
+                academic_year_id=self.academic_year_id,
+                grade_level_id=self.grade_level_id,
+                is_active=True,
+            )
+            if self.pk:
+                duplicate = duplicate.exclude(pk=self.pk)
+            if duplicate.exists():
+                errors["is_active"] = "برای این محدوده یک سیاست محاسبه فعال وجود دارد."
         if errors:
             raise ValidationError(errors)
 

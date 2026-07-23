@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -61,23 +62,24 @@ class StudentViewSet(AuditedModelViewSet):
         student = self.get_object()
         serializer = LinkGuardianSerializer(data=request.data, context={"student": student})
         serializer.is_valid(raise_exception=True)
-        link, created = StudentGuardian.objects.update_or_create(
-            student=student,
-            guardian=serializer.validated_data["guardian"],
-            defaults={
-                "relationship": serializer.validated_data["relationship"],
-                "is_primary": serializer.validated_data["is_primary"],
-                "can_pick_up": serializer.validated_data["can_pick_up"],
-            },
-        )
-        record_audit(
-            action="student.guardian_linked",
-            actor=request.user,
-            request=request,
-            entity=student,
-            organization_id=student.organization_id,
-            changes={"guardian_id": str(link.guardian_id), "created": created},
-        )
+        with transaction.atomic():
+            link, created = StudentGuardian.objects.update_or_create(
+                student=student,
+                guardian=serializer.validated_data["guardian"],
+                defaults={
+                    "relationship": serializer.validated_data["relationship"],
+                    "is_primary": serializer.validated_data["is_primary"],
+                    "can_pick_up": serializer.validated_data["can_pick_up"],
+                },
+            )
+            record_audit(
+                action="student.guardian_linked",
+                actor=request.user,
+                request=request,
+                entity=student,
+                organization_id=student.organization_id,
+                changes={"guardian_id": str(link.guardian_id), "created": created},
+            )
         return Response(
             StudentSerializer(student).data, status=status.HTTP_201_CREATED if created else 200
         )
@@ -103,6 +105,7 @@ class GuardianViewSet(AuditedModelViewSet):
 
 class EnrollmentViewSet(AuditedModelViewSet):
     queryset = Enrollment.objects.none()
+    http_method_names = ["get", "post", "head", "options"]
     serializer_class = EnrollmentSerializer
     search_fields = [
         "student__national_id",
@@ -115,9 +118,6 @@ class EnrollmentViewSet(AuditedModelViewSet):
         action: STUDENT_WRITERS
         for action in [
             "create",
-            "update",
-            "partial_update",
-            "destroy",
             "change_class",
             "transfer",
             "change_status",
@@ -138,19 +138,22 @@ class EnrollmentViewSet(AuditedModelViewSet):
         enrollment = self.get_object()
         serializer = ChangeClassSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        updated = change_class(
-            enrollment=enrollment,
-            new_class=serializer.validated_data["class_section"],
-            reason=serializer.validated_data["reason"],
-            actor=request.user,
-        )
-        record_audit(
-            action="enrollment.class_changed",
-            actor=request.user,
-            request=request,
-            entity=updated,
-            school_id=updated.school_id,
-        )
+        with transaction.atomic():
+            updated = change_class(
+                enrollment=enrollment,
+                new_class=serializer.validated_data["class_section"],
+                reason=serializer.validated_data["reason"],
+                effective_date=serializer.validated_data.get("effective_date"),
+                actor=request.user,
+            )
+            record_audit(
+                action="enrollment.class_changed",
+                actor=request.user,
+                request=request,
+                entity=updated,
+                school_id=updated.school_id,
+                changes={"from_enrollment_id": str(enrollment.id)},
+            )
         return Response(self.get_serializer(updated).data)
 
     @action(detail=True, methods=["post"])
@@ -166,18 +169,19 @@ class EnrollmentViewSet(AuditedModelViewSet):
             school_id=target_school.id,
         ):
             self.permission_denied(request, "در شعبه مقصد مجوز ثبت‌نام ندارید.")
-        target = transfer_enrollment(
-            enrollment=enrollment, actor=request.user, **serializer.validated_data
-        )
-        record_audit(
-            action="enrollment.transferred",
-            actor=request.user,
-            request=request,
-            entity=target,
-            organization_id=target.student.organization_id,
-            school_id=target.school_id,
-            changes={"from_enrollment_id": str(enrollment.id)},
-        )
+        with transaction.atomic():
+            target = transfer_enrollment(
+                enrollment=enrollment, actor=request.user, **serializer.validated_data
+            )
+            record_audit(
+                action="enrollment.transferred",
+                actor=request.user,
+                request=request,
+                entity=target,
+                organization_id=target.student.organization_id,
+                school_id=target.school_id,
+                changes={"from_enrollment_id": str(enrollment.id)},
+            )
         return Response(self.get_serializer(target).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path="change-status")
@@ -185,18 +189,19 @@ class EnrollmentViewSet(AuditedModelViewSet):
         enrollment = self.get_object()
         serializer = ChangeEnrollmentStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        updated = change_status(
-            enrollment=enrollment,
-            new_status=serializer.validated_data["status"],
-            date=serializer.validated_data["date"],
-            reason=serializer.validated_data["reason"],
-            actor=request.user,
-        )
-        record_audit(
-            action="enrollment.status_changed",
-            actor=request.user,
-            request=request,
-            entity=updated,
-            school_id=updated.school_id,
-        )
+        with transaction.atomic():
+            updated = change_status(
+                enrollment=enrollment,
+                new_status=serializer.validated_data["status"],
+                date=serializer.validated_data["date"],
+                reason=serializer.validated_data["reason"],
+                actor=request.user,
+            )
+            record_audit(
+                action="enrollment.status_changed",
+                actor=request.user,
+                request=request,
+                entity=updated,
+                school_id=updated.school_id,
+            )
         return Response(self.get_serializer(updated).data)

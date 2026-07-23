@@ -1,43 +1,23 @@
-# فایل‌های خارج از ماژول که باید تغییر کنند
+# نقشه یکپارچه‌سازی ماژول Attendance
 
-## الزامی
+ماژول attendance اکنون بخشی از Backend اصلی است و فایل «خارج از ماژول» برای نصب دستی وجود ندارد.
+نقاط اتصال فعال عبارت‌اند از:
 
-### `Backend/config/settings/base.py`
+- `config/settings/base.py`: ثبت app، routeهای Celery، Beat و تنظیمات notification.
+- `config/api_urls.py`: routeهای session، record، policy، alert، notification و report.
+- `.env.example` و `.env.production.example`: محدودیت فایل، retry، alert و backendهای ارسال.
+- `docker-compose.yml`: queue اعلان و Celery Beat.
+- `tests/test_attendance.py`: workflowهای اصلی حضور و غیاب و رفتارهای تاریخ‌مند.
+- migrationهای `attendance/0001` و `attendance/0002`.
 
-- افزودن `hamamooz.apps.attendance` به `INSTALLED_APPS`.
-- route کردن task اعلان‌ها و هشدارها.
-- تنظیم اندازه مدرک، async notification، SMS backend و زمان هشدار.
-- Celery Beat schedule.
-- تنظیمات SMTP ایمیل.
+مسیر canonical ماژول:
 
-### `Backend/config/api_urls.py`
+```text
+Backend/hamamooz/apps/attendance
+```
 
-- import شش ViewSet ماژول.
-- ثبت شش route در `DefaultRouter`.
+مسیر legacy زیر نباید وجود داشته باشد:
 
-## الزامی برای deployment Docker
-
-### `Backend/docker-compose.yml`
-
-- افزودن queue `notifications` به worker.
-- افزودن سرویس Celery Beat برای محاسبه خودکار هشدارها.
-
-## پیکربندی
-
-### `Backend/.env.example`
-
-- متغیرهای attendance و SMTP.
-
-## تست جدید
-
-### `Backend/tests/test_attendance_api.py`
-
-- تست API، workflow، گزارش، alert، tenant scope، evidence و notification.
-
-## فایل‌هایی که نیاز به تغییر ندارند
-
-- `Backend/config/celery.py`: از قبل `autodiscover_tasks()` دارد.
-- `Backend/hamamooz/apps/core/tenancy.py`: مدل‌ها propertyهای `school_id` و `organization_id` لازم را ارائه می‌کنند.
-- `Backend/pyproject.toml`: dependency جدیدی اضافه نشده است.
-- تمام Frontend.
-- تمام GitHub Actions/workflows.
+```text
+Backend/apps/attendance
+```

@@ -15,13 +15,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     shared-mime-info \
     && rm -rf /var/lib/apt/lists/*
 
+RUN groupadd --system --gid 10001 hamamooz \
+    && useradd --system --uid 10001 --gid hamamooz --home-dir /app --shell /usr/sbin/nologin hamamooz
+
 WORKDIR /app
 
 COPY requirements/production.txt requirements/base.txt /app/requirements/
 RUN pip install --upgrade pip && pip install -r requirements/production.txt
 
 COPY . /app
-RUN chmod +x /app/scripts/*.sh && mkdir -p /app/media /app/staticfiles
+RUN chmod +x /app/scripts/*.sh \
+    && mkdir -p /app/media /app/staticfiles \
+    && chown -R hamamooz:hamamooz /app
+
+USER hamamooz
 
 EXPOSE 8000
 ENTRYPOINT ["/app/scripts/entrypoint.sh"]

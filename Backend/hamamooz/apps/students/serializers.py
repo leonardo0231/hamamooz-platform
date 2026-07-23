@@ -36,9 +36,18 @@ class StudentSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "full_name", "guardians", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "full_name",
+            "status",
+            "guardians",
+            "created_at",
+            "updated_at",
+        ]
 
     def validate_organization(self, value):
+        if self.instance and value.pk != self.instance.organization_id:
+            raise serializers.ValidationError("مجموعه دانش‌آموز پس از ایجاد قابل تغییر نیست.")
         request = self.context.get("request")
         if request and value.id not in set(accessible_organization_ids(request.user)):
             raise serializers.ValidationError("به این مجموعه دسترسی ندارید.")
@@ -69,6 +78,8 @@ class GuardianSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "full_name", "students", "created_at", "updated_at"]
 
     def validate_organization(self, value):
+        if self.instance and value.pk != self.instance.organization_id:
+            raise serializers.ValidationError("مجموعه ولی پس از ایجاد قابل تغییر نیست.")
         request = self.context.get("request")
         if request and value.id not in set(accessible_organization_ids(request.user)):
             raise serializers.ValidationError("به این مجموعه دسترسی ندارید.")
@@ -124,7 +135,17 @@ class EnrollmentSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if self.instance:
-            protected = {"school", "academic_year", "grade_level", "class_section", "status"}
+            protected = {
+                "student",
+                "school",
+                "academic_year",
+                "grade_level",
+                "class_section",
+                "student_number",
+                "status",
+                "enrolled_on",
+                "left_on",
+            }
             changed = [
                 key
                 for key in protected
@@ -172,6 +193,7 @@ class ChangeClassSerializer(serializers.Serializer):
     class_section = serializers.PrimaryKeyRelatedField(
         queryset=Enrollment._meta.get_field("class_section").remote_field.model.objects.all()
     )
+    effective_date = serializers.DateField(required=False)
     reason = serializers.CharField(min_length=3)
 
 

@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "hamamooz-backend"
 version = "0.1.0"
@@ -50,7 +54,7 @@ fail_under = 78
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-exclude = ["*/migrations/*", "apps/**"]
+exclude = ["*/migrations/*"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
@@ -58,3 +62,8 @@ ignore = ["B008"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["config", "hamamooz"]
+
+
+[tool.setuptools.packages.find]
+include = ["config*", "hamamooz*"]
+exclude = ["tests*", "docs*", "docker*", "nginx*", "scripts*", "templates*"]

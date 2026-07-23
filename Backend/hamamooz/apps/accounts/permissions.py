@@ -44,7 +44,7 @@ class RolePermission(BasePermission):
             return True
         roles = getattr(view, "required_roles_by_action", {}).get(getattr(view, "action", ""))
         if not roles:
-            return True
+            return False
         if not selected_school and not organization:
             return is_system_admin(request.user)
         return user_has_role(
@@ -91,6 +91,8 @@ class RolePermission(BasePermission):
         if request.method in SAFE_METHODS:
             return True
         roles = getattr(view, "required_roles_by_action", {}).get(getattr(view, "action", ""))
-        return not roles or user_has_role(
+        if not roles:
+            return False
+        return user_has_role(
             request.user, roles, organization_id=organization_id, school_id=school_id
         )

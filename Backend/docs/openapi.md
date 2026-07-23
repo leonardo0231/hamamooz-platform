@@ -1,9 +1,9 @@
 # OpenAPI
 
-Generate and validate the schema with:
+منبع قرارداد API، schema پویای drf-spectacular در `/api/v1/schema/` است. فایل static قدیمی حذف شده تا contract منسوخ در repository باقی نماند.
 
 ```bash
-make schema
+./scripts/generate_openapi.sh
 ```
 
-The generated contract is committed at `docs/openapi-schema.yml`. CI regenerates it and fails on drift. Swagger UI and ReDoc are served from the running backend. The schema is the API client contract and must be reviewed for request/response shapes, authentication, permissions, pagination and error examples before an endpoint is declared stable.
+خروجی پیش‌فرض در `build/openapi.yaml` قرار می‌گیرد و در CI باید با `--validate` تولید شود.

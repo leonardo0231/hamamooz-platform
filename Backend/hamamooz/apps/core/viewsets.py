@@ -3,6 +3,8 @@ from decimal import Decimal
 from uuid import UUID
 
 from django.db import transaction
+from django.db.models.deletion import ProtectedError
+from rest_framework.exceptions import ValidationError
 from rest_framework.viewsets import ModelViewSet
 
 from hamamooz.apps.accounts.permissions import RolePermission
@@ -14,7 +16,25 @@ from .tenancy import object_organization_id, object_school_id
 class AuditedModelViewSet(ModelViewSet):
     permission_classes = [RolePermission]
 
-    audit_sensitive_fields = {"password", "current_password", "new_password", "refresh"}
+    audit_sensitive_fields = {
+        "password",
+        "current_password",
+        "new_password",
+        "refresh",
+        "national_id",
+        "phone",
+        "phone_primary",
+        "phone_secondary",
+        "email",
+        "address",
+        "notes",
+        "note",
+        "reason",
+        "absence_reason",
+        "review_note",
+        "message",
+        "recipient",
+    }
 
     @staticmethod
     def _audit_value(value):
@@ -81,4 +101,9 @@ class AuditedModelViewSet(ModelViewSet):
                 organization_id=object_organization_id(instance),
                 school_id=object_school_id(instance),
             )
-            instance.delete()
+            try:
+                instance.delete()
+            except ProtectedError as exc:
+                raise ValidationError(
+                    {"detail": "این رکورد دارای داده‌های وابسته است و قابل حذف نیست."}
+                ) from exc

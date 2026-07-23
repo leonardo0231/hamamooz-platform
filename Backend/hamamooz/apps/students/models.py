@@ -148,8 +148,8 @@ class Enrollment(SoftDeleteModel):
             ),
             models.UniqueConstraint(
                 fields=["school", "academic_year", "student_number"],
-                condition=models.Q(is_deleted=False),
-                name="uq_student_number_school_year",
+                condition=models.Q(status="active", is_deleted=False),
+                name="uq_active_student_number_school_year",
             ),
         ]
         indexes = [
@@ -182,8 +182,18 @@ class Enrollment(SoftDeleteModel):
             errors["class_section"] = "کلاس متعلق به سال تحصیلی انتخاب‌شده نیست."
         elif self.class_section.grade_level_id != self.grade_level_id:
             errors["class_section"] = "کلاس متعلق به پایه انتخاب‌شده نیست."
+        if not (self.academic_year.starts_on <= self.enrolled_on <= self.academic_year.ends_on):
+            errors["enrolled_on"] = "تاریخ ثبت‌نام باید داخل بازه سال تحصیلی باشد."
         if self.left_on and self.left_on < self.enrolled_on:
             errors["left_on"] = "تاریخ خروج نمی‌تواند قبل از تاریخ ثبت‌نام باشد."
+        if self.left_on and not (
+            self.academic_year.starts_on <= self.left_on <= self.academic_year.ends_on
+        ):
+            errors["left_on"] = "تاریخ خروج باید داخل بازه سال تحصیلی باشد."
+        if self.status == self.Status.ACTIVE and self.left_on is not None:
+            errors["left_on"] = "ثبت‌نام فعال نباید تاریخ خروج داشته باشد."
+        if self.status != self.Status.ACTIVE and self.left_on is None:
+            errors["left_on"] = "برای ثبت‌نام خاتمه‌یافته تاریخ خروج الزامی است."
         if errors:
             raise ValidationError(errors)
 

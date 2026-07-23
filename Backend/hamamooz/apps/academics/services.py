@@ -1,6 +1,9 @@
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
+
+from hamamooz.apps.students.models import Enrollment
 
 from .models import Assessment, Score, ScoreRevision
 
@@ -14,10 +17,15 @@ def _lock_assessment(assessment):
 
 
 def validate_score_completeness(assessment):
+    assessment_date = assessment.assessment_date
     active_enrollment_ids = set(
-        assessment.course_offering.class_section.enrollments.filter(status="active").values_list(
-            "id", flat=True
+        Enrollment.all_objects.filter(
+            class_section=assessment.course_offering.class_section,
+            enrolled_on__lte=assessment_date,
+            is_deleted=False,
         )
+        .filter(Q(left_on__isnull=True) | Q(left_on__gte=assessment_date))
+        .values_list("id", flat=True)
     )
     entered_enrollment_ids = set(
         assessment.scores.exclude(status=Score.Status.NOT_ENTERED).values_list(
@@ -159,8 +167,13 @@ def bulk_upsert_scores(*, assessment, entries, actor):
         seen.add(enrollment.id)
         if enrollment.class_section_id != assessment.course_offering.class_section_id:
             raise ValidationError({"entries": f"دانش‌آموز {enrollment.id} عضو این کلاس نیست."})
-        if enrollment.status != enrollment.Status.ACTIVE:
-            raise ValidationError({"entries": f"ثبت‌نام دانش‌آموز {enrollment.id} فعال نیست."})
+        assessment_date = assessment.assessment_date
+        if enrollment.enrolled_on > assessment_date or (
+            enrollment.left_on is not None and enrollment.left_on < assessment_date
+        ):
+            raise ValidationError(
+                {"entries": f"ثبت‌نام دانش‌آموز {enrollment.id} در تاریخ ارزیابی فعال نبوده است."}
+            )
         results.append(
             _write_score(
                 assessment=assessment,

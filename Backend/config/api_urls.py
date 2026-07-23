@@ -11,6 +11,14 @@ from hamamooz.apps.academics.views import (
     SubjectViewSet,
 )
 from hamamooz.apps.accounts.views import RoleAssignmentViewSet, UserViewSet
+from hamamooz.apps.attendance.views import (
+    AttendanceAlertViewSet,
+    AttendancePolicyViewSet,
+    AttendanceRecordViewSet,
+    AttendanceReportViewSet,
+    AttendanceSessionViewSet,
+    ParentNotificationViewSet,
+)
 from hamamooz.apps.dashboard.views import DashboardSummaryView
 from hamamooz.apps.imports.views import ImportJobViewSet
 from hamamooz.apps.organizations.views import (
@@ -23,14 +31,6 @@ from hamamooz.apps.organizations.views import (
 )
 from hamamooz.apps.reports.views import ReportArchiveViewSet
 from hamamooz.apps.students.views import EnrollmentViewSet, GuardianViewSet, StudentViewSet
-from hamamooz.apps.attendance.views import (
-    AttendanceAlertViewSet,
-    AttendancePolicyViewSet,
-    AttendanceRecordViewSet,
-    AttendanceReportViewSet,
-    AttendanceSessionViewSet,
-    ParentNotificationViewSet,
-)
 
 router = DefaultRouter()
 router.register("organizations", OrganizationViewSet, basename="organization")
@@ -51,15 +51,9 @@ router.register("assessment-types", AssessmentTypeViewSet, basename="assessment-
 router.register("assessments", AssessmentViewSet, basename="assessment")
 router.register("scores", ScoreViewSet, basename="score")
 router.register("calculation-policies", CalculationPolicyViewSet, basename="calculation-policy")
-router.register(
-    "attendance-sessions", AttendanceSessionViewSet, basename="attendance-session"
-)
-router.register(
-    "attendance-records", AttendanceRecordViewSet, basename="attendance-record"
-)
-router.register(
-    "attendance-policies", AttendancePolicyViewSet, basename="attendance-policy"
-)
+router.register("attendance-sessions", AttendanceSessionViewSet, basename="attendance-session")
+router.register("attendance-records", AttendanceRecordViewSet, basename="attendance-record")
+router.register("attendance-policies", AttendancePolicyViewSet, basename="attendance-policy")
 router.register("attendance-alerts", AttendanceAlertViewSet, basename="attendance-alert")
 router.register("parent-notifications", ParentNotificationViewSet, basename="parent-notification")
 router.register("attendance-reports", AttendanceReportViewSet, basename="attendance-report")

@@ -15,8 +15,9 @@ The backend owns data modeling, business workflows, API security, imports, calcu
 7. Atomic Excel imports for students, enrollments and scores.
 8. RTL A4 individual and class PDF report cards with secure archive/download.
 9. Initial dashboard metrics and audit API.
-10. PostgreSQL, Redis, Celery, object storage, OpenAPI, Docker, CI, backup and restore verification.
+10. حضور و غیاب روزانه و زنگ، توجیه غیبت، هشدار و اعلان والدین.
+11. PostgreSQL، Redis، Celery، object storage، OpenAPI، Docker، CI، backup و restore verification.
 
 ## Explicitly outside MVP
 
-Attendance, behavior, cultural activities, soft skills, full counseling, parent/student panels, three-year analytics, advanced alerts, intelligent recommendations, Word, A3, user-designed reports, SMS and advanced cross-branch comparison.
+Behavior، فعالیت‌های فرهنگی، soft skills، مشاوره کامل، پنل مستقل والد/دانش‌آموز، تحلیل سه‌ساله، توصیه هوشمند، Word، A3 و گزارش‌ساز کاربرمحور. پیامک فقط از طریق backend قابل‌پیکربندی ارائه می‌شود.

@@ -1,9 +1,12 @@
+from datetime import timedelta
+
 from django.db import transaction
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from hamamooz.apps.organizations.models import ClassSection
 
-from .models import Enrollment, EnrollmentEvent
+from .models import Enrollment, EnrollmentEvent, Student
 
 
 def _locked_enrollment(enrollment):
@@ -30,6 +33,26 @@ def _ensure_capacity(class_section):
         raise ValidationError("ظرفیت کلاس تکمیل است.")
 
 
+def _sync_student_status(student):
+    if Enrollment.objects.filter(student=student, status=Enrollment.Status.ACTIVE).exists():
+        desired = Student.Status.ACTIVE
+    else:
+        latest = (
+            Enrollment.all_objects.filter(student=student, is_deleted=False)
+            .order_by("-left_on", "-updated_at")
+            .first()
+        )
+        mapping = {
+            Enrollment.Status.GRADUATED: Student.Status.GRADUATED,
+            Enrollment.Status.WITHDRAWN: Student.Status.WITHDRAWN,
+            Enrollment.Status.TRANSFERRED: Student.Status.TRANSFERRED,
+        }
+        desired = mapping.get(getattr(latest, "status", None), student.status)
+    if student.status != desired:
+        student.status = desired
+        student.save(update_fields=["status", "updated_at"])
+
+
 @transaction.atomic
 def create_enrollment(**validated_data):
     class_section = _locked_class(validated_data["class_section"])
@@ -38,11 +61,12 @@ def create_enrollment(**validated_data):
     enrollment = Enrollment(**validated_data)
     enrollment.full_clean()
     enrollment.save()
+    _sync_student_status(enrollment.student)
     return enrollment
 
 
 @transaction.atomic
-def change_class(*, enrollment, new_class, reason, actor):
+def change_class(*, enrollment, new_class, reason, actor, effective_date=None):
     enrollment = _locked_enrollment(enrollment)
     if enrollment.status != Enrollment.Status.ACTIVE:
         raise ValidationError("فقط ثبت‌نام فعال قابل تغییر کلاس است.")
@@ -56,19 +80,70 @@ def change_class(*, enrollment, new_class, reason, actor):
     if new_class.grade_level_id != enrollment.grade_level_id:
         raise ValidationError("پایه کلاس جدید متفاوت است.")
     _ensure_capacity(new_class)
+
+    effective_date = effective_date or max(timezone.localdate(), enrollment.enrolled_on)
+    if effective_date < enrollment.enrolled_on:
+        raise ValidationError({"effective_date": "تاریخ تغییر کلاس قبل از شروع ثبت‌نام است."})
+    if not (
+        enrollment.academic_year.starts_on <= effective_date <= enrollment.academic_year.ends_on
+    ):
+        raise ValidationError({"effective_date": "تاریخ تغییر کلاس خارج از سال تحصیلی است."})
+
     old_class_id = enrollment.class_section_id
-    enrollment.class_section = new_class
+    # If no historical period exists, mutating the newly-created enrollment is safe.
+    if effective_date == enrollment.enrolled_on:
+        enrollment.class_section = new_class
+        enrollment.full_clean()
+        enrollment.save(update_fields=["class_section", "updated_at"])
+        EnrollmentEvent.objects.create(
+            enrollment=enrollment,
+            event_type=EnrollmentEvent.EventType.CLASS_CHANGED,
+            from_class_id=old_class_id,
+            to_class_id=new_class.id,
+            reason=reason,
+            actor=actor,
+        )
+        return enrollment
+
+    enrollment.status = Enrollment.Status.TRANSFERRED
+    enrollment.left_on = effective_date - timedelta(days=1)
     enrollment.full_clean()
-    enrollment.save(update_fields=["class_section", "updated_at"])
+    enrollment.save(update_fields=["status", "left_on", "updated_at"])
     EnrollmentEvent.objects.create(
         enrollment=enrollment,
         event_type=EnrollmentEvent.EventType.CLASS_CHANGED,
         from_class_id=old_class_id,
         to_class_id=new_class.id,
+        previous_status=Enrollment.Status.ACTIVE,
+        new_status=Enrollment.Status.TRANSFERRED,
         reason=reason,
         actor=actor,
     )
-    return enrollment
+
+    target = Enrollment(
+        student=enrollment.student,
+        school=enrollment.school,
+        academic_year=enrollment.academic_year,
+        grade_level=enrollment.grade_level,
+        class_section=new_class,
+        student_number=enrollment.student_number,
+        status=Enrollment.Status.ACTIVE,
+        enrolled_on=effective_date,
+    )
+    target.full_clean()
+    target.save()
+    EnrollmentEvent.objects.create(
+        enrollment=target,
+        event_type=EnrollmentEvent.EventType.CLASS_CHANGED,
+        from_class_id=old_class_id,
+        to_class_id=new_class.id,
+        previous_status=Enrollment.Status.TRANSFERRED,
+        new_status=Enrollment.Status.ACTIVE,
+        reason=reason,
+        actor=actor,
+    )
+    _sync_student_status(target.student)
+    return target
 
 
 @transaction.atomic
@@ -78,8 +153,12 @@ def transfer_enrollment(
     enrollment = _locked_enrollment(enrollment)
     if enrollment.status != Enrollment.Status.ACTIVE:
         raise ValidationError("ثبت‌نام مبدأ فعال نیست.")
-    if transfer_date < enrollment.enrolled_on:
-        raise ValidationError({"transfer_date": "تاریخ انتقال قبل از تاریخ ثبت‌نام است."})
+    if transfer_date <= enrollment.enrolled_on:
+        raise ValidationError({"transfer_date": "تاریخ انتقال باید بعد از تاریخ ثبت‌نام باشد."})
+    if not (
+        enrollment.academic_year.starts_on <= transfer_date <= enrollment.academic_year.ends_on
+    ):
+        raise ValidationError({"transfer_date": "تاریخ انتقال خارج از سال تحصیلی است."})
     if school.pk == enrollment.school_id:
         raise ValidationError("برای جابه‌جایی داخل یک شعبه از تغییر کلاس استفاده کنید.")
     class_section = _locked_class(class_section)
@@ -94,7 +173,7 @@ def transfer_enrollment(
     _ensure_capacity(class_section)
 
     enrollment.status = Enrollment.Status.TRANSFERRED
-    enrollment.left_on = transfer_date
+    enrollment.left_on = transfer_date - timedelta(days=1)
     enrollment.full_clean()
     enrollment.save(update_fields=["status", "left_on", "updated_at"])
     EnrollmentEvent.objects.create(
@@ -127,6 +206,7 @@ def transfer_enrollment(
         reason=reason,
         actor=actor,
     )
+    _sync_student_status(target.student)
     return target
 
 
@@ -137,6 +217,8 @@ def change_status(*, enrollment, new_status, date, reason, actor):
         raise ValidationError("فقط ثبت‌نام فعال قابل خاتمه است.")
     if date < enrollment.enrolled_on:
         raise ValidationError({"date": "تاریخ خاتمه قبل از تاریخ ثبت‌نام است."})
+    if not (enrollment.academic_year.starts_on <= date <= enrollment.academic_year.ends_on):
+        raise ValidationError({"date": "تاریخ خاتمه خارج از سال تحصیلی است."})
     old_status = enrollment.status
     enrollment.status = new_status
     enrollment.left_on = date
@@ -151,4 +233,5 @@ def change_status(*, enrollment, new_status, date, reason, actor):
         reason=reason,
         actor=actor,
     )
+    _sync_student_status(enrollment.student)
     return enrollment

@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from decimal import ROUND_DOWN, ROUND_HALF_EVEN, ROUND_HALF_UP, Decimal
 
 from django.db import transaction
+from django.db.models import Q
 
 from hamamooz.apps.students.models import Enrollment
 
@@ -77,21 +78,28 @@ def normalized_score(score, policy):
 @transaction.atomic
 def calculate_enrollment_term(enrollment, term):
     policy = get_policy(enrollment)
-    offerings = CourseOffering.objects.filter(
-        class_section=enrollment.class_section,
-        term=term,
-        is_active=True,
-    ).select_related("grade_subject", "grade_subject__subject")
+    offerings = list(
+        CourseOffering.objects.filter(
+            class_section=enrollment.class_section,
+            term=term,
+            is_active=True,
+        ).select_related("grade_subject", "grade_subject__subject")
+    )
+    offering_map = {offering.id: offering for offering in offerings}
+    score_buckets = {offering.id: [] for offering in offerings}
+    scores = Score.objects.filter(
+        enrollment=enrollment,
+        assessment__course_offering_id__in=offering_map,
+        assessment__status__in=[Assessment.Status.APPROVED, Assessment.Status.LOCKED],
+    ).select_related("assessment")
+    for score in scores:
+        score_buckets[score.assessment.course_offering_id].append(score)
+
     subject_rows = []
     for offering in offerings:
-        scores = Score.objects.filter(
-            enrollment=enrollment,
-            assessment__course_offering=offering,
-            assessment__status__in=[Assessment.Status.APPROVED, Assessment.Status.LOCKED],
-        ).select_related("assessment")
         numerator = Decimal("0")
         denominator = Decimal("0")
-        for score in scores:
+        for score in score_buckets[offering.id]:
             normalized = normalized_score(score, policy)
             if normalized is None:
                 continue
@@ -119,10 +127,12 @@ def calculate_enrollment_term(enrollment, term):
         weighted_sum += row.average * coefficient
         coefficient_sum += coefficient
     term_average = quantize(weighted_sum / coefficient_sum, policy) if coefficient_sum else None
+    complete = bool(subject_rows) and all(row.average is not None for row in subject_rows)
     passed = (
-        term_average is not None
+        complete
+        and term_average is not None
         and term_average >= policy.overall_pass_mark
-        and all(row.passed for row in subject_rows if row.average is not None)
+        and all(row.passed for row in subject_rows)
     )
     term_result, _ = TermResult.objects.update_or_create(
         enrollment=enrollment,
@@ -139,11 +149,19 @@ def calculate_enrollment_term(enrollment, term):
 @transaction.atomic
 def recalculate_class_term(class_section, term):
     enrollments = list(
-        Enrollment.objects.filter(
-            class_section=class_section, status=Enrollment.Status.ACTIVE
-        ).select_related("student", "academic_year", "grade_level")
+        Enrollment.all_objects.filter(
+            class_section=class_section,
+            enrolled_on__lte=term.ends_on,
+            is_deleted=False,
+        )
+        .filter(Q(left_on__isnull=True) | Q(left_on__gte=term.starts_on))
+        .select_related("student", "academic_year", "grade_level")
     )
     results = [calculate_enrollment_term(enrollment, term) for enrollment in enrollments]
+    TermResult.objects.filter(
+        enrollment__class_section=class_section,
+        term=term,
+    ).update(class_rank=None)
     ranked = sorted(
         [result for result in results if result.average is not None],
         key=lambda r: r.average,
@@ -157,7 +175,4 @@ def recalculate_class_term(class_section, term):
         result.class_rank = rank
         result.save(update_fields=["class_rank", "updated_at"])
         previous = result.average
-    TermResult.objects.filter(
-        enrollment__class_section=class_section, term=term, average__isnull=True
-    ).update(class_rank=None)
     return results

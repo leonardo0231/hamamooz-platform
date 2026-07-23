@@ -76,4 +76,4 @@ sequenceDiagram
 
 ## مسیر رشد
 
-در نسخه پیشرفته، ماژول‌های attendance، behavior، activities و alerts به همین Monolith اضافه می‌شوند. جداسازی Microservice فقط وقتی توجیه دارد که یک مرز بار/تیم مستقل شکل بگیرد؛ مثال محتمل Worker گزارش یا Analytics است. شناسه‌های UUID و Snapshot گزارش، این جداسازی آینده را ساده می‌کنند.
+ماژول attendance و alerts در Monolith فعال‌اند؛ behavior و activities در نسخه‌های بعدی اضافه می‌شوند. جداسازی Microservice فقط وقتی توجیه دارد که یک مرز بار/تیم مستقل شکل بگیرد؛ مثال محتمل Worker گزارش یا Analytics است. شناسه‌های UUID و Snapshot گزارش، این جداسازی آینده را ساده می‌کنند.

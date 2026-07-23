@@ -2,6 +2,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
+
 from celery.schedules import crontab
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -143,6 +144,8 @@ CORS_ALLOWED_ORIGINS = env_list("DJANGO_CORS_ALLOWED_ORIGINS")
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 CORS_ALLOW_CREDENTIALS = False
 TRUST_X_FORWARDED_FOR = env_bool("TRUST_X_FORWARDED_FOR", False)
+READINESS_CHECK_BROKER = env_bool("READINESS_CHECK_BROKER", False)
+READINESS_CHECK_STORAGE = env_bool("READINESS_CHECK_STORAGE", True)
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -208,18 +211,15 @@ CELERY_TASK_ROUTES = {
     "hamamooz.apps.imports.tasks.*": {"queue": "imports"},
     "hamamooz.apps.reports.tasks.*": {"queue": "reports"},
     "hamamooz.apps.academics.tasks.*": {"queue": "calculations"},
-    "hamamooz.apps.attendance.tasks.dispatch_parent_notification": {
-        "queue": "notifications"
-    },
-    "hamamooz.apps.attendance.tasks.evaluate_attendance_alerts": {
-        "queue": "calculations"
-    },
+    "hamamooz.apps.attendance.tasks.dispatch_parent_notification": {"queue": "notifications"},
+    "hamamooz.apps.attendance.tasks.evaluate_attendance_alerts": {"queue": "calculations"},
 }
 CELERY_TASK_ALWAYS_EAGER = env_bool("CELERY_TASK_ALWAYS_EAGER", False)
 CELERY_TASK_EAGER_PROPAGATES = True
 
-ATTENDANCE_MAX_EVIDENCE_SIZE = int(
-    os.getenv("ATTENDANCE_MAX_EVIDENCE_SIZE", str(5 * 1024 * 1024))
+ATTENDANCE_MAX_EVIDENCE_SIZE = int(os.getenv("ATTENDANCE_MAX_EVIDENCE_SIZE", str(5 * 1024 * 1024)))
+ATTENDANCE_MAX_EVIDENCE_TOTAL_SIZE = int(
+    os.getenv("ATTENDANCE_MAX_EVIDENCE_TOTAL_SIZE", str(10 * 1024 * 1024))
 )
 ATTENDANCE_ASYNC_NOTIFICATIONS = env_bool("ATTENDANCE_ASYNC_NOTIFICATIONS", True)
 ATTENDANCE_AUTO_ALERTS_ENABLED = env_bool("ATTENDANCE_AUTO_ALERTS_ENABLED", True)
@@ -229,6 +229,20 @@ ATTENDANCE_SMS_BACKEND = os.getenv(
 )
 ATTENDANCE_ALERT_HOUR = int(os.getenv("ATTENDANCE_ALERT_HOUR", "16"))
 ATTENDANCE_ALERT_MINUTE = int(os.getenv("ATTENDANCE_ALERT_MINUTE", "0"))
+ATTENDANCE_NOTIFICATION_MAX_ATTEMPTS = int(os.getenv("ATTENDANCE_NOTIFICATION_MAX_ATTEMPTS", "5"))
+ATTENDANCE_NOTIFICATION_STALE_MINUTES = int(
+    os.getenv("ATTENDANCE_NOTIFICATION_STALE_MINUTES", "15")
+)
+REPORT_PROCESSING_TIMEOUT_MINUTES = int(os.getenv("REPORT_PROCESSING_TIMEOUT_MINUTES", "30"))
+IMPORT_PROCESSING_TIMEOUT_MINUTES = int(os.getenv("IMPORT_PROCESSING_TIMEOUT_MINUTES", "30"))
+IMPORT_MAX_ROWS = int(os.getenv("IMPORT_MAX_ROWS", "5000"))
+IMPORT_MAX_COLUMNS = int(os.getenv("IMPORT_MAX_COLUMNS", "20"))
+IMPORT_MAX_UNCOMPRESSED_BYTES = int(
+    os.getenv("IMPORT_MAX_UNCOMPRESSED_BYTES", str(50 * 1024 * 1024))
+)
+IMPORT_FILE_RETENTION_DAYS = int(os.getenv("IMPORT_FILE_RETENTION_DAYS", "90"))
+REPORT_FILE_RETENTION_DAYS = int(os.getenv("REPORT_FILE_RETENTION_DAYS", "365"))
+EVIDENCE_FILE_RETENTION_DAYS = int(os.getenv("EVIDENCE_FILE_RETENTION_DAYS", "730"))
 
 CELERY_BEAT_SCHEDULE = {
     "evaluate-attendance-alerts-daily": {
@@ -237,9 +251,7 @@ CELERY_BEAT_SCHEDULE = {
     }
 }
 
-EMAIL_BACKEND = os.getenv(
-    "EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend"
-)
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
 EMAIL_HOST = os.getenv("EMAIL_HOST", "")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")

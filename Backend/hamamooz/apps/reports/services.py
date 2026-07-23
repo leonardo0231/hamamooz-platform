@@ -1,14 +1,15 @@
 from collections import defaultdict
 from copy import deepcopy
+from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
 
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import transaction
+from django.db.models import Q
 from django.template.loader import render_to_string
 from django.utils import timezone
-from weasyprint import HTML
 
 from hamamooz.apps.academics.calculations import (
     calculate_enrollment_term,
@@ -29,26 +30,6 @@ from hamamooz.apps.students.models import Enrollment
 from .models import ReportArchive
 
 
-def _category_averages(enrollment, offering, policy):
-    buckets = defaultdict(lambda: [Decimal("0"), Decimal("0")])
-    scores = Score.objects.filter(
-        enrollment=enrollment,
-        assessment__course_offering=offering,
-        assessment__status__in=[Assessment.Status.APPROVED, Assessment.Status.LOCKED],
-    ).select_related("assessment", "assessment__assessment_type")
-    for score in scores:
-        value = normalized_score(score, policy)
-        if value is None:
-            continue
-        category = score.assessment.assessment_type.category
-        buckets[category][0] += value * score.assessment.weight
-        buckets[category][1] += score.assessment.weight
-    return {
-        category: quantize(total / weight, policy) if weight else None
-        for category, (total, weight) in buckets.items()
-    }
-
-
 def _decimal_string(value, decimal_places=2):
     return f"{value:.{decimal_places}f}" if value is not None else None
 
@@ -64,19 +45,39 @@ def build_student_snapshot(enrollment, term, *, recalculate=True):
                 term_result.save(update_fields=["class_rank", "updated_at"])
     policy = get_policy(enrollment)
     term_result = TermResult.objects.get(enrollment=enrollment, term=term)
-    offerings = CourseOffering.objects.filter(
-        class_section=enrollment.class_section, term=term, is_active=True
-    ).select_related("grade_subject__subject")
+    offerings = list(
+        CourseOffering.objects.filter(
+            class_section=enrollment.class_section, term=term, is_active=True
+        ).select_related("grade_subject__subject")
+    )
     result_map = {
         row.course_offering_id: row
         for row in SubjectResult.objects.filter(
             enrollment=enrollment, course_offering__in=offerings
         )
     }
+    category_buckets = defaultdict(lambda: defaultdict(lambda: [Decimal("0"), Decimal("0")]))
+    scores = Score.objects.filter(
+        enrollment=enrollment,
+        assessment__course_offering__in=offerings,
+        assessment__status__in=[Assessment.Status.APPROVED, Assessment.Status.LOCKED],
+    ).select_related("assessment", "assessment__assessment_type")
+    for score in scores:
+        value = normalized_score(score, policy)
+        if value is None:
+            continue
+        offering_id = score.assessment.course_offering_id
+        category = score.assessment.assessment_type.category
+        category_buckets[offering_id][category][0] += value * score.assessment.weight
+        category_buckets[offering_id][category][1] += score.assessment.weight
+
     subjects = []
     for offering in offerings:
         result = result_map.get(offering.id)
-        categories = _category_averages(enrollment, offering, policy)
+        categories = {
+            category: quantize(total / weight, policy) if weight else None
+            for category, (total, weight) in category_buckets[offering.id].items()
+        }
         subjects.append(
             {
                 "title": offering.grade_subject.subject.title,
@@ -128,9 +129,13 @@ def build_report_snapshot(report_type, term, enrollment=None, class_section=None
     if report_type == ReportArchive.ReportType.STUDENT_REPORT_CARD:
         return {"reports": [build_student_snapshot(enrollment, term)]}
     enrollments = list(
-        Enrollment.objects.filter(
-            class_section=class_section, status=Enrollment.Status.ACTIVE
-        ).select_related("student", "school", "academic_year", "grade_level", "class_section")
+        Enrollment.all_objects.filter(
+            class_section=class_section,
+            enrolled_on__lte=term.ends_on,
+            is_deleted=False,
+        )
+        .filter(Q(left_on__isnull=True) | Q(left_on__gte=term.starts_on))
+        .select_related("student", "school", "academic_year", "grade_level", "class_section")
     )
     recalculate_class_term(class_section, term)
     return {
@@ -141,7 +146,11 @@ def build_report_snapshot(report_type, term, enrollment=None, class_section=None
 def render_report_html(snapshot, *, preview=False):
     return render_to_string(
         "reports/report_card.html",
-        {"reports": snapshot["reports"], "preview": preview, "generated_at": timezone.now()},
+        {
+            "reports": snapshot["reports"],
+            "preview": preview,
+            "generated_at": timezone.now(),
+        },
     )
 
 
@@ -167,13 +176,19 @@ def _pdf_snapshot(snapshot):
 
 
 def render_report_pdf(snapshot):
+    from weasyprint import HTML
+
     html = render_report_html(_pdf_snapshot(snapshot))
-    return HTML(string=html, base_url=Path(settings.BASE_DIR).as_uri()).write_pdf(
-        presentational_hints=False
-    )
+    return HTML(
+        string=html,
+        base_url=Path(settings.BASE_DIR).as_uri(),
+    ).write_pdf(presentational_hints=False)
 
 
 def generate_report(report_id):
+    processing_timeout = timedelta(
+        minutes=getattr(settings, "REPORT_PROCESSING_TIMEOUT_MINUTES", 30)
+    )
     with transaction.atomic():
         report = (
             ReportArchive.objects.select_for_update()
@@ -182,10 +197,27 @@ def generate_report(report_id):
         )
         if report.status == ReportArchive.Status.COMPLETED:
             return report
+        if (
+            report.status == ReportArchive.Status.PROCESSING
+            and report.started_at
+            and report.started_at >= timezone.now() - processing_timeout
+        ):
+            return report
         report.status = ReportArchive.Status.PROCESSING
         report.started_at = timezone.now()
+        report.completed_at = None
         report.error_message = ""
-        report.save(update_fields=["status", "started_at", "error_message", "updated_at"])
+        report.save(
+            update_fields=[
+                "status",
+                "started_at",
+                "completed_at",
+                "error_message",
+                "updated_at",
+            ]
+        )
+
+    stored_name = ""
     try:
         snapshot = build_report_snapshot(
             report.report_type,
@@ -198,18 +230,28 @@ def generate_report(report_id):
         formula_version = first["summary"]["formula_version"] if first else ""
         filename = f"{report.report_type}_{report.id}.pdf"
         report.output_file.save(filename, ContentFile(pdf), save=False)
-        report.snapshot = snapshot
-        report.formula_version = formula_version
-        report.status = ReportArchive.Status.COMPLETED
-        report.completed_at = timezone.now()
+        stored_name = report.output_file.name
         with transaction.atomic():
-            report.save()
+            locked = ReportArchive.objects.select_for_update().get(pk=report_id)
+            if locked.status == ReportArchive.Status.COMPLETED:
+                if stored_name and stored_name != locked.output_file.name:
+                    report.output_file.storage.delete(stored_name)
+                return locked
+            locked.output_file = report.output_file
+            locked.snapshot = snapshot
+            locked.formula_version = formula_version
+            locked.status = ReportArchive.Status.COMPLETED
+            locked.completed_at = timezone.now()
+            locked.error_message = ""
+            locked.save()
+            return locked
     except Exception as exc:
+        if stored_name:
+            report.output_file.storage.delete(stored_name)
         with transaction.atomic():
-            report = ReportArchive.objects.select_for_update().get(pk=report_id)
-            report.status = ReportArchive.Status.FAILED
-            report.error_message = str(exc)[:2000]
-            report.completed_at = timezone.now()
-            report.save()
+            locked = ReportArchive.objects.select_for_update().get(pk=report_id)
+            locked.status = ReportArchive.Status.FAILED
+            locked.error_message = str(exc)[:2000]
+            locked.completed_at = timezone.now()
+            locked.save(update_fields=["status", "error_message", "completed_at", "updated_at"])
         raise
-    return report

@@ -26,7 +26,7 @@ templates:
 	python manage.py generate_import_templates
 
 schema:
-	python manage.py spectacular --api-version v1 --file openapi.yaml --validate
+	./scripts/generate_openapi.sh
 
 check:
 	python manage.py check --deploy

@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from django.db import transaction
 from django.db.models import Q
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -31,6 +32,7 @@ from .serializers import (
     RoleAssignmentSerializer,
     UserSerializer,
 )
+from .services import revoke_user_refresh_tokens
 
 ADMIN_ROLES = [Role.SYSTEM_ADMIN, Role.ORGANIZATION_ADMIN, Role.SCHOOL_MANAGER]
 
@@ -155,7 +157,7 @@ class UserViewSet(AuditedModelViewSet):
         self._ensure_can_manage_user(serializer.instance)
         super().perform_update(serializer)
 
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
     def change_password(self, request, pk=None):
         user = self.get_object()
         serializer = ChangePasswordSerializer(data=request.data)
@@ -164,12 +166,14 @@ class UserViewSet(AuditedModelViewSet):
             self._ensure_can_manage_user(user)
         elif not user.check_password(serializer.validated_data.get("current_password", "")):
             return Response({"current_password": "رمز عبور فعلی نادرست است."}, status=400)
-        user.set_password(serializer.validated_data["new_password"])
-        user.must_change_password = False
-        user.save(update_fields=["password", "must_change_password"])
-        record_audit(
-            action="user.password_changed", actor=request.user, request=request, entity=user
-        )
+        with transaction.atomic():
+            user.set_password(serializer.validated_data["new_password"])
+            user.must_change_password = False
+            user.save(update_fields=["password", "must_change_password"])
+            revoke_user_refresh_tokens(user)
+            record_audit(
+                action="user.password_changed", actor=request.user, request=request, entity=user
+            )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["post"])
@@ -178,9 +182,16 @@ class UserViewSet(AuditedModelViewSet):
         self._ensure_can_manage_user(user)
         if user == request.user:
             return Response({"detail": "غیرفعال‌کردن حساب خودتان مجاز نیست."}, status=400)
-        user.is_active = False
-        user.save(update_fields=["is_active"])
-        record_audit(action="user.deactivated", actor=request.user, request=request, entity=user)
+        with transaction.atomic():
+            user.is_active = False
+            user.save(update_fields=["is_active"])
+            revoke_user_refresh_tokens(user)
+            record_audit(
+                action="user.deactivated",
+                actor=request.user,
+                request=request,
+                entity=user,
+            )
         return Response(UserSerializer(user).data)
 
 

@@ -17,7 +17,8 @@
 - سیاست محاسبات نسخه‌دار برای مجموعه/سال/پایه
 - Import اتمیک XLSX برای دانش‌آموز، ثبت‌نام و نمره با گزارش ردیف خطادار
 - کارنامه A4 فارسی و راست‌چین برای دانش‌آموز یا کل کلاس، پیش‌نمایش و آرشیو Snapshot/PDF
-- داشبورد عملیاتی، OpenAPI، Audit، JSON logging، Sentry اختیاری و Health Check
+- حضور و غیاب روزانه/زنگ، توجیه غیبت، هشدار و اعلان والدین
+- داشبورد عملیاتی، OpenAPI پویا، Audit، JSON logging، Sentry اختیاری و Health Check
 - PostgreSQL، Redis، Celery، MinIO/S3، Docker Compose و بکاپ زمان‌بندی‌شده
 
 ## شروع سریع با Docker
@@ -34,7 +35,7 @@ docker compose exec web python manage.py seed_demo \
 
 - Swagger: `http://localhost:8000/api/v1/docs/`
 - ReDoc: `http://localhost:8000/api/v1/redoc/`
-- OpenAPI YAML آماده: `openapi.yaml`
+- قرارداد OpenAPI پویا: `http://localhost:8000/api/v1/schema/`
 - Admin: `http://localhost:8000/admin/`
 - Liveness: `http://localhost:8000/api/v1/health/live/`
 - Readiness: `http://localhost:8000/api/v1/health/ready/`
@@ -88,13 +89,11 @@ X-School-ID: <school-uuid>
 ruff check .
 python manage.py check
 python manage.py makemigrations --check --dry-run
-python manage.py spectacular --api-version v1 --file openapi.yaml --validate
+./scripts/generate_openapi.sh
 pytest --cov=hamamooz --cov-report=term-missing
 ```
 
-اجرای محلی SQLite شامل ۶۴ تست موفق و یک تست ویژه PostgreSQL است؛ پوشش branch-aware برابر
-۸۳٫۰۷٪ و Gate برابر ۷۸٪ است. CI علاوه بر آن وابستگی‌ها، Redis/Celery، MinIO خصوصی، Import
-دو هزار ردیفی، رقابت هم‌زمان ظرفیت کلاس روی PostgreSQL و بازیابی واقعی بکاپ را کنترل می‌کند.
+نتیجه قطعی تست باید در محیط نصب‌شده با `pytest` ثبت شود. تست رقابت قفل ردیف فقط روی PostgreSQL اجرا می‌شود؛ SQLite برای آن مرجع معتبر نیست.
 
 برای Production از نمونه fail-closed استفاده کنید و تمام placeholderها را جایگزین کنید:
 

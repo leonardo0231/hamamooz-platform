@@ -1,53 +1,57 @@
-# راهبرد و نتیجه تست
+# راهبرد تست و کنترل کیفیت
 
-## نتیجه تحویل
+## اصل اعتبارسنجی
 
-```text
-64 passed, 1 PostgreSQL-only concurrency test
-Ruff: passed
-Django system check: passed
-Migration drift check: passed
-OpenAPI validation: passed with zero warning/error
-Dependency audit: no known vulnerabilities
-Coverage: 83.07% branch-aware
-```
+نتیجه تست باید از همان checkout، dependency lock و دیتابیس مقصد ثبت شود. این سند عدد ثابت یا
+ادعای قدیمی درباره تعداد تست و درصد coverage نگه نمی‌دارد؛ خروجی CI و اجرای محلی منبع حقیقت است.
 
-## حوزه‌های تست‌شده
+## حوزه‌های پوشش
 
-| فایل | سناریوها |
+| حوزه | فایل‌ها و سناریوهای اصلی |
 |---|---|
-| `test_access.py` | دبیر فقط ارائه خودش، منع شعبه غیرمجاز، منع Assessment دبیر دیگر، عدم افشای کاربران، منع حذف فیزیکی کاربر |
-| `test_auth.py` | ورود JWT و ایجاد Audit |
-| `test_scores_and_calculations.py` | ثبت گروهی، ارسال ناقص، رد، تأیید/قفل، اصلاح قفل، تاریخچه، وزن، رتبه، غیبت |
-| `test_imports.py` | Import معتبر، Rollback کامل در یک ردیف نامعتبر و تبدیل XLSX خراب به Job ناموفق |
-| `test_reports_and_enrollment.py` | PDF واقعی و آرشیو Snapshot، الزام Lock برای خروجی رسمی، انتقال و تاریخچه مبدأ/مقصد |
-| `test_security_regressions.py` | هدر حوزه، Cross-tenant write، سلسله‌مراتب نقش، Audit تغییر و قیود nullable |
-| `test_enrollment_invariants.py` | ظرفیت، تاریخ، انتقال رفت‌وبرگشت و رقابت هم‌زمان PostgreSQL |
-| `test_api_workflows.py` | جریان کامل حساب، ارزیابی، Import، گزارش، ولی و ثبت‌نام در سطح API |
-| `test_reports_dashboard_core.py` | گزارش انتقال تاریخی، confinement رسانه، Query dashboard و health |
-| `test_management_and_tasks.py` | Seed idempotent و Taskهای محاسبه/گزارش |
+| احراز هویت و دسترسی | JWT، login با username/email، blacklist، نقش و جداسازی شعبه |
+| دانش‌آموز و ثبت‌نام | ظرفیت، تاریخ مؤثر، تغییر کلاس تاریخ‌مند، انتقال و جلوگیری از بازنویسی تاریخچه |
+| آموزش و نمره | گردش ارزیابی، ثبت گروهی، قفل، اصلاح، سیاست محاسبه، کامل‌بودن نتیجه و رتبه |
+| حضور و غیاب | roster تاریخ‌مند، ثبت گروهی، finalize، اصلاح، عذر، cancel، alert و notification |
+| Import | XLSX معتبر/خراب، rollback، محدودیت row/column و حفاظت در برابر decompression bomb |
+| گزارش | preview HTML، PDF، snapshot، confinement فایل رسانه و idempotency task |
+| عملیات | health/readiness، management commandها، Celery و backup/restore |
 
 ## اجرای محلی
 
 ```bash
-pytest
-pytest --cov=hamamooz --cov-report=term-missing
+ruff check .
+ruff format --check .
+python manage.py check
+python manage.py makemigrations --check --dry-run
+pytest -q
+python manage.py spectacular --api-version v1 --file build/openapi.yaml --validate
 ```
 
-Settings تست از SQLite، Cache حافظه، Storage محلی، Password hasher سریع و Celery eager استفاده
-می‌کند. CI علاوه بر تست، PostgreSQL 17 و Redis را بالا می‌آورد، Migration و OpenAPI را Validate
-می‌کند، dependency audit انجام می‌دهد، MinIO خصوصی/versioned را smoke-test می‌کند و یک Dump را
-در دیتابیس جدا Restore می‌کند.
+برای coverage:
 
-## تست‌های ضروری قبل از Production
+```bash
+pytest --cov=hamamooz --cov-report=term-missing --cov-report=xml
+```
 
-- Load test روی سخت‌افزار واقعی ۴ vCPU/۸ GB
-- Restore drill دوره‌ای روی Host جدا (CI بازیابی دیتابیس ایزوله را انجام می‌دهد)
-- تست S3/MinIO با فایل‌های بزرگ و URL امضاشده (CI اتصال و versioning را smoke-test می‌کند)
-- تست مرورگر روی PDF فارسی با لوگوهای واقعی
-- تست نفوذ مستقل RBAC/Object ID (ممیزی خودکار وابستگی‌ها در CI فعال است)
-- سناریوی قطع Redis حین Queue و Retry
-- PostgreSQL lock/concurrency در ثبت نمره گروهی هم‌زمان (ظرفیت ثبت‌نام در CI پوشش دارد)
+## Windows و WeasyPrint
 
-Coverage عدد تضمین کیفیت کامل نیست؛ بخش‌های حساس Domain با اولویت پوشش داده شده‌اند. Gate فعلی
-۷۸٪ و پوشش واقعی ۸۳٫۰۷٪ branch-aware است.
+تست‌های PDF به Pango/GObject نیاز دارند. روی Windows باید MSYS2/Pango نصب و مسیر DLL تنظیم شود:
+
+```bat
+set WEASYPRINT_DLL_DIRECTORIES=C:\msys64\mingw64\bin
+python -c "from weasyprint import HTML; print('WeasyPrint OK')"
+```
+
+راه مرجع و یکسان‌تر، اجرای suite داخل image لینوکسی پروژه است:
+
+```bash
+docker compose build
+docker compose run --rm release
+docker compose run --rm web pytest -q
+```
+
+## تست‌هایی که باید روی PostgreSQL اجرا شوند
+
+SQLite مرجع معتبری برای `select_for_update` و رقابت هم‌زمان نیست. سناریوهای ظرفیت ثبت‌نام، claim
+اعلان، ارزیابی هشدار، تولید گزارش و Import هم‌زمان باید در CI با PostgreSQL اجرا شوند.

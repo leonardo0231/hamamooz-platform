@@ -210,75 +210,82 @@ class AssessmentViewSet(AuditedModelViewSet):
         self._ensure_owner_or_broad(assessment)
         serializer = BulkScoreSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        scores = bulk_upsert_scores(
-            assessment=assessment, entries=serializer.validated_data["entries"], actor=request.user
-        )
-        record_audit(
-            action="assessment.scores_bulk_saved",
-            actor=request.user,
-            request=request,
-            entity=assessment,
-            school_id=assessment.school_id,
-            changes={"score_count": len(scores)},
-        )
+        with transaction.atomic():
+            scores = bulk_upsert_scores(
+                assessment=assessment,
+                entries=serializer.validated_data["entries"],
+                actor=request.user,
+            )
+            record_audit(
+                action="assessment.scores_bulk_saved",
+                actor=request.user,
+                request=request,
+                entity=assessment,
+                school_id=assessment.school_id,
+                changes={"score_count": len(scores)},
+            )
         return Response(ScoreSerializer(scores, many=True).data)
 
     @action(detail=True, methods=["post"])
     def submit(self, request, pk=None):
         assessment = self.get_object()
         self._ensure_owner_or_broad(assessment)
-        updated = submit_assessment(assessment, request.user)
-        record_audit(
-            action="assessment.submitted",
-            actor=request.user,
-            request=request,
-            entity=updated,
-            school_id=updated.school_id,
-        )
+        with transaction.atomic():
+            updated = submit_assessment(assessment, request.user)
+            record_audit(
+                action="assessment.submitted",
+                actor=request.user,
+                request=request,
+                entity=updated,
+                school_id=updated.school_id,
+            )
         return Response(self.get_serializer(updated).data)
 
     @action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
-        updated = approve_assessment(self.get_object(), request.user)
-        record_audit(
-            action="assessment.approved",
-            actor=request.user,
-            request=request,
-            entity=updated,
-            school_id=updated.school_id,
-        )
+        with transaction.atomic():
+            updated = approve_assessment(self.get_object(), request.user)
+            record_audit(
+                action="assessment.approved",
+                actor=request.user,
+                request=request,
+                entity=updated,
+                school_id=updated.school_id,
+            )
         return Response(self.get_serializer(updated).data)
 
     @action(detail=True, methods=["post"])
     def reject(self, request, pk=None):
         serializer = RejectAssessmentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        updated = reject_assessment(
-            self.get_object(), request.user, serializer.validated_data["reason"]
-        )
-        record_audit(
-            action="assessment.rejected",
-            actor=request.user,
-            request=request,
-            entity=updated,
-            school_id=updated.school_id,
-            changes={"reason": serializer.validated_data["reason"]},
-        )
+        with transaction.atomic():
+            updated = reject_assessment(
+                self.get_object(), request.user, serializer.validated_data["reason"]
+            )
+            record_audit(
+                action="assessment.rejected",
+                actor=request.user,
+                request=request,
+                entity=updated,
+                school_id=updated.school_id,
+                changes={"reason": serializer.validated_data["reason"]},
+            )
         return Response(self.get_serializer(updated).data)
 
     @action(detail=True, methods=["post"])
     def lock(self, request, pk=None):
-        updated = lock_assessment(self.get_object(), request.user)
-        class_id = str(updated.course_offering.class_section_id)
-        term_id = str(updated.course_offering.term_id)
-        transaction.on_commit(lambda: recalculate_class_term_task.delay(class_id, term_id))
-        record_audit(
-            action="assessment.locked",
-            actor=request.user,
-            request=request,
-            entity=updated,
-            school_id=updated.school_id,
-        )
+        with transaction.atomic():
+            updated = lock_assessment(self.get_object(), request.user)
+            class_id = str(updated.course_offering.class_section_id)
+            term_id = str(updated.course_offering.term_id)
+            transaction.on_commit(lambda: recalculate_class_term_task.delay(class_id, term_id))
+            record_audit(
+                action="assessment.locked",
+                actor=request.user,
+                request=request,
+                entity=updated,
+                school_id=updated.school_id,
+            )
         return Response(self.get_serializer(updated).data)
 
 
@@ -303,21 +310,24 @@ class ScoreViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Ge
         score = self.get_object()
         serializer = CorrectLockedScoreSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        updated = correct_locked_score(score=score, actor=request.user, **serializer.validated_data)
-        transaction.on_commit(
-            lambda: recalculate_class_term_task.delay(
-                str(updated.assessment.course_offering.class_section_id),
-                str(updated.assessment.course_offering.term_id),
+        with transaction.atomic():
+            updated = correct_locked_score(
+                score=score, actor=request.user, **serializer.validated_data
             )
-        )
-        record_audit(
-            action="score.locked_corrected",
-            actor=request.user,
-            request=request,
-            entity=updated,
-            school_id=updated.school_id,
-            changes={"reason": serializer.validated_data["reason"]},
-        )
+            transaction.on_commit(
+                lambda: recalculate_class_term_task.delay(
+                    str(updated.assessment.course_offering.class_section_id),
+                    str(updated.assessment.course_offering.term_id),
+                )
+            )
+            record_audit(
+                action="score.locked_corrected",
+                actor=request.user,
+                request=request,
+                entity=updated,
+                school_id=updated.school_id,
+                changes={"reason": serializer.validated_data["reason"]},
+            )
         return Response(self.get_serializer(updated).data)
 
 

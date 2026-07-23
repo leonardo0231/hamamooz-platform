@@ -6,7 +6,9 @@ DEBUG = False
 
 weak_markers = {"change-me", "replace-with", "unsafe-development"}
 
-if len(SECRET_KEY) < 50 or any(marker in SECRET_KEY.lower() for marker in weak_markers):  # noqa: F405
+secret_key = SECRET_KEY  # noqa:F405
+
+if len(secret_key) < 50 or any(marker in secret_key.lower() for marker in weak_markers):
     raise ImproperlyConfigured(
         "DJANGO_SECRET_KEY must be a unique production secret with at least 50 characters"
     )
@@ -17,10 +19,11 @@ if not os.getenv("DJANGO_ALLOWED_HOSTS") or "*" in ALLOWED_HOSTS:  # noqa: F405
     )
 
 database = DATABASES["default"]  # noqa: F405
-if database["ENGINE"] == "django.db.backends.postgresql":
-    password = database.get("PASSWORD", "")
-    if not password or any(marker in password.lower() for marker in weak_markers):
-        raise ImproperlyConfigured("DATABASE_URL must contain a non-placeholder password")
+if database["ENGINE"] != "django.db.backends.postgresql":
+    raise ImproperlyConfigured("Production requires PostgreSQL; SQLite is not supported")
+password = database.get("PASSWORD", "")
+if not password or any(marker in password.lower() for marker in weak_markers):
+    raise ImproperlyConfigured("DATABASE_URL must contain a non-placeholder password")
 
 if USE_S3:  # noqa: F405
     s3_credentials = [AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY]  # noqa: F405
@@ -42,3 +45,12 @@ SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "31536000"))  # noqa:
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 X_FRAME_OPTIONS = "DENY"
+
+if EMAIL_BACKEND.endswith("smtp.EmailBackend") and not EMAIL_HOST:  # noqa: F405
+    raise ImproperlyConfigured("EMAIL_HOST is required when SMTP email is enabled")
+
+if ATTENDANCE_NOTIFICATION_MAX_ATTEMPTS < 1:  # noqa: F405
+    raise ImproperlyConfigured("ATTENDANCE_NOTIFICATION_MAX_ATTEMPTS must be at least 1")
+
+READINESS_CHECK_BROKER = True
+READINESS_CHECK_STORAGE = True

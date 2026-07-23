@@ -46,7 +46,10 @@ class Command(BaseCommand):
             school, _ = School.objects.get_or_create(
                 organization=organization,
                 code=f"branch-{index:02d}",
-                defaults={"name": f"شعبه {index}", "official_name": f"مدرسه هم‌آموز - شعبه {index}"},
+                defaults={
+                    "name": f"شعبه {index}",
+                    "official_name": f"مدرسه هم‌آموز - شعبه {index}",
+                },
             )
             schools.append(school)
 

@@ -1,4 +1,8 @@
+from datetime import timedelta
+
+from django.conf import settings
 from django.db import transaction
+from django.utils import timezone
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -45,8 +49,17 @@ class ImportJobViewSet(AuditedModelViewSet):
     @action(detail=True, methods=["post"])
     def retry(self, request, pk=None):
         job = self.get_object()
-        if job.status != ImportJob.Status.FAILED:
-            return Response({"detail": "فقط Import ناموفق قابل تکرار است."}, status=400)
+        stale = (
+            job.status == ImportJob.Status.PROCESSING
+            and job.started_at
+            and job.started_at
+            < timezone.now() - timedelta(minutes=settings.IMPORT_PROCESSING_TIMEOUT_MINUTES)
+        )
+        if job.status != ImportJob.Status.FAILED and not stale:
+            return Response(
+                {"detail": "فقط Import ناموفق یا پردازش منقضی‌شده قابل تکرار است."},
+                status=400,
+            )
         job.status = ImportJob.Status.QUEUED
         job.save(update_fields=["status", "updated_at"])
         transaction.on_commit(lambda: process_import_job_task.delay(str(job.id)))

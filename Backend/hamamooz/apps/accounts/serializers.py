@@ -1,5 +1,6 @@
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from hamamooz.apps.core.services import record_audit
@@ -143,7 +144,24 @@ class LoginSerializer(TokenObtainPairSerializer):
     default_error_messages = {"no_active_account": "نام کاربری یا رمز عبور نادرست است."}
 
     def validate(self, attrs):
-        data = super().validate(attrs)
+        identifier = str(attrs.get(self.username_field, "")).strip()
+        if "@" in identifier:
+            username = (
+                User.objects.filter(email__iexact=identifier)
+                .values_list("username", flat=True)
+                .first()
+            )
+            if username:
+                attrs[self.username_field] = username
+        try:
+            data = super().validate(attrs)
+        except AuthenticationFailed:
+            record_audit(
+                action="auth.login_failed",
+                request=self.context.get("request"),
+                metadata={"identifier_provided": bool(identifier)},
+            )
+            raise
         data["user"] = UserSummarySerializer(self.user).data
         record_audit(action="auth.login", actor=self.user, request=self.context.get("request"))
         return data

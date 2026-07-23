@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Django local state
+.env
+.env.*.local
+db.sqlite3
+media/
+staticfiles/
+.test-media/
+
+# Generated artifacts
+build/
+openapi.yaml
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
