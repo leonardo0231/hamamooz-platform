@@ -90,7 +90,7 @@ ruff format --check .
 python manage.py check
 python manage.py makemigrations --check --dry-run
 pytest --cov=hamamooz --cov-report=term-missing
-./scripts/generate_openapi.sh build/openapi.yaml
+./scripts/generate_openapi.sh ../contracts/openapi.yaml
 ```
 
 تست‌های `select_for_update` و سناریوهای رقابت هم‌زمان باید روی PostgreSQL اجرا شوند. اجرای SQLite برای اثبات رفتار locking معتبر نیست.
@@ -100,10 +100,10 @@ pytest --cov=hamamooz --cov-report=term-missing
 منبع حقیقت قرارداد API، Schema زنده `/api/v1/schema/` و خروجی تولیدشده با دستور زیر است:
 
 ```bash
-./scripts/generate_openapi.sh build/openapi.yaml
+./scripts/generate_openapi.sh ../contracts/openapi.yaml
 ```
 
-فایل‌های تاریخی `openapi.yaml` و `docs/openapi-schema.yml` ممکن است با کد جاری همگام نباشند و نباید بدون تولید مجدد مبنای Client قرار گیرند.
+منبع Commit‌شده تیم Frontend فایل `../contracts/openapi.yaml` است. فایل‌های قدیمی `openapi.yaml` و `docs/openapi-schema.yml` داخل پوشه Backend صرفاً Snapshot تاریخی هستند و نباید مبنای Client قرار گیرند.
 
 ## نقشه مستندات
 

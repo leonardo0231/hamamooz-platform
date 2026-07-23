@@ -25,6 +25,7 @@ from hamamooz.apps.attendance.services import (
     review_absence_excuse,
     submit_absence_excuse,
 )
+from hamamooz.apps.organizations.models import AcademicYear
 from hamamooz.apps.students.models import Guardian, StudentGuardian
 
 
@@ -46,6 +47,29 @@ def create_daily_session(base_data, *, session_date=date(2026, 10, 1)):
         ends_at="13:00",
         taken_by=base_data["manager"],
     )
+
+
+def create_finalized_report_sessions(base_data):
+    statuses_by_day = [
+        [AttendanceRecord.Status.ABSENT_UNEXCUSED, AttendanceRecord.Status.PRESENT],
+        [AttendanceRecord.Status.PRESENT, AttendanceRecord.Status.PRESENT],
+    ]
+    for offset, statuses in enumerate(statuses_by_day):
+        session = create_daily_session(
+            base_data,
+            session_date=date(2026, 10, 1) + timedelta(days=offset),
+        )
+        bulk_record_attendance(
+            session=session,
+            items=[
+                {"enrollment": enrollment, "status": record_status}
+                for enrollment, record_status in zip(
+                    base_data["enrollments"], statuses, strict=True
+                )
+            ],
+            actor=base_data["manager"],
+        )
+        finalize_attendance_session(session=session, actor=base_data["manager"])
 
 
 @pytest.mark.django_db
@@ -242,6 +266,156 @@ def test_student_report_calculates_count_and_percent(api_client, base_data):
     assert response.data["metrics"]["total_sessions"] == 2
     assert response.data["metrics"]["absence_count"] == 1
     assert Decimal(response.data["metrics"]["absence_percent"]) == Decimal("50.00")
+
+
+@pytest.mark.django_db
+def test_class_report_aggregates_students_and_absences(api_client, base_data):
+    create_finalized_report_sessions(base_data)
+    api_client.force_authenticate(base_data["manager"])
+
+    response = api_client.get(
+        "/api/v1/attendance-reports/class/",
+        {
+            "class_section": str(base_data["class1"].id),
+            "academic_year": str(base_data["year"].id),
+            "date_from": "2026-10-01",
+            "date_to": "2026-10-02",
+            "scope": AttendanceSession.Scope.DAILY,
+        },
+        **attendance_headers(base_data["school1"]),
+    )
+
+    assert response.status_code == 200, response.data
+    assert response.data["class_section"]["id"] == str(base_data["class1"].id)
+    assert response.data["summary"] == {
+        "student_count": 2,
+        "total_attendance_records": 4,
+        "total_absences": 1,
+        "absence_percent": 25.0,
+    }
+    student_rows = {row["enrollment"]: row for row in response.data["students"]}
+    first = student_rows[str(base_data["enrollments"][0].id)]
+    assert first["total_sessions"] == 2
+    assert first["absence_count"] == 1
+    assert Decimal(first["absence_percent"]) == Decimal("50.00")
+
+
+@pytest.mark.django_db
+def test_class_report_rejects_mismatched_academic_year(api_client, base_data):
+    other_year = AcademicYear.objects.create(
+        organization=base_data["organization"],
+        code="1404-1405",
+        title="۱۴۰۴-۱۴۰۵",
+        starts_on=date(2025, 9, 23),
+        ends_on=date(2026, 6, 22),
+    )
+    api_client.force_authenticate(base_data["manager"])
+
+    response = api_client.get(
+        "/api/v1/attendance-reports/class/",
+        {
+            "class_section": str(base_data["class1"].id),
+            "academic_year": str(other_year.id),
+        },
+        **attendance_headers(base_data["school1"]),
+    )
+
+    assert response.status_code == 400, response.data
+    assert "academic_year" in response.data["error"]["detail"]
+
+
+@pytest.mark.django_db
+def test_school_report_aggregates_accessible_classes(api_client, base_data):
+    create_finalized_report_sessions(base_data)
+    api_client.force_authenticate(base_data["manager"])
+
+    response = api_client.get(
+        "/api/v1/attendance-reports/school/",
+        {
+            "school": str(base_data["school1"].id),
+            "academic_year": str(base_data["year"].id),
+            "date_from": "2026-10-01",
+            "date_to": "2026-10-02",
+            "scope": AttendanceSession.Scope.DAILY,
+        },
+        **attendance_headers(base_data["school1"]),
+    )
+
+    assert response.status_code == 200, response.data
+    assert response.data["school"]["id"] == str(base_data["school1"].id)
+    assert response.data["academic_year"]["id"] == str(base_data["year"].id)
+    assert response.data["summary"] == {
+        "class_count": 1,
+        "total_attendance_records": 4,
+        "absence_count": 1,
+        "absence_percent": 25.0,
+    }
+    assert response.data["classes"] == [
+        {
+            "class_section": str(base_data["class1"].id),
+            "class_title": base_data["class1"].title,
+            "grade_title": base_data["grade"].title,
+            "student_count": 2,
+            "total_attendance_records": 4,
+            "absence_count": 1,
+            "absence_percent": 25.0,
+        }
+    ]
+
+
+@pytest.mark.django_db
+def test_notify_guardians_report_endpoint_returns_created_notifications(
+    api_client, base_data, settings
+):
+    settings.ATTENDANCE_ASYNC_NOTIFICATIONS = False
+    guardian = Guardian.objects.create(
+        organization=base_data["organization"],
+        first_name="ولی",
+        last_name="گزارش",
+        phone_primary="09121111111",
+        email="report-guardian@example.com",
+    )
+    StudentGuardian.objects.create(
+        student=base_data["students"][0],
+        guardian=guardian,
+        relationship=StudentGuardian.Relationship.MOTHER,
+        is_primary=True,
+    )
+    create_finalized_report_sessions(base_data)
+    api_client.force_authenticate(base_data["manager"])
+
+    payload = {
+        "enrollment": str(base_data["enrollments"][0].id),
+        "date_from": "2026-10-01",
+        "date_to": "2026-10-02",
+        "scope": AttendanceSession.Scope.DAILY,
+        "channels": [ParentNotification.Channel.IN_APP],
+    }
+    response = api_client.post(
+        "/api/v1/attendance-reports/notify-guardians/",
+        payload,
+        format="json",
+        **attendance_headers(base_data["school1"]),
+    )
+
+    assert response.status_code == 201, response.data
+    assert len(response.data) == 1
+    assert response.data[0]["kind"] == ParentNotification.Kind.SUMMARY
+    assert response.data[0]["channel"] == ParentNotification.Channel.IN_APP
+    assert response.data[0]["status"] == ParentNotification.Status.SKIPPED
+    notification = ParentNotification.objects.get(pk=response.data[0]["id"])
+    assert notification.enrollment_id == base_data["enrollments"][0].id
+    assert notification.metadata["metrics"]["absence_count"] == "1"
+
+    repeated = api_client.post(
+        "/api/v1/attendance-reports/notify-guardians/",
+        payload,
+        format="json",
+        **attendance_headers(base_data["school1"]),
+    )
+    assert repeated.status_code == 201, repeated.data
+    assert repeated.data[0]["id"] == response.data[0]["id"]
+    assert ParentNotification.objects.filter(kind=ParentNotification.Kind.SUMMARY).count() == 1
 
 
 @pytest.mark.django_db

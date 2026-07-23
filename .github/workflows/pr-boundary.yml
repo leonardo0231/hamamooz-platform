@@ -1,0 +1,68 @@
+name: PR Branch Boundary
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+jobs:
+  validate-branch-boundary:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate changed paths
+        shell: bash
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          echo "Head branch: ${HEAD_REF}"
+          echo "Changed files:"
+
+          git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" | tee changed-files.txt
+
+          if [ "${HEAD_REF}" = "backend/mvp-bootstrap" ]; then
+            INVALID_FILES="$(
+              grep -Ev '^(Backend/|contracts/|docs/|\.github/|README\.md$|\.gitignore$)' changed-files.txt || true
+            )"
+
+            if [ -n "${INVALID_FILES}" ]; then
+              echo "Backend branch contains changes outside allowed paths:"
+              echo "${INVALID_FILES}"
+              exit 1
+            fi
+
+          elif [ "${HEAD_REF}" = "frontend/mvp-bootstrap" ]; then
+            INVALID_FILES="$(
+              grep -Ev '^Frontend/' changed-files.txt || true
+            )"
+
+            if [ -n "${INVALID_FILES}" ]; then
+              echo "Frontend branch contains changes outside Frontend/:"
+              echo "${INVALID_FILES}"
+              exit 1
+            fi
+
+          else
+            echo "Pull requests to main are only allowed from:"
+            echo "- backend/mvp-bootstrap"
+            echo "- frontend/mvp-bootstrap"
+            exit 1
+          fi
+
+          echo "Branch boundary validation passed."

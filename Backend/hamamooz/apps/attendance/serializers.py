@@ -443,6 +443,113 @@ class SchoolAttendanceReportQuerySerializer(AttendanceReportQuerySerializer):
     academic_year = serializers.UUIDField()
 
 
+class AttendanceMetricsSerializer(serializers.Serializer):
+    total_sessions = serializers.IntegerField(read_only=True)
+    absence_count = serializers.IntegerField(read_only=True)
+    excused_absence_count = serializers.IntegerField(read_only=True)
+    unexcused_absence_count = serializers.IntegerField(read_only=True)
+    late_count = serializers.IntegerField(read_only=True)
+    early_leave_count = serializers.IntegerField(read_only=True)
+    absence_percent = serializers.FloatField(read_only=True)
+
+
+class StudentAttendanceIdentitySerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    enrollment = serializers.UUIDField(read_only=True)
+    student_number = serializers.CharField(read_only=True)
+    class_section = serializers.UUIDField(read_only=True)
+    class_title = serializers.CharField(read_only=True)
+
+
+class StudentAttendanceReportResponseSerializer(serializers.Serializer):
+    student = StudentAttendanceIdentitySerializer(read_only=True)
+    date_from = serializers.DateField(read_only=True)
+    date_to = serializers.DateField(read_only=True)
+    scope = serializers.ChoiceField(
+        choices=AttendanceSession.Scope.choices,
+        allow_null=True,
+        read_only=True,
+    )
+    metrics = AttendanceMetricsSerializer(read_only=True)
+    records = AttendanceRecordSerializer(many=True, read_only=True)
+
+
+class ClassAttendanceIdentitySerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    title = serializers.CharField(read_only=True)
+    school = serializers.UUIDField(read_only=True)
+    school_name = serializers.CharField(read_only=True)
+
+
+class ClassAttendanceSummarySerializer(serializers.Serializer):
+    student_count = serializers.IntegerField(read_only=True)
+    total_attendance_records = serializers.IntegerField(read_only=True)
+    total_absences = serializers.IntegerField(read_only=True)
+    absence_percent = serializers.FloatField(read_only=True)
+
+
+class ClassStudentAttendanceSerializer(AttendanceMetricsSerializer):
+    enrollment = serializers.UUIDField(read_only=True)
+    student = serializers.UUIDField(read_only=True)
+    student_name = serializers.CharField(read_only=True)
+    student_number = serializers.CharField(read_only=True)
+
+
+class ClassAttendanceReportResponseSerializer(serializers.Serializer):
+    class_section = ClassAttendanceIdentitySerializer(read_only=True)
+    date_from = serializers.DateField(read_only=True)
+    date_to = serializers.DateField(read_only=True)
+    scope = serializers.ChoiceField(
+        choices=AttendanceSession.Scope.choices,
+        allow_null=True,
+        read_only=True,
+    )
+    summary = ClassAttendanceSummarySerializer(read_only=True)
+    students = ClassStudentAttendanceSerializer(many=True, read_only=True)
+
+
+class SchoolAttendanceIdentitySerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    name = serializers.CharField(read_only=True)
+
+
+class AcademicYearIdentitySerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    title = serializers.CharField(read_only=True)
+
+
+class SchoolAttendanceSummarySerializer(serializers.Serializer):
+    class_count = serializers.IntegerField(read_only=True)
+    total_attendance_records = serializers.IntegerField(read_only=True)
+    absence_count = serializers.IntegerField(read_only=True)
+    absence_percent = serializers.FloatField(read_only=True)
+
+
+class SchoolClassAttendanceSerializer(serializers.Serializer):
+    class_section = serializers.UUIDField(read_only=True)
+    class_title = serializers.CharField(read_only=True)
+    grade_title = serializers.CharField(read_only=True)
+    student_count = serializers.IntegerField(read_only=True)
+    total_attendance_records = serializers.IntegerField(read_only=True)
+    absence_count = serializers.IntegerField(read_only=True)
+    absence_percent = serializers.FloatField(read_only=True)
+
+
+class SchoolAttendanceReportResponseSerializer(serializers.Serializer):
+    school = SchoolAttendanceIdentitySerializer(read_only=True)
+    academic_year = AcademicYearIdentitySerializer(read_only=True)
+    date_from = serializers.DateField(read_only=True)
+    date_to = serializers.DateField(read_only=True)
+    scope = serializers.ChoiceField(
+        choices=AttendanceSession.Scope.choices,
+        allow_null=True,
+        read_only=True,
+    )
+    summary = SchoolAttendanceSummarySerializer(read_only=True)
+    classes = SchoolClassAttendanceSerializer(many=True, read_only=True)
+
+
 class NotifyGuardiansSerializer(StudentAttendanceReportQuerySerializer):
     channels = serializers.ListField(
         child=serializers.ChoiceField(choices=ParentNotification.Channel.choices),

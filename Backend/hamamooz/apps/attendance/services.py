@@ -476,10 +476,12 @@ def _schedule_notification(notification):
         from .notifications import dispatch_notification
 
         dispatch_notification(notification)
-        return
+        notification.refresh_from_db()
+        return notification
     from .tasks import dispatch_parent_notification
 
     transaction.on_commit(lambda: dispatch_parent_notification.delay(str(notification.id)))
+    return notification
 
 
 def _guardians_for_student(student):

@@ -1,7 +1,8 @@
 from django.db.models import Prefetch, Q
+from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from hamamooz.apps.accounts.access import allowed_class_ids, selected_school_ids
@@ -38,13 +39,16 @@ from .serializers import (
     AttendanceSessionSerializer,
     BulkAttendanceSerializer,
     ClassAttendanceReportQuerySerializer,
+    ClassAttendanceReportResponseSerializer,
     CorrectAttendanceRecordSerializer,
     NotificationChannelsSerializer,
     NotifyGuardiansSerializer,
     ParentNotificationSerializer,
     ReviewAbsenceExcuseSerializer,
     SchoolAttendanceReportQuerySerializer,
+    SchoolAttendanceReportResponseSerializer,
     StudentAttendanceReportQuerySerializer,
+    StudentAttendanceReportResponseSerializer,
     SubmitAbsenceExcuseSerializer,
 )
 from .services import (
@@ -406,9 +410,22 @@ class ParentNotificationViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(self.get_serializer(notification).data, status=202)
 
 
-class AttendanceReportViewSet(viewsets.ViewSet):
+class AttendanceReportViewSet(viewsets.GenericViewSet):
+    queryset = AttendanceRecord.objects.none()
+    serializer_class = StudentAttendanceReportResponseSerializer
     permission_classes = [RolePermission]
+    pagination_class = None
+    filter_backends = []
     required_roles_by_action = {"notify_guardians": ATTENDANCE_WRITERS}
+    serializer_classes = {
+        "student": StudentAttendanceReportResponseSerializer,
+        "classroom": ClassAttendanceReportResponseSerializer,
+        "school": SchoolAttendanceReportResponseSerializer,
+        "notify_guardians": NotifyGuardiansSerializer,
+    }
+
+    def get_serializer_class(self):
+        return self.serializer_classes.get(self.action, self.serializer_class)
 
     def _validate_enrollment_scope(self, request, enrollment):
         school_ids = selected_school_ids(request)
@@ -418,6 +435,10 @@ class AttendanceReportViewSet(viewsets.ViewSet):
         ):
             raise PermissionDenied("ثبت‌نام در محدوده دسترسی شما نیست.")
 
+    @extend_schema(
+        parameters=[StudentAttendanceReportQuerySerializer],
+        responses={200: StudentAttendanceReportResponseSerializer},
+    )
     @action(detail=False, methods=["get"])
     def student(self, request):
         serializer = StudentAttendanceReportQuerySerializer(data=request.query_params)
@@ -464,6 +485,10 @@ class AttendanceReportViewSet(viewsets.ViewSet):
             }
         )
 
+    @extend_schema(
+        parameters=[ClassAttendanceReportQuerySerializer],
+        responses={200: ClassAttendanceReportResponseSerializer},
+    )
     @action(detail=False, methods=["get"], url_path="class")
     def classroom(self, request):
         serializer = ClassAttendanceReportQuerySerializer(data=request.query_params)
@@ -479,6 +504,9 @@ class AttendanceReportViewSet(viewsets.ViewSet):
         )
         if not class_section:
             raise PermissionDenied("کلاس در محدوده دسترسی شما نیست.")
+        requested_year_id = serializer.validated_data.get("academic_year")
+        if requested_year_id and requested_year_id != class_section.academic_year_id:
+            raise ValidationError({"academic_year": "سال تحصیلی با کلاس انتخاب‌شده سازگار نیست."})
         date_from, date_to = attendance_date_range(
             academic_year=class_section.academic_year,
             date_from=serializer.validated_data.get("date_from"),
@@ -543,6 +571,10 @@ class AttendanceReportViewSet(viewsets.ViewSet):
             }
         )
 
+    @extend_schema(
+        parameters=[SchoolAttendanceReportQuerySerializer],
+        responses={200: SchoolAttendanceReportResponseSerializer},
+    )
     @action(detail=False, methods=["get"])
     def school(self, request):
         serializer = SchoolAttendanceReportQuerySerializer(data=request.query_params)
@@ -635,6 +667,10 @@ class AttendanceReportViewSet(viewsets.ViewSet):
             }
         )
 
+    @extend_schema(
+        request=NotifyGuardiansSerializer,
+        responses={201: ParentNotificationSerializer(many=True)},
+    )
     @action(detail=False, methods=["post"], url_path="notify-guardians")
     def notify_guardians(self, request):
         serializer = NotifyGuardiansSerializer(data=request.data)

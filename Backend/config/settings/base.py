@@ -186,7 +186,13 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "SCHEMA_PATH_PREFIX": r"/api/v1",
     "COMPONENT_SPLIT_REQUEST": True,
-    "SECURITY": [{"jwtAuth": []}],
+    "ENUM_NAME_OVERRIDES": {
+        "AttendanceNotificationChannelEnum": [
+            ("in_app", "داخل سامانه"),
+            ("email", "ایمیل"),
+            ("sms", "پیامک"),
+        ],
+    },
 }
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")

@@ -1,60 +1,114 @@
-# دستور یک commit برای تمام تغییرات امروز
+# دستور Commit و Push تغییرات Backend
 
-## ۱. جایگزینی فایل‌ها
+این پروژه فقط سه Branch دائمی دارد:
 
-محتویات پوشه `Backend` این بسته را روی پوشه `Backend` repository کپی کنید. سپس از ریشه repository:
-
-```bat
-cd /d D:\Projects\hamamooz-platform
-rmdir /s /q Backend\apps 2>nul
+```text
+main
+backend/mvp-bootstrap
+frontend/mvp-bootstrap
 ```
 
-حذف `Backend\apps` عمدی است؛ ساختار فعال `Backend\hamamooz\apps` است.
+برای تغییرات Backend Branch جدید ایجاد نکنید.
+
+## ۱. ورود به Branch Backend
+
+```powershell
+cd D:\Projects\hamamooz-platform
+git switch backend/mvp-bootstrap
+git pull --ff-only origin backend/mvp-bootstrap
+git fetch origin
+git merge origin/main
+```
+
+قبل از ادامه، `git status` را بررسی کنید و مطمئن شوید تغییر ناشناخته‌ای حذف یا بازنویسی نمی‌شود.
 
 ## ۲. کنترل کیفیت
 
-```bat
+```powershell
 cd Backend
-ruff check . --fix
-ruff format .
 ruff check .
 ruff format --check .
 python manage.py check
 python manage.py makemigrations --check --dry-run
-python manage.py migrate
-pytest -q
-python manage.py spectacular --api-version v1 --file build\openapi.yaml --validate
+pytest --cov=hamamooz --cov-report=term-missing
+python manage.py spectacular --api-version v1 --file ..\contracts\openapi.yaml --validate
 cd ..
 ```
 
-روی Windows برای تست PDF، Pango باید نصب باشد یا suite را داخل Docker اجرا کنید.
+تست هم‌زمانی و Locking باید در CI روی PostgreSQL اجرا شود. روی Windows برای تست PDF باید Pango نصب باشد یا تست‌ها داخل Docker اجرا شوند.
 
-## ۳. ساخت دقیق یک commit
+## ۳. بررسی فایل‌های قابل Commit
 
-```bat
-git add -A
-git diff --cached --check
+از `git add .` بدون بررسی استفاده نکنید.
+
+```powershell
 git status --short
-git commit -m "feat(backend): consolidate apps and harden attendance platform"
+git diff --check
+git diff --stat
 ```
 
-این commit تمام renameها، حذف ساختار legacy، attendance، migrationها، گزارش، امنیت، عملیات و
-مستندات امروز را یکجا ثبت می‌کند.
+فایل‌های Secret و محلی نباید Commit شوند:
 
-## ۴. Push
+```text
+Backend/.env
+Backend/db.sqlite3
+Backend/.venv/
+Backend/media/
+Backend/.test-media/
+contracts/openapi.generated.yaml
+```
 
-اگر روی `backend/mvp-bootstrap` هستید:
+## ۴. Stage و Commit
 
-```bat
+برای تغییر قرارداد Attendance این فایل‌ها باید Stage شوند:
+
+```powershell
+git add Backend/hamamooz/apps/attendance/serializers.py
+git add Backend/hamamooz/apps/attendance/views.py
+git add Backend/config/settings/base.py
+git add Backend/tests/test_openapi_schema.py
+git add contracts/openapi.yaml
+git add contracts/API_CHANGELOG.md
+git add README.md
+git add docs/FRONTEND_HANDOFF_FA.md
+git add .github
+git add .gitignore
+git add Backend/README.md
+git add Backend/scripts/generate_openapi.sh
+git add Backend/COMMIT_INSTRUCTIONS_FA.md
+```
+
+سپس:
+
+```powershell
+git diff --cached --check
+git diff --cached --stat
+git commit -m "fix(api): complete attendance report OpenAPI contract"
+```
+
+## ۵. Push و Pull Request
+
+```powershell
 git push origin backend/mvp-bootstrap
 ```
 
-اگر تغییرات روی `cleanup/backend-consolidation` commit شده‌اند:
+Pull Request باید از این Branch به `main` ساخته شود:
 
-```bat
+```powershell
+gh pr create `
+  --base main `
+  --head backend/mvp-bootstrap `
+  --title "fix(api): complete attendance report OpenAPI contract" `
+  --body "Fixes AttendanceReport OpenAPI serializers, removes schema warnings and duplicate security entries, updates the committed contract, adds regression tests, and repairs repository integration files."
+```
+
+پس از سبزشدن CI، PR با Merge Commit ادغام شود و Branch حذف نشود.
+
+## ۶. همگام‌سازی بعد از Merge
+
+```powershell
+git fetch origin
 git switch backend/mvp-bootstrap
-git merge --ff-only cleanup/backend-consolidation
+git merge --ff-only origin/main
 git push origin backend/mvp-bootstrap
 ```
-
-`--ff-only` تضمین می‌کند merge commit دوم ساخته نشود و در تاریخچه فقط همان یک commit باقی بماند.
