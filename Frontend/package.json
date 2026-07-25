@@ -1,0 +1,23 @@
+{
+  "name": "hamamooz-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Production frontend for HamAmoz school management platform",
+  "scripts": {
+    "generate:api": "python scripts/generate_contract.py",
+    "clean": "node scripts/clean.mjs",
+    "typecheck": "tsc --noEmit",
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/dev.mjs",
+    "preview": "node scripts/serve.mjs dist 4173",
+    "lint": "node scripts/lint.mjs",
+    "test": "npm run build && node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "typescript": "5.8.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
