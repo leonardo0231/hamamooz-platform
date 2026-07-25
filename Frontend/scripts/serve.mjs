@@ -17,4 +17,6 @@ createServer(async (request, response) => {
   } catch {
     response.writeHead(404); response.end('Not found');
   }
-}).listen(port, () => console.log(`HamAmoz frontend: http://localhost:${port}`));
+}).listen(port, '127.0.0.1', () =>
+  console.log(`"HamAmoz frontend: http://127.0.0.1:${port}"`)
+);

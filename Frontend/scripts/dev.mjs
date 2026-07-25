@@ -13,7 +13,7 @@ function build() {
 }
 
 if (!build()) process.exit(1);
-const server = spawn(process.execPath, [resolve(root, 'scripts/serve.mjs'), 'dist', '5173'], { cwd: root, stdio: 'inherit' });
+const server = spawn(process.execPath, [resolve(root, 'scripts/serve.mjs'), 'dist', '3000'], { cwd: root, stdio: 'inherit' });
 let timer;
 let building = false;
 let queued = false;
