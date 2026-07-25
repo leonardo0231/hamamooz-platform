@@ -2,6 +2,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
+from corsheaders.defaults import default_headers
 
 from celery.schedules import crontab
 
@@ -142,6 +143,14 @@ if USE_S3:
 
 CORS_ALLOWED_ORIGINS = env_list("DJANGO_CORS_ALLOWED_ORIGINS")
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
+
+CORS_ALLOW_HEADERS = (
+    *default_headers,
+    "x-request-id",
+    "x-school-id",
+    "x-organization-id",
+)
+
 CORS_ALLOW_CREDENTIALS = False
 TRUST_X_FORWARDED_FOR = env_bool("TRUST_X_FORWARDED_FOR", False)
 READINESS_CHECK_BROKER = env_bool("READINESS_CHECK_BROKER", False)
