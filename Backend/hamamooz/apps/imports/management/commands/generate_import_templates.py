@@ -32,6 +32,18 @@ class Command(BaseCommand):
                 "present",
                 "",
             ],
+            ImportJob.ImportType.MONTHLY_EVALUATIONS: [
+                "1.0",
+                "s1",
+                "1405-1406",
+                "7-a",
+                "101",
+                "0012345678",
+                4,
+                "EDU_01",
+                4,
+                "",
+            ],
         }
         for import_type, headers in EXPECTED_HEADERS.items():
             workbook = Workbook()

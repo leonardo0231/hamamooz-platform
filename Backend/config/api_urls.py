@@ -20,6 +20,7 @@ from hamamooz.apps.attendance.views import (
     ParentNotificationViewSet,
 )
 from hamamooz.apps.dashboard.views import DashboardSummaryView
+from hamamooz.apps.evaluations.views import MonthlyEvaluationViewSet
 from hamamooz.apps.imports.views import ImportJobViewSet
 from hamamooz.apps.organizations.views import (
     AcademicYearViewSet,
@@ -58,6 +59,11 @@ router.register("attendance-alerts", AttendanceAlertViewSet, basename="attendanc
 router.register("parent-notifications", ParentNotificationViewSet, basename="parent-notification")
 router.register("attendance-reports", AttendanceReportViewSet, basename="attendance-report")
 router.register("imports", ImportJobViewSet, basename="import-job")
+router.register(
+    "monthly-evaluations",
+    MonthlyEvaluationViewSet,
+    basename="monthly-evaluation",
+)
 router.register("reports", ReportArchiveViewSet, basename="report")
 
 urlpatterns = [

@@ -13,6 +13,8 @@ from openpyxl import load_workbook
 
 from hamamooz.apps.academics.models import Assessment, Score
 from hamamooz.apps.academics.services import bulk_upsert_scores
+from hamamooz.apps.evaluations.catalog import FRAMEWORK_VERSION, METRIC_CODES
+from hamamooz.apps.evaluations.models import MetricScore, MonthlyEvaluation
 from hamamooz.apps.organizations.models import AcademicYear, ClassSection, GradeLevel
 from hamamooz.apps.students.models import Enrollment, Student
 
@@ -41,7 +43,33 @@ EXPECTED_HEADERS = {
         "status",
         "note",
     ],
+    ImportJob.ImportType.MONTHLY_EVALUATIONS: [
+        "نسخه قالب",
+        "کد مدرسه",
+        "سال تحصیلی",
+        "کد کلاس",
+        "شماره دانش‌آموزی",
+        "کد ملی",
+        "شماره ماه",
+        "کد شاخص",
+        "امتیاز",
+        "توضیحات",
+    ],
 }
+
+INTERNAL_HEADERS = {import_type: headers for import_type, headers in EXPECTED_HEADERS.items()}
+INTERNAL_HEADERS[ImportJob.ImportType.MONTHLY_EVALUATIONS] = [
+    "template_version",
+    "school_code",
+    "academic_year_code",
+    "class_code",
+    "student_number",
+    "national_id",
+    "month_no",
+    "metric_code",
+    "score",
+    "note",
+]
 
 
 def _as_date(value, field):
@@ -113,7 +141,15 @@ def _load_rows(job):
                 if isinstance(value, str) and len(value) > 5000:
                     raise ValueError("طول مقدار یکی از سلول‌ها بیش از حد مجاز است.")
                 normalized.append(value)
-            loaded.append(dict(zip(header, normalized, strict=True)))
+            loaded.append(
+                dict(
+                    zip(
+                        INTERNAL_HEADERS[job.import_type],
+                        normalized,
+                        strict=True,
+                    )
+                )
+            )
         return loaded
     finally:
         workbook.close()
@@ -310,6 +346,137 @@ def _validate_scores(job, rows):
     return grouped, errors
 
 
+def _validate_monthly_evaluations(job, rows):
+    prepared, errors, seen = defaultdict(list), [], set()
+    normalized_rows = []
+    year_codes, class_codes, student_numbers, national_ids = set(), set(), set(), set()
+
+    for number, row in enumerate(rows, start=2):
+        year_code = str(row["academic_year_code"] or "").strip()
+        class_code = str(row["class_code"] or "").strip()
+        student_number = str(row["student_number"] or "").strip()
+        national_id = str(row["national_id"] or "").strip().zfill(10)
+        normalized_rows.append((number, row, year_code, class_code, student_number, national_id))
+        year_codes.add(year_code)
+        class_codes.add(class_code)
+        student_numbers.add(student_number)
+        national_ids.add(national_id)
+
+    enrollments = {
+        (
+            item.academic_year.code,
+            item.class_section.code,
+            item.student_number,
+            item.student.national_id,
+        ): item
+        for item in Enrollment.objects.select_related(
+            "academic_year", "class_section", "student"
+        ).filter(
+            school=job.school,
+            academic_year__code__in=year_codes,
+            class_section__code__in=class_codes,
+            student_number__in=student_numbers,
+            student__national_id__in=national_ids,
+            status=Enrollment.Status.ACTIVE,
+        )
+    }
+
+    notes = {}
+    for number, row, year_code, class_code, student_number, national_id in normalized_rows:
+        try:
+            if str(row["template_version"] or "").strip() != FRAMEWORK_VERSION:
+                raise ValueError(f"نسخه قالب باید {FRAMEWORK_VERSION} باشد.")
+            if str(row["school_code"] or "").strip() != job.school.code:
+                raise ValueError("کد مدرسه با شعبه انتخاب‌شده در سایت یکسان نیست.")
+            enrollment = enrollments.get((year_code, class_code, student_number, national_id))
+            if enrollment is None:
+                raise ValueError("ثبت‌نام متناظر با سال، کلاس، شماره دانش‌آموزی و کد ملی پیدا نشد.")
+            try:
+                month_no = int(row["month_no"])
+            except (TypeError, ValueError) as exc:
+                raise ValueError("شماره ماه باید عدد صحیح ۱ تا ۱۲ باشد.") from exc
+            if month_no not in range(1, 13):
+                raise ValueError("شماره ماه باید عدد صحیح ۱ تا ۱۲ باشد.")
+            metric_code = str(row["metric_code"] or "").strip().upper()
+            if metric_code not in METRIC_CODES:
+                raise ValueError("کد شاخص معتبر نیست.")
+            try:
+                score_decimal = Decimal(str(row["score"]))
+                score = int(score_decimal)
+            except (InvalidOperation, TypeError, ValueError) as exc:
+                raise ValueError("امتیاز باید عدد صحیح ۰ تا ۵ باشد.") from exc
+            if score not in range(0, 6) or score_decimal != score:
+                raise ValueError("امتیاز باید عدد صحیح ۰ تا ۵ باشد.")
+            evaluation_key = (enrollment.id, month_no)
+            metric_key = (*evaluation_key, metric_code)
+            if metric_key in seen:
+                raise ValueError("این شاخص برای دانش‌آموز و ماه تکراری است.")
+            seen.add(metric_key)
+            note = str(row["note"] or "").strip()
+            if note and evaluation_key in notes and notes[evaluation_key] != note:
+                raise ValueError("توضیحات ردیف‌های یک دانش‌آموز و ماه باید یکسان باشد.")
+            if note:
+                notes[evaluation_key] = note
+            prepared[evaluation_key].append(
+                {
+                    "enrollment": enrollment,
+                    "month_no": month_no,
+                    "metric_code": metric_code,
+                    "score": score,
+                }
+            )
+        except ValueError as exc:
+            errors.append({"row": number, "message": str(exc)})
+
+    return {"groups": prepared, "notes": notes}, errors
+
+
+def _upsert_monthly_evaluations(job, prepared):
+    successful = 0
+    for key in sorted(prepared["groups"], key=lambda item: (str(item[0]), item[1])):
+        entries = prepared["groups"][key]
+        enrollment = entries[0]["enrollment"]
+        month_no = entries[0]["month_no"]
+        evaluation = (
+            MonthlyEvaluation.objects.select_for_update()
+            .filter(
+                enrollment=enrollment,
+                month_no=month_no,
+                framework_version=FRAMEWORK_VERSION,
+            )
+            .first()
+        )
+        if evaluation is None:
+            evaluation = MonthlyEvaluation.objects.create(
+                enrollment=enrollment,
+                month_no=month_no,
+                framework_version=FRAMEWORK_VERSION,
+                note=prepared["notes"].get(key, ""),
+                recorded_by=job.requested_by,
+                source_import_job=job,
+            )
+        else:
+            evaluation.note = prepared["notes"].get(key, evaluation.note)
+            evaluation.recorded_by = job.requested_by
+            evaluation.source_import_job = job
+            evaluation.save(
+                update_fields=[
+                    "note",
+                    "recorded_by",
+                    "source_import_job",
+                    "updated_at",
+                ]
+            )
+        for entry in entries:
+            MetricScore.objects.update_or_create(
+                evaluation=evaluation,
+                metric_code=entry["metric_code"],
+                defaults={"value": entry["score"]},
+            )
+            successful += 1
+    return successful
+
+
 def process_import_job(job_id):
     with transaction.atomic():
         job = ImportJob.objects.select_for_update().get(pk=job_id)
@@ -344,6 +511,7 @@ def process_import_job(job_id):
             ImportJob.ImportType.STUDENTS: _validate_students,
             ImportJob.ImportType.ENROLLMENTS: _validate_enrollments,
             ImportJob.ImportType.SCORES: _validate_scores,
+            ImportJob.ImportType.MONTHLY_EVALUATIONS: _validate_monthly_evaluations,
         }
         prepared, errors = validators[job.import_type](job, rows)
         job.total_rows = len(rows)
@@ -378,7 +546,7 @@ def process_import_job(job_id):
                 for instance in prepared:
                     instance.save()
                 successful = len(prepared)
-            else:
+            elif job.import_type == ImportJob.ImportType.SCORES:
                 successful = 0
                 for assessment, entries in prepared.items():
                     successful += len(
@@ -386,6 +554,8 @@ def process_import_job(job_id):
                             assessment=assessment, entries=entries, actor=job.requested_by
                         )
                     )
+            else:
+                successful = _upsert_monthly_evaluations(job, prepared)
         job.status = ImportJob.Status.COMPLETED
         job.successful_rows = successful
         job.error_count = 0

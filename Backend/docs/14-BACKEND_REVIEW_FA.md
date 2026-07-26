@@ -4,6 +4,12 @@
 
 دامنه: ساختار `Backend/` در شاخه `backend/mvp-bootstrap`، شامل کد Django/DRF، مدل‌ها، Serviceها، Taskها، تست‌ها، Settings، Compose، اسکریپت‌ها و مستندات.
 
+> یادداشت وضعیت 2026-07-26: این فایل Snapshot تاریخی بازبینی 2026-07-23 است.
+> بعد از آن Backend CI اضافه شد و کنترل‌های Runtime محلی اجرا شدند: ۹۱ تست موفق،
+> یک تست PostgreSQL روی SQLite رد شد، Ruff و Django check موفق بودند و قرارداد
+> OpenAPI با خروجی تولیدشده برابر بود. نتیجه جاری و فاصله محصول در
+> `../../docs/PRODUCT_COMPLETION_REVIEW_2026-07-26_FA.md` ثبت شده است.
+
 ## جمع‌بندی
 
 معماری برای مقیاس MVP مناسب و نسبتاً منسجم است. نقاط قوی اصلی، Scope چندلایه، fail-closed بودن actionهای ناامن، Enrollment تاریخ‌مند، workflow رسمی نمره، استفاده از Decimal، Import اتمیک، Snapshot گزارش، Attendance مبتنی بر Enrollment و جداسازی Redis cache/broker هستند.
@@ -62,7 +68,7 @@
 
 | اولویت | مورد | اثر | پیشنهاد |
 |---:|---|---|---|
-| High | CI workflow در بسته Backend مشاهده نشد | عدم اثبات خودکار test/schema freshness | افزودن CI PostgreSQL + Ruff + Pytest + OpenAPI diff |
+| Medium | Backend CI اضافه شده ولی Run موفق متناظر در GitHub مشاهده نشد | سلامت CI راه دور هنوز اثبات نشده است | Push/PR و بررسی PostgreSQL + Ruff + Pytest + OpenAPI diff |
 | Medium | `purge_expired_files` schedule داخلی ندارد | رشد storage | CronJob/systemd timer |
 | Medium | dispatch دوره‌ای notification recovery در Beat نیست | ماندن Jobهای آماده retry | Scheduler جدا |
 | Medium | Metrics exporter وجود ندارد | تشخیص دیرهنگام degradation | Prometheus/OpenTelemetry |

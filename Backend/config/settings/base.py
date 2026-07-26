@@ -2,9 +2,9 @@ import os
 from datetime import timedelta
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
-from corsheaders.defaults import default_headers
 
 from celery.schedules import crontab
+from corsheaders.defaults import default_headers
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 
@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     "hamamooz.apps.students",
     "hamamooz.apps.academics",
     "hamamooz.apps.imports",
+    "hamamooz.apps.evaluations",
     "hamamooz.apps.reports",
     "hamamooz.apps.dashboard",
     "hamamooz.apps.attendance",

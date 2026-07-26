@@ -46,7 +46,7 @@ def test_seed_demo_is_idempotent_and_generates_all_import_templates(settings, tm
     assert School.objects.filter(organization=organization).count() == 13
     assert ClassSection.objects.filter(school__organization=organization).count() == 13
     assert RoleAssignment.objects.filter(user=admin, role=Role.SYSTEM_ADMIN).count() == 1
-    assert len(list((tmp_path / "docs" / "import_templates").glob("*_template.xlsx"))) == 3
+    assert len(list((tmp_path / "docs" / "import_templates").glob("*_template.xlsx"))) == 4
 
 
 @pytest.mark.django_db

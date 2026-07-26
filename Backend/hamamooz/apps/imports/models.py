@@ -9,6 +9,7 @@ class ImportJob(SoftDeleteModel):
         STUDENTS = "students", "دانش‌آموزان"
         ENROLLMENTS = "enrollments", "ثبت‌نام و کلاس‌بندی"
         SCORES = "scores", "نمرات اولیه"
+        MONTHLY_EVALUATIONS = "monthly_evaluations", "ارزیابی جامع ماهانه"
 
     class Status(models.TextChoices):
         QUEUED = "queued", "در صف"
