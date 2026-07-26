@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 """Generate the browser-safe API catalogue from the committed OpenAPI contract."""
 from __future__ import annotations
+
 import json
+import os
 from pathlib import Path
+
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / "contracts" / "openapi.yaml"
+SOURCE = Path(
+    os.environ.get("HAMAMOOZ_OPENAPI_SOURCE", ROOT / "contracts" / "openapi.yaml")
+).resolve()
 TARGET = Path(__file__).resolve().parents[1] / "src" / "api" / "generated" / "catalog.json"
 TS_TARGET = Path(__file__).resolve().parents[1] / "src" / "api" / "generated" / "catalog.ts"
 
@@ -35,6 +40,11 @@ def schema_for_content(content):
     return {}, None
 
 def main():
+    if not SOURCE.is_file():
+        raise FileNotFoundError(
+            f"OpenAPI contract not found at {SOURCE}. "
+            "Set HAMAMOOZ_OPENAPI_SOURCE to the backend contracts/openapi.yaml path."
+        )
     doc = yaml.safe_load(SOURCE.read_text(encoding="utf-8"))
     operations = []
     for path, item in doc.get("paths", {}).items():

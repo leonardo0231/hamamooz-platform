@@ -22,6 +22,13 @@ interface ImportJob {
   created_at: string;
 }
 
+const importTypeLabels: Record<string, string> = {
+  students: 'دانش‌آموزان',
+  enrollments: 'ثبت‌نام و کلاس‌بندی',
+  scores: 'نمرات اولیه',
+  monthly_evaluations: 'ارزیابی جامع ماهانه',
+};
+
 export async function renderImportsPage(): Promise<HTMLElement> {
   const page = h('section', { className: 'page' });
   const list = h('div', { className: 'card import-list' });
@@ -53,6 +60,7 @@ export async function renderImportsPage(): Promise<HTMLElement> {
       h('article', { className: 'card guide-card' }, icon('users'), h('h2', { text: 'دانش‌آموزان' }), h('p', { text: 'نوع import_type برابر students و فایل مطابق Template رسمی Backend.' })),
       h('article', { className: 'card guide-card' }, icon('building'), h('h2', { text: 'ثبت‌نام و کلاس‌بندی' }), h('p', { text: 'نوع import_type برابر enrollments و شناسه‌های معتبر حوزه.' })),
       h('article', { className: 'card guide-card' }, icon('chart'), h('h2', { text: 'نمرات اولیه' }), h('p', { text: 'نوع import_type برابر scores و ارزیابی‌های موجود.' })),
+      h('article', { className: 'card guide-card' }, icon('check'), h('h2', { text: 'ارزیابی جامع ماهانه' }), h('p', { text: 'نوع monthly_evaluations؛ هر ردیف یک شاخص با امتیاز صحیح ۰ تا ۵ است.' })),
     ), list);
 
   async function retry(job: ImportJob): Promise<void> {
@@ -70,7 +78,7 @@ export async function renderImportsPage(): Promise<HTMLElement> {
       list.append(h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'تاریخچه پردازش فایل‌ها' }), h('p', { text: `${formatNumber(response.count)} Job` })), h('span', { className: 'card-icon' }, icon('upload'))), h('div', { className: 'table-wrap' }, h('table', { className: 'data-table' },
         h('thead', {}, h('tr', {}, ...['نوع', 'وضعیت', 'درخواست‌دهنده', 'کل ردیف', 'موفق', 'خطا', 'تاریخ', 'عملیات'].map(value => h('th', { scope: 'col', text: value })))),
         h('tbody', {}, ...response.results.map(job => h('tr', {},
-          h('td', { dataset: { label: 'نوع' }, text: job.import_type }), h('td', { dataset: { label: 'وضعیت' } }, h('span', { className: `badge badge--${job.status === 'completed' ? 'success' : job.status === 'failed' ? 'danger' : 'warning'}`, text: job.status_display || job.status })),
+          h('td', { dataset: { label: 'نوع' }, text: importTypeLabels[job.import_type] ?? job.import_type }), h('td', { dataset: { label: 'وضعیت' } }, h('span', { className: `badge badge--${job.status === 'completed' ? 'success' : job.status === 'failed' ? 'danger' : 'warning'}`, text: job.status_display || job.status })),
           h('td', { dataset: { label: 'درخواست‌دهنده' }, text: job.requested_by_name || '—' }), h('td', { dataset: { label: 'کل ردیف' }, text: formatNumber(job.total_rows) }), h('td', { dataset: { label: 'موفق' }, text: formatNumber(job.successful_rows) }), h('td', { dataset: { label: 'خطا' }, text: formatNumber(job.error_count) }), h('td', { dataset: { label: 'تاریخ' }, text: formatDate(job.created_at, true) }),
           h('td', { className: 'row-actions', dataset: { label: 'عملیات' } }, h('button', { className: 'button button--ghost', type: 'button', disabled: !hasWriteScope() || !['failed', 'processing'].includes(job.status), title: hasWriteScope() ? 'Backend منقضی‌شدن پردازش را اعتبارسنجی می‌کند' : 'ابتدا حوزه فعال را انتخاب کنید', onClick: () => void retry(job) }, icon('refresh'), 'تلاش مجدد')),
         ))),

@@ -31,6 +31,7 @@ const paths = {
   reportDownload: operationPath('reports_download_retrieve'),
   imports: operationPath('imports_list'),
   importRetry: operationPath('imports_retry_create'),
+  monthlyEvaluations: operationPath('monthly_evaluations_list'),
   userChangePassword: operationPath('users_change_password_create'),
 } as const;
 
@@ -64,6 +65,9 @@ export const endpoints = {
   imports: {
     list: paths.imports,
     retry: (id: string | number): string => bind(paths.importRetry, { id }),
+  },
+  monthlyEvaluations: {
+    list: paths.monthlyEvaluations,
   },
   users: {
     changePassword: (id: string | number): string => bind(paths.userChangePassword, { id }),

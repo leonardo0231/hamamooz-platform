@@ -4,7 +4,8 @@ import { operationById } from '../api/contract.js';
 import { actionRequestSchema } from '../api/action-schemas.js';
 import { navigate } from '../app/router.js';
 import { broadEducationRoles, hasAnyRole, hasWriteScope } from '../app/permissions.js';
-import { h, clear, formatDate, initials, safeText } from '../utils/dom.js';
+import type { Pagination } from '../api/types.js';
+import { h, clear, formatDate, formatNumber, initials, safeText } from '../utils/dom.js';
 import { errorState, loadingState, toast } from '../components/feedback.js';
 import { icon } from '../components/icons.js';
 import { openSchemaDialog, schemaHasBinary } from '../components/schema-form.js';
@@ -36,6 +37,26 @@ interface Student {
   updated_at: string;
 }
 
+interface DomainScore {
+  code: string;
+  title: string;
+  weight: number;
+  score: string | number | null;
+  completed_metrics: number;
+}
+
+interface MonthlyEvaluation {
+  id: string;
+  month_no: number;
+  academic_year_title: string;
+  class_title: string;
+  overall_score: string | number | null;
+  completion_percent: string | number;
+  domain_scores: DomainScore[];
+  note: string;
+  updated_at: string;
+}
+
 export async function renderStudentPage(id: string): Promise<HTMLElement> {
   const page = h('section', { className: 'page student-profile-page' });
   const content = h('div');
@@ -44,7 +65,12 @@ export async function renderStudentPage(id: string): Promise<HTMLElement> {
   async function load(): Promise<void> {
     clear(content); content.append(loadingState());
     try {
-      const student = await apiRequest<Student>(endpoints.students.detail(id));
+      const [student, evaluations] = await Promise.all([
+        apiRequest<Student>(endpoints.students.detail(id)),
+        apiRequest<Pagination<MonthlyEvaluation>>(endpoints.monthlyEvaluations.list, {
+          query: { enrollment__student: id, page_size: 24, ordering: '-month_no' },
+        }),
+      ]);
       clear(content);
       const editOperation = operationById('students_partial_update');
       const guardianOperation = operationById('students_guardians_create');
@@ -83,8 +109,24 @@ export async function renderStudentPage(id: string): Promise<HTMLElement> {
       const guardians = h('article', { className: 'card guardians-card' }, h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'اولیا و ارتباط‌ها' }), h('p', { text: `${student.guardians.length.toLocaleString('fa-IR')} ارتباط ثبت‌شده` })), h('span', { className: 'card-icon' }, icon('users'))),
         student.guardians.length ? h('div', { className: 'guardian-list' }, ...student.guardians.map(item => h('div', { className: 'guardian-item' }, h('span', { className: 'avatar avatar--soft', text: initials(String(item.guardian_name ?? 'ولی')) }), h('div', {}, h('strong', { text: safeText(item.guardian_name ?? item.guardian) }), h('small', { text: safeText(item.relationship) })), h('div', { className: 'guardian-flags' }, item.is_primary ? h('span', { className: 'badge badge--success', text: 'ولی اصلی' }) : null, item.can_pick_up ? h('span', { className: 'badge badge--neutral', text: 'مجاز به تحویل' }) : null))))
           : h('div', { className: 'inline-empty' }, icon('users'), h('p', { text: 'هنوز ولی‌ای به این پرونده متصل نشده است.' }), canWrite ? h('button', { className: 'button button--secondary', type: 'button', disabled: !writeScopeReady, title: writeScopeReady ? 'اتصال ولی' : 'ابتدا حوزه فعال را انتخاب کنید', onClick: attachGuardian }, icon('plus'), 'اتصال ولی') : null));
-      const contractNotice = h('article', { className: 'contract-notice' }, icon('check'), h('div', {}, h('strong', { text: 'نمایش بدون داده حدسی' }), h('p', { text: 'قرارداد فعلی برای پرونده دانش‌آموز، اطلاعات هویتی و اولیا را مستقیماً ارائه می‌کند. اطلاعات آموزشی و حضور فقط از Endpointهای دارای شناسه ثبت‌نام معتبر نمایش داده می‌شوند و در این صفحه ساخته یا حدس زده نمی‌شوند.' })));
-      content.append(hero, h('div', { className: 'student-content-grid' }, info, guardians), contractNotice);
+      const evaluationSection = h('article', { className: 'card' },
+        h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'ارزیابی جامع ماهانه' }), h('p', { text: `${formatNumber(evaluations.count)} ارزیابی ذخیره‌شده` })), h('span', { className: 'card-icon' }, icon('chart'))),
+        evaluations.results.length
+          ? h('div', { className: 'table-wrap' }, h('table', { className: 'data-table' },
+            h('thead', {}, h('tr', {}, ...['سال/کلاس', 'ماه', 'امتیاز نهایی', 'تکمیل', 'امتیاز حیطه‌ها', 'آخرین تغییر'].map(label => h('th', { scope: 'col', text: label })))),
+            h('tbody', {}, ...evaluations.results.map(evaluation => h('tr', {},
+              h('td', { dataset: { label: 'سال/کلاس' }, text: `${evaluation.academic_year_title} · ${evaluation.class_title}` }),
+              h('td', { dataset: { label: 'ماه' }, text: formatNumber(evaluation.month_no) }),
+              h('td', { dataset: { label: 'امتیاز نهایی' }, text: evaluation.overall_score == null ? '—' : `${formatNumber(evaluation.overall_score)} از ۲۰` }),
+              h('td', { dataset: { label: 'تکمیل' }, text: `${formatNumber(evaluation.completion_percent)}٪` }),
+              h('td', { dataset: { label: 'حیطه‌ها' }, text: evaluation.domain_scores.filter(item => item.score != null).map(item => `${item.title}: ${formatNumber(item.score)}`).join(' | ') || '—' }),
+              h('td', { dataset: { label: 'آخرین تغییر' }, text: formatDate(evaluation.updated_at, true) }),
+            ))),
+          ))
+          : h('div', { className: 'inline-empty' }, icon('chart'), h('p', { text: 'هنوز ارزیابی ماهانه‌ای برای این دانش‌آموز ثبت نشده است.' })),
+      );
+      const contractNotice = h('article', { className: 'contract-notice' }, icon('check'), h('div', {}, h('strong', { text: 'داده مستقیم و قابل ردیابی' }), h('p', { text: 'ارزیابی‌های ماهانه از فایل معتبر ذخیره می‌شوند و امتیاز حیطه‌ها و نمره نهایی توسط Backend محاسبه می‌شود.' })));
+      content.append(hero, h('div', { className: 'student-content-grid' }, info, guardians), evaluationSection, contractNotice);
     } catch (error) { clear(content); content.append(errorState(error, () => void load())); }
   }
   await load();

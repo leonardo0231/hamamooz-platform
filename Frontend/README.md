@@ -98,6 +98,13 @@ npm test
 
 فایل OpenAPI در Frontend ویرایش نمی‌شود.
 
+اگر شاخه‌ی Frontend مستقل Checkout شده و پوشه‌ی `contracts/` کنار آن موجود نیست،
+مسیر قرارداد Backend را صریح بدهید:
+
+```bash
+HAMAMOOZ_OPENAPI_SOURCE=/path/to/backend/contracts/openapi.yaml npm run generate:api
+```
+
 ## Authentication و Session
 
 - Access Token فقط در حافظه نگهداری می‌شود.

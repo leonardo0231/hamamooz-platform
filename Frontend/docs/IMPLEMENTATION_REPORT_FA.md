@@ -2,7 +2,7 @@
 
 ## 1. نتیجه‌ی تحلیل اولیه
 
-Branch مرجع Frontend اپلیکیشن اجرایی نداشت و فقط README تحویل داده بود. Backend یک پروژه Django REST Framework در Monorepo است و قرارداد رسمی آن در `contracts/openapi.yaml` قرار دارد. قرارداد بررسی‌شده شامل ۹۱ Path، ۱۶۲ Operation و ۱۲۴ Schema است.
+Branch مرجع Frontend اپلیکیشن اجرایی نداشت و فقط README تحویل داده بود. Backend یک پروژه Django REST Framework در Monorepo است و قرارداد رسمی آن در `contracts/openapi.yaml` قرار دارد. قرارداد بررسی‌شده شامل ۹۲ Path، ۱۶۴ Operation و ۱۴۲ Schema است.
 
 منابع بررسی‌شده:
 

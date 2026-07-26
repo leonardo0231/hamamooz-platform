@@ -17,7 +17,7 @@ const enumLabels: Record<string, string> = {
   active: 'فعال', inactive: 'غیرفعال', female: 'دختر', male: 'پسر', draft: 'پیش‌نویس', submitted: 'ارسال‌شده', approved: 'تأییدشده', rejected: 'ردشده', locked: 'قفل‌شده',
   open: 'باز', acknowledged: 'مشاهده‌شده', resolved: 'رفع‌شده', warning: 'مهم', critical: 'بحرانی', queued: 'در صف', processing: 'در حال پردازش', completed: 'تکمیل‌شده', failed: 'ناموفق',
   present: 'حاضر', excused_absent: 'غیبت موجه', unexcused_absent: 'غیبت غیرموجه', not_entered: 'ثبت‌نشده', cancelled: 'لغوشده', finalized: 'نهایی‌شده', daily: 'روزانه', period: 'زنگ درسی',
-  students: 'دانش‌آموزان', enrollments: 'ثبت‌نام‌ها', scores: 'نمرات', student_report_card: 'کارنامه دانش‌آموز', class_report_cards: 'کارنامه کلاس',
+  students: 'دانش‌آموزان', enrollments: 'ثبت‌نام‌ها', scores: 'نمرات', monthly_evaluations: 'ارزیابی جامع ماهانه', student_report_card: 'کارنامه دانش‌آموز', class_report_cards: 'کارنامه کلاس',
   system_admin: 'مدیر کل سامانه', organization_admin: 'مدیر مجموعه', school_manager: 'مدیر مدرسه', educational_deputy: 'معاون آموزشی', operator: 'اپراتور', teacher: 'دبیر',
 };
 
