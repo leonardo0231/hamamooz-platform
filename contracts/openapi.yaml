@@ -3271,12 +3271,14 @@ paths:
           type: string
           enum:
           - enrollments
+          - monthly_evaluations
           - scores
           - students
         description: |-
           * `students` - دانش‌آموزان
           * `enrollments` - ثبت‌نام و کلاس‌بندی
           * `scores` - نمرات اولیه
+          * `monthly_evaluations` - ارزیابی جامع ماهانه
       - name: ordering
         required: false
         in: query
@@ -3411,6 +3413,95 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ImportJob'
+          description: ''
+  /api/v1/monthly-evaluations/:
+    get:
+      operationId: monthly_evaluations_list
+      parameters:
+      - in: query
+        name: enrollment
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: enrollment__academic_year
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: enrollment__class_section
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: enrollment__student
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: framework_version
+        schema:
+          type: string
+      - in: query
+        name: month_no
+        schema:
+          type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - monthly-evaluations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMonthlyEvaluationList'
+          description: ''
+  /api/v1/monthly-evaluations/{id}/:
+    get:
+      operationId: monthly_evaluations_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this monthly evaluation.
+        required: true
+      tags:
+      - monthly-evaluations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonthlyEvaluation'
           description: ''
   /api/v1/organizations/:
     get:
@@ -6641,6 +6732,28 @@ components:
       - grade_subject
       - teacher
       - term
+    DomainScore:
+      type: object
+      properties:
+        code:
+          type: string
+        title:
+          type: string
+        weight:
+          type: integer
+        score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        completed_metrics:
+          type: integer
+      required:
+      - code
+      - completed_metrics
+      - score
+      - title
+      - weight
     Enrollment:
       type: object
       properties:
@@ -7236,11 +7349,13 @@ components:
       - students
       - enrollments
       - scores
+      - monthly_evaluations
       type: string
       description: |-
         * `students` - دانش‌آموزان
         * `enrollments` - ثبت‌نام و کلاس‌بندی
         * `scores` - نمرات اولیه
+        * `monthly_evaluations` - ارزیابی جامع ماهانه
     KindEnum:
       enum:
       - absence
@@ -7273,6 +7388,141 @@ components:
           minLength: 1
       required:
       - refresh
+    MetricScore:
+      type: object
+      properties:
+        metric_code:
+          type: string
+          maxLength: 10
+        title:
+          type: string
+          readOnly: true
+        domain_code:
+          type: string
+          readOnly: true
+        domain_title:
+          type: string
+          readOnly: true
+        value:
+          type: integer
+          maximum: 5
+          minimum: 0
+      required:
+      - domain_code
+      - domain_title
+      - metric_code
+      - title
+      - value
+    MonthlyEvaluation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        enrollment:
+          type: string
+          format: uuid
+          readOnly: true
+        student:
+          type: string
+          format: uuid
+          readOnly: true
+        student_name:
+          type: string
+          readOnly: true
+        student_number:
+          type: string
+          readOnly: true
+        school:
+          type: string
+          format: uuid
+          readOnly: true
+        school_name:
+          type: string
+          readOnly: true
+        academic_year:
+          type: string
+          format: uuid
+          readOnly: true
+        academic_year_title:
+          type: string
+          readOnly: true
+        class_title:
+          type: string
+          readOnly: true
+        month_no:
+          type: integer
+          readOnly: true
+        framework_version:
+          type: string
+          readOnly: true
+        note:
+          type: string
+          readOnly: true
+        recorded_by:
+          type: integer
+          readOnly: true
+        recorded_by_name:
+          type: string
+          readOnly: true
+        source_import_job:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        metric_scores:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricScore'
+          readOnly: true
+        domain_scores:
+          type: array
+          items:
+            $ref: '#/components/schemas/DomainScore'
+          readOnly: true
+        overall_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+          readOnly: true
+        completion_percent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - academic_year
+      - academic_year_title
+      - class_title
+      - completion_percent
+      - created_at
+      - domain_scores
+      - enrollment
+      - framework_version
+      - id
+      - metric_scores
+      - month_no
+      - note
+      - overall_score
+      - recorded_by
+      - recorded_by_name
+      - school
+      - school_name
+      - source_import_job
+      - student
+      - student_name
+      - student_number
+      - updated_at
     NotifyGuardiansRequest:
       type: object
       properties:
@@ -7694,6 +7944,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ImportJob'
+    PaginatedMonthlyEvaluationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthlyEvaluation'
     PaginatedOrganizationList:
       type: object
       required:
