@@ -30,7 +30,11 @@ const paths = {
   reports: operationPath('reports_list'),
   reportDownload: operationPath('reports_download_retrieve'),
   imports: operationPath('imports_list'),
+  importDetail: operationPath('imports_retrieve'),
   importRetry: operationPath('imports_retry_create'),
+  importCancel: operationPath('imports_cancel_create'),
+  importErrors: operationPath('imports_errors_retrieve'),
+  importTemplate: operationPath('imports_templates_retrieve'),
   monthlyEvaluations: operationPath('monthly_evaluations_list'),
   userChangePassword: operationPath('users_change_password_create'),
 } as const;
@@ -64,7 +68,11 @@ export const endpoints = {
   },
   imports: {
     list: paths.imports,
+    detail: (id: string | number): string => bind(paths.importDetail, { id }),
     retry: (id: string | number): string => bind(paths.importRetry, { id }),
+    cancel: (id: string | number): string => bind(paths.importCancel, { id }),
+    errors: (id: string | number): string => bind(paths.importErrors, { id }),
+    template: (type: string): string => bind(paths.importTemplate, { template_type: type }),
   },
   monthlyEvaluations: {
     list: paths.monthlyEvaluations,

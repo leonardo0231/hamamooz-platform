@@ -6,7 +6,7 @@ const catalog = JSON.parse(await readFile(new URL('../src/api/generated/catalog.
 const keys = new Set(catalog.operations.map(operation => `${operation.method} ${operation.path}`));
 
 test('generated API catalog has the expected contract size', () => {
-  assert.equal(catalog.operations.length, 164);
+  assert.equal(catalog.operations.length, 167);
   assert.equal(Object.keys(catalog.schemas).length, 142);
 });
 
@@ -25,6 +25,9 @@ test('critical operational endpoints exist', () => {
     'GET /api/v1/students/',
     'POST /api/v1/attendance-sessions/{id}/bulk-mark/',
     'POST /api/v1/imports/',
+    'POST /api/v1/imports/{id}/cancel/',
+    'GET /api/v1/imports/{id}/errors/',
+    'GET /api/v1/imports/templates/{template_type}/',
     'GET /api/v1/monthly-evaluations/',
     'POST /api/v1/reports/',
     'GET /api/v1/reports/{id}/download/',
