@@ -1,0 +1,18 @@
+services:
+  release:
+    entrypoint: []
+    volumes:
+      - .:/app
+      - ./.venv/Lib/site-packages/xlrd:/usr/local/lib/python3.12/site-packages/xlrd:ro
+
+  web:
+    entrypoint: []
+    volumes:
+      - .:/app
+      - ./.venv/Lib/site-packages/xlrd:/usr/local/lib/python3.12/site-packages/xlrd:ro
+
+  worker:
+    entrypoint: []
+    volumes:
+      - .:/app
+      - ./.venv/Lib/site-packages/xlrd:/usr/local/lib/python3.12/site-packages/xlrd:ro

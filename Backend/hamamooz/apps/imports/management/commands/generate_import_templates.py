@@ -10,7 +10,7 @@ from hamamooz.apps.imports.services import EXPECTED_HEADERS
 
 
 class Command(BaseCommand):
-    help = "Generate the three fixed XLSX templates used by the MVP import process."
+    help = "Generate the fixed XLSX templates used by the import process."
 
     def handle(self, *args, **options):
         target = Path(settings.BASE_DIR) / "docs" / "import_templates"
@@ -53,7 +53,7 @@ class Command(BaseCommand):
             sheet.append(examples[import_type])
             for cell in sheet[1]:
                 cell.font = Font(bold=True, color="FFFFFF")
-                cell.fill = PatternFill("solid", fgColor="2563EB")
+                cell.fill = PatternFill("solid", fgColor="0A2848")
                 cell.alignment = Alignment(horizontal="center")
             sheet.freeze_panes = "A2"
             sheet.auto_filter.ref = sheet.dimensions

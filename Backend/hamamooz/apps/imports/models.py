@@ -16,6 +16,7 @@ class ImportJob(SoftDeleteModel):
         PROCESSING = "processing", "در حال پردازش"
         COMPLETED = "completed", "تکمیل‌شده"
         FAILED = "failed", "ناموفق"
+        CANCELLED = "cancelled", "لغوشده"
 
     organization = models.ForeignKey(
         "organizations.Organization", on_delete=models.PROTECT, related_name="import_jobs"

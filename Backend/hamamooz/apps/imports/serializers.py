@@ -67,8 +67,11 @@ class ImportJobSerializer(serializers.ModelSerializer):
         request = self.context["request"]
         if school.id not in set(accessible_school_ids(request.user)):
             raise serializers.ValidationError({"school": "به این شعبه دسترسی ندارید."})
-        if Path(source.name).suffix.lower() != ".xlsx":
-            raise serializers.ValidationError({"source_file": "فقط فایل XLSX پذیرفته می‌شود."})
+        extension = Path(source.name).suffix.lower()
+        if extension not in {".xlsx", ".xls"}:
+            raise serializers.ValidationError(
+                {"source_file": "فقط فایل‌های XLSX و XLS پذیرفته می‌شوند."}
+            )
         if source.size > 10 * 1024 * 1024:
             raise serializers.ValidationError(
                 {"source_file": "حجم فایل نباید بیشتر از ۱۰ مگابایت باشد."}

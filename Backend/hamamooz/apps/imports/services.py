@@ -2,6 +2,7 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
+from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 
 from django.conf import settings
@@ -10,6 +11,8 @@ from django.db import transaction
 from django.db.models import Count
 from django.utils import timezone
 from openpyxl import load_workbook
+from xlrd import XL_CELL_DATE, open_workbook
+from xlrd.xldate import xldate_as_datetime
 
 from hamamooz.apps.academics.models import Assessment, Score
 from hamamooz.apps.academics.services import bulk_upsert_scores
@@ -103,56 +106,79 @@ def _model_errors(exc):
 def _load_rows(job):
     with job.source_file.open("rb") as source:
         payload = source.read()
-    try:
-        with ZipFile(BytesIO(payload)) as archive:
-            infos = archive.infolist()
-            total_uncompressed = sum(item.file_size for item in infos)
-            if total_uncompressed > settings.IMPORT_MAX_UNCOMPRESSED_BYTES:
-                raise ValueError("حجم بازشده فایل XLSX بیش از حد مجاز است.")
-            for item in infos:
-                if item.file_size and item.compress_size:
-                    ratio = item.file_size / item.compress_size
-                    if ratio > 200:
-                        raise ValueError("نسبت فشرده‌سازی فایل XLSX غیرعادی است.")
-    except BadZipFile:
-        raise
-
-    workbook = load_workbook(BytesIO(payload), read_only=True, data_only=True)
-    try:
-        sheet = workbook.active
-        if sheet.max_column > settings.IMPORT_MAX_COLUMNS:
-            raise ValueError("تعداد ستون‌های فایل بیش از حد مجاز است.")
-        rows = sheet.iter_rows(values_only=True)
+    extension = Path(job.source_file.name).suffix.lower()
+    if extension == ".xlsx":
         try:
-            header = [str(value).strip() if value is not None else "" for value in next(rows)]
-        except StopIteration as exc:
-            raise ValueError("فایل خالی است.") from exc
-        expected = EXPECTED_HEADERS[job.import_type]
-        if header != expected:
-            raise ValueError(f"ستون‌ها باید دقیقاً به این ترتیب باشند: {', '.join(expected)}")
-        loaded = []
-        for values in rows:
-            if not any(v not in (None, "") for v in values):
-                continue
-            if len(loaded) >= settings.IMPORT_MAX_ROWS:
-                raise ValueError("تعداد ردیف‌های فایل بیش از حد مجاز است.")
-            normalized = []
-            for value in values:
-                if isinstance(value, str) and len(value) > 5000:
-                    raise ValueError("طول مقدار یکی از سلول‌ها بیش از حد مجاز است.")
-                normalized.append(value)
-            loaded.append(
-                dict(
-                    zip(
-                        INTERNAL_HEADERS[job.import_type],
-                        normalized,
-                        strict=True,
-                    )
-                )
-            )
-        return loaded
-    finally:
-        workbook.close()
+            with ZipFile(BytesIO(payload)) as archive:
+                infos = archive.infolist()
+                total_uncompressed = sum(item.file_size for item in infos)
+                if total_uncompressed > settings.IMPORT_MAX_UNCOMPRESSED_BYTES:
+                    raise ValueError("حجم بازشده فایل XLSX بیش از حد مجاز است.")
+                for item in infos:
+                    if item.file_size and item.compress_size:
+                        ratio = item.file_size / item.compress_size
+                        if ratio > 200:
+                            raise ValueError("نسبت فشرده‌سازی فایل XLSX غیرعادی است.")
+        except BadZipFile:
+            raise ValueError("ساختار فایل XLSX معتبر نیست.") from None
+        workbook = load_workbook(BytesIO(payload), read_only=True, data_only=True)
+        try:
+            sheet = workbook.active
+            if sheet.max_column > settings.IMPORT_MAX_COLUMNS:
+                raise ValueError("تعداد ستون‌های فایل بیش از حد مجاز است.")
+            row_values = sheet.iter_rows(values_only=True)
+            rows = row_values
+            try:
+                header = [str(value).strip() if value is not None else "" for value in next(rows)]
+            except StopIteration as exc:
+                raise ValueError("فایل خالی است.") from exc
+            return _normalize_import_rows(job, header, rows)
+        finally:
+            workbook.close()
+    if extension == ".xls":
+        try:
+            workbook = open_workbook(file_contents=payload, on_demand=True)
+            sheet = workbook.sheet_by_index(0)
+        except Exception as exc:
+            raise ValueError("ساختار فایل XLS معتبر نیست.") from exc
+        if sheet.ncols > settings.IMPORT_MAX_COLUMNS:
+            raise ValueError("تعداد ستون‌های فایل بیش از حد مجاز است.")
+
+        def values():
+            for row_index in range(1, sheet.nrows):
+                row = []
+                for column_index in range(sheet.ncols):
+                    cell = sheet.cell(row_index, column_index)
+                    value = cell.value
+                    if cell.ctype == XL_CELL_DATE:
+                        value = xldate_as_datetime(value, workbook.datemode)
+                    row.append(value)
+                yield tuple(row)
+
+        header = [str(sheet.cell(0, index).value).strip() for index in range(sheet.ncols)]
+        return _normalize_import_rows(job, header, values())
+    raise ValueError("پسوند فایل باید XLSX یا XLS باشد.")
+
+
+def _normalize_import_rows(job, header, rows):
+    expected = EXPECTED_HEADERS[job.import_type]
+    if header != expected:
+        raise ValueError(f"ستون‌ها باید دقیقاً به این ترتیب باشند: {', '.join(expected)}")
+    loaded = []
+    for values in rows:
+        if not any(v not in (None, "") for v in values):
+            continue
+        if len(loaded) >= settings.IMPORT_MAX_ROWS:
+            raise ValueError("تعداد ردیف‌های فایل بیش از حد مجاز است.")
+        normalized = []
+        for value in values:
+            if isinstance(value, str) and len(value) > 5000:
+                raise ValueError("طول مقدار یکی از سلول‌ها بیش از حد مجاز است.")
+            normalized.append(value)
+        if len(normalized) != len(INTERNAL_HEADERS[job.import_type]):
+            raise ValueError("تعداد ستون‌های یک ردیف با قالب فایل یکسان نیست.")
+        loaded.append(dict(zip(INTERNAL_HEADERS[job.import_type], normalized, strict=True)))
+    return loaded
 
 
 def _validate_students(job, rows):
@@ -516,13 +542,21 @@ def process_import_job(job_id):
         prepared, errors = validators[job.import_type](job, rows)
         job.total_rows = len(rows)
         if errors:
-            job.status = ImportJob.Status.FAILED
-            job.error_count = len(errors)
-            job.errors = errors[:1000]
-            job.finished_at = timezone.now()
-            job.save()
-            return job
+            with transaction.atomic():
+                locked_job = ImportJob.objects.select_for_update().get(pk=job_id)
+                if locked_job.status == ImportJob.Status.CANCELLED:
+                    return locked_job
+                locked_job.status = ImportJob.Status.FAILED
+                locked_job.total_rows = len(rows)
+                locked_job.error_count = len(errors)
+                locked_job.errors = errors[:1000]
+                locked_job.finished_at = timezone.now()
+                locked_job.save()
+                return locked_job
         with transaction.atomic():
+            locked_job = ImportJob.objects.select_for_update().get(pk=job_id)
+            if locked_job.status == ImportJob.Status.CANCELLED:
+                return locked_job
             if job.import_type in [ImportJob.ImportType.STUDENTS, ImportJob.ImportType.ENROLLMENTS]:
                 if job.import_type == ImportJob.ImportType.ENROLLMENTS:
                     class_ids = sorted({item.class_section_id for item in prepared}, key=str)
@@ -555,12 +589,14 @@ def process_import_job(job_id):
                         )
                     )
             else:
-                successful = _upsert_monthly_evaluations(job, prepared)
-        job.status = ImportJob.Status.COMPLETED
-        job.successful_rows = successful
-        job.error_count = 0
-        job.finished_at = timezone.now()
-        job.save()
+                successful = _upsert_monthly_evaluations(locked_job, prepared)
+            locked_job.status = ImportJob.Status.COMPLETED
+            locked_job.total_rows = len(rows)
+            locked_job.successful_rows = successful
+            locked_job.error_count = 0
+            locked_job.finished_at = timezone.now()
+            locked_job.save()
+            job = locked_job
     except OSError:
         job.status = ImportJob.Status.QUEUED
         job.save(update_fields=["status", "updated_at"])
@@ -570,12 +606,15 @@ def process_import_job(job_id):
             raise
         with transaction.atomic():
             locked = ImportJob.objects.select_for_update().get(pk=job_id)
+            if locked.status == ImportJob.Status.CANCELLED:
+                return locked
             locked.status = ImportJob.Status.FAILED
             locked.error_count = 1
             locked.errors = [{"row": None, "message": str(exc)[:2000]}]
             locked.finished_at = timezone.now()
             locked.save()
             return locked
+    return job
 
 
 def mark_import_job_failed(job_id, exc):

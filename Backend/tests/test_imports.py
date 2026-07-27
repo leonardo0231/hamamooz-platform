@@ -66,9 +66,11 @@ def test_valid_student_import_completes(base_data):
         base_data,
         [["0012345680", "سارا", "احمدی", "2012-03-04", "female"]],
     )
-    process_import_job(job.id)
+    result = process_import_job(job.id)
     job.refresh_from_db()
+    assert result == job
     assert job.status == ImportJob.Status.COMPLETED
+    assert job.total_rows == 1
     assert job.successful_rows == 1
     assert Student.objects.filter(national_id="0012345680").exists()
 
