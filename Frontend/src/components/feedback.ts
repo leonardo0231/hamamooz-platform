@@ -44,11 +44,13 @@ export function skeletonCards(count = 4): HTMLElement {
 
 export async function confirmDialog(options: { title: string; message: string; confirmLabel?: string; dangerous?: boolean }): Promise<boolean> {
   return await new Promise(resolve => {
-    const dialog = h('dialog', { className: 'dialog' },
+    const titleId = `confirm-title-${Math.random().toString(36).slice(2)}`;
+    const descriptionId = `${titleId}-description`;
+    const dialog = h('dialog', { className: 'dialog', 'aria-labelledby': titleId, 'aria-describedby': descriptionId },
       h('form', { method: 'dialog', className: 'dialog__body' },
         h('div', { className: `dialog__icon ${options.dangerous ? 'dialog__icon--danger' : ''}` }, icon(options.dangerous ? 'warning' : 'check')),
-        h('h2', { text: options.title }),
-        h('p', { text: options.message }),
+        h('h2', { id: titleId, text: options.title }),
+        h('p', { id: descriptionId, text: options.message }),
         h('div', { className: 'dialog__actions' },
           h('button', { className: 'button button--ghost', value: 'cancel' }, 'انصراف'),
           h('button', { className: `button ${options.dangerous ? 'button--danger' : 'button--primary'}`, value: 'confirm' }, options.confirmLabel ?? 'تأیید'),

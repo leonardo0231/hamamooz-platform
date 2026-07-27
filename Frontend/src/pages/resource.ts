@@ -22,11 +22,11 @@ interface ResourceMeta {
 
 const resourceMeta: Record<string, ResourceMeta> = {
   'academic-years': { title: 'سال‌های تحصیلی', singular: 'سال تحصیلی', icon: 'calendar', columns: ['title', 'starts_on', 'ends_on', 'is_current'], createRoles: organizationManagementRoles, updateRoles: organizationManagementRoles, deleteRoles: organizationManagementRoles },
-  'assessment-types': { title: 'انواع ارزیابی', singular: 'نوع ارزیابی', icon: 'chart', columns: ['title', 'code', 'weight', 'is_active'], createRoles: curriculumManagementRoles, updateRoles: curriculumManagementRoles, deleteRoles: curriculumManagementRoles },
-  assessments: { title: 'ارزیابی‌ها', singular: 'ارزیابی', icon: 'chart', columns: ['title', 'assessment_type', 'course_offering', 'held_on', 'status'], createRoles: teacherWriteRoles, updateRoles: teacherWriteRoles, deleteRoles: teacherWriteRoles },
-  'attendance-alerts': { title: 'هشدارهای حضور و غیاب', singular: 'هشدار', icon: 'bell', columns: ['enrollment', 'rule_code', 'severity', 'status', 'triggered_at'], createRoles: policyManagementRoles, updateRoles: policyManagementRoles, deleteRoles: policyManagementRoles },
-  'attendance-policies': { title: 'سیاست‌های حضور و غیاب', singular: 'سیاست حضور', icon: 'settings', columns: ['title', 'scope', 'rule_code', 'threshold', 'is_active'], createRoles: policyManagementRoles, updateRoles: policyManagementRoles, deleteRoles: policyManagementRoles },
-  'attendance-records': { title: 'رکوردهای حضور و غیاب', singular: 'رکورد حضور', icon: 'calendar', columns: ['attendance_session', 'enrollment', 'status', 'minutes_late', 'excuse_status'], createRoles: teacherWriteRoles, updateRoles: teacherWriteRoles, deleteRoles: teacherWriteRoles },
+  'assessment-types': { title: 'انواع ارزیابی', singular: 'نوع ارزیابی', icon: 'chart', columns: ['title', 'code', 'default_weight', 'is_active'], createRoles: curriculumManagementRoles, updateRoles: curriculumManagementRoles, deleteRoles: curriculumManagementRoles },
+  assessments: { title: 'ارزیابی‌ها', singular: 'ارزیابی', icon: 'chart', columns: ['title', 'assessment_type_title', 'class_title', 'assessment_date', 'status'], createRoles: teacherWriteRoles, updateRoles: teacherWriteRoles, deleteRoles: teacherWriteRoles },
+  'attendance-alerts': { title: 'هشدارهای حضور و غیاب', singular: 'هشدار', icon: 'bell', columns: ['student_name', 'class_title', 'severity', 'status', 'created_at'], createRoles: policyManagementRoles, updateRoles: policyManagementRoles, deleteRoles: policyManagementRoles },
+  'attendance-policies': { title: 'سیاست‌های حضور و غیاب', singular: 'سیاست حضور', icon: 'settings', columns: ['school_name', 'academic_year_title', 'warning_absence_percent', 'critical_absence_percent', 'is_active'], createRoles: policyManagementRoles, updateRoles: policyManagementRoles, deleteRoles: policyManagementRoles },
+  'attendance-records': { title: 'رکوردهای حضور و غیاب', singular: 'رکورد حضور', icon: 'calendar', columns: ['session_date', 'student_name', 'status', 'late_minutes', 'excuse_status'], createRoles: teacherWriteRoles, updateRoles: teacherWriteRoles, deleteRoles: teacherWriteRoles },
   'attendance-sessions': { title: 'جلسات حضور و غیاب', singular: 'جلسه حضور', icon: 'calendar', columns: ['session_date', 'class_section', 'course_offering', 'scope', 'status'], createRoles: teacherWriteRoles, updateRoles: teacherWriteRoles, deleteRoles: teacherWriteRoles },
   'calculation-policies': { title: 'سیاست‌های محاسبه نمره', singular: 'سیاست محاسبه', icon: 'settings', columns: ['title', 'organization', 'academic_year', 'version', 'is_active'], createRoles: curriculumManagementRoles, updateRoles: curriculumManagementRoles, deleteRoles: curriculumManagementRoles },
   classes: { title: 'کلاس‌ها', singular: 'کلاس', icon: 'building', columns: ['title', 'school', 'academic_year', 'grade_level', 'capacity', 'is_active'], createRoles: broadEducationRoles, updateRoles: broadEducationRoles, deleteRoles: broadEducationRoles },
@@ -34,8 +34,8 @@ const resourceMeta: Record<string, ResourceMeta> = {
   enrollments: { title: 'ثبت‌نام‌ها', singular: 'ثبت‌نام', icon: 'users', columns: ['student', 'school', 'academic_year', 'class_section', 'student_number', 'status'], createRoles: broadEducationRoles, updateRoles: broadEducationRoles, deleteRoles: broadEducationRoles },
   'grade-levels': { title: 'پایه‌های تحصیلی', singular: 'پایه', icon: 'book', columns: ['title', 'code', 'organization', 'order', 'is_active'], createRoles: organizationManagementRoles, updateRoles: organizationManagementRoles, deleteRoles: organizationManagementRoles },
   'grade-subjects': { title: 'درس‌های پایه', singular: 'درس پایه', icon: 'book', columns: ['grade_level', 'subject', 'coefficient', 'is_active'], createRoles: curriculumManagementRoles, updateRoles: curriculumManagementRoles, deleteRoles: curriculumManagementRoles },
-  guardians: { title: 'اولیا', singular: 'ولی', icon: 'users', columns: ['first_name', 'last_name', 'phone', 'national_id', 'is_active'], createRoles: broadEducationRoles, updateRoles: broadEducationRoles, deleteRoles: broadEducationRoles },
-  imports: { title: 'ورود اطلاعات', singular: 'عملیات ورود', icon: 'upload', columns: ['import_type', 'school', 'status', 'total_rows', 'processed_rows', 'created_at'], readRoles: broadEducationRoles, createRoles: broadEducationRoles },
+  guardians: { title: 'اولیا', singular: 'ولی', icon: 'users', columns: ['first_name', 'last_name', 'phone_primary', 'national_id'], createRoles: broadEducationRoles, updateRoles: broadEducationRoles, deleteRoles: broadEducationRoles },
+  imports: { title: 'ورود اطلاعات', singular: 'عملیات ورود', icon: 'upload', columns: ['import_type', 'school', 'status', 'total_rows', 'successful_rows', 'error_count'], readRoles: broadEducationRoles, createRoles: broadEducationRoles },
   organizations: { title: 'مجموعه‌ها', singular: 'مجموعه', icon: 'building', columns: ['name', 'code', 'is_active', 'created_at'], createRoles: ['system_admin'], updateRoles: organizationManagementRoles, deleteRoles: ['system_admin'] },
   'parent-notifications': { title: 'اعلان‌های والدین', singular: 'اعلان', icon: 'bell', columns: ['enrollment', 'channel', 'status', 'attempts', 'created_at'], createRoles: teacherWriteRoles },
   reports: { title: 'گزارش‌های آرشیوی', singular: 'گزارش', icon: 'file', columns: ['report_type', 'status', 'school', 'term', 'created_at'], createRoles: teacherWriteRoles },
@@ -51,9 +51,10 @@ const resourceMeta: Record<string, ResourceMeta> = {
 const fieldLabels: Record<string, string> = {
   id: 'شناسه', title: 'عنوان', name: 'نام', code: 'کد', first_name: 'نام', last_name: 'نام خانوادگی', username: 'نام کاربری', email: 'ایمیل', phone: 'تلفن', national_id: 'کد ملی', status: 'وضعیت', gender: 'جنسیت',
   organization: 'مجموعه', school: 'مدرسه', academic_year: 'سال تحصیلی', term: 'نوبت', grade_level: 'پایه', class_section: 'کلاس', student: 'دانش‌آموز', enrollment: 'ثبت‌نام', teacher: 'دبیر', assessment: 'ارزیابی', assessment_type: 'نوع ارزیابی', course_offering: 'ارائه درس', grade_subject: 'درس پایه', subject: 'درس',
-  is_active: 'فعال', is_current: 'جاری', capacity: 'ظرفیت', order: 'ترتیب', coefficient: 'ضریب', value: 'مقدار', weight: 'وزن', scope: 'نوع', severity: 'شدت', rule_code: 'کد قانون', threshold: 'آستانه', role_display: 'نقش', role: 'نقش',
-  starts_on: 'شروع', ends_on: 'پایان', held_on: 'تاریخ برگزاری', birth_date: 'تاریخ تولد', session_date: 'تاریخ جلسه', triggered_at: 'زمان ایجاد', created_at: 'ایجاد', updated_at: 'آخرین تغییر',
-  student_number: 'شماره دانش‌آموزی', minutes_late: 'دقایق تأخیر', excuse_status: 'وضعیت عذر', import_type: 'نوع ورود', report_type: 'نوع گزارش', total_rows: 'کل ردیف‌ها', processed_rows: 'پردازش‌شده', channel: 'کانال', attempts: 'تلاش‌ها', version: 'نسخه',
+  school_name: 'مدرسه', academic_year_title: 'سال تحصیلی', student_name: 'دانش‌آموز', class_title: 'کلاس', assessment_type_title: 'نوع ارزیابی',
+  is_active: 'فعال', is_current: 'جاری', capacity: 'ظرفیت', order: 'ترتیب', coefficient: 'ضریب', value: 'مقدار', weight: 'وزن', default_weight: 'وزن پیش‌فرض', scope: 'نوع', severity: 'شدت', role_display: 'نقش', role: 'نقش',
+  starts_on: 'شروع', ends_on: 'پایان', assessment_date: 'تاریخ برگزاری', birth_date: 'تاریخ تولد', session_date: 'تاریخ جلسه', created_at: 'ایجاد', updated_at: 'آخرین تغییر',
+  student_number: 'شماره دانش‌آموزی', late_minutes: 'دقایق تأخیر', excuse_status: 'وضعیت عذر', import_type: 'نوع ورود', report_type: 'نوع گزارش', total_rows: 'کل ردیف‌ها', successful_rows: 'موفق', error_count: 'خطا', phone_primary: 'تلفن اصلی', warning_absence_percent: 'هشدار غیبت', critical_absence_percent: 'غیبت بحرانی', channel: 'کانال', attempts: 'تلاش‌ها', version: 'نسخه',
 };
 
 const actionLabels: Record<string, string> = {
@@ -71,8 +72,11 @@ function responseItemSchema(operation: ContractOperation): ContractSchema {
 }
 
 function visibleColumns(meta: ResourceMeta, schema: ContractSchema, rows: Record<string, unknown>[]): string[] {
-  if (meta.columns) return meta.columns;
   const properties = Object.keys(resolveSchema(schema).properties ?? rows[0] ?? {});
+  if (meta.columns) {
+    const configured = meta.columns.filter(column => properties.includes(column) || rows.some(row => column in row));
+    if (configured.length) return configured;
+  }
   return properties.filter(name => !['id', 'created_by', 'updated_by'].includes(name)).slice(0, 6);
 }
 
@@ -112,10 +116,11 @@ function createFilterControl(parameter: ContractParameter, params: URLSearchPara
 
 
 function openResultDialog(title: string, data: unknown): void {
-  const dialog = h('dialog', { className: 'dialog dialog--wide' }) as HTMLDialogElement;
+  const titleId = `result-dialog-title-${Math.random().toString(36).slice(2)}`;
+  const dialog = h('dialog', { className: 'dialog dialog--wide', 'aria-labelledby': titleId }) as HTMLDialogElement;
   const close = h('button', { className: 'icon-button', type: 'button', 'aria-label': 'بستن', onClick: () => dialog.close() }, icon('close'));
   const content = h('pre', { className: 'result-viewer', dir: 'ltr', text: JSON.stringify(data, null, 2) });
-  dialog.append(h('div', { className: 'dialog__body dialog__body--wide' }, h('div', { className: 'dialog__header' }, h('h2', { text: title }), close), content));
+  dialog.append(h('div', { className: 'dialog__body dialog__body--wide' }, h('div', { className: 'dialog__header' }, h('h2', { id: titleId, text: title }), close), content));
   dialog.addEventListener('close', () => dialog.remove(), { once: true });
   document.body.append(dialog);
   dialog.showModal();
@@ -199,7 +204,7 @@ export async function renderResourcePage(tag: string): Promise<HTMLElement> {
   const listOp = listOperation;
 
   const searchInput = h('input', { type: 'search', placeholder: `جست‌وجو در ${meta.title}…`, value: params.get('search') ?? '', 'aria-label': 'جست‌وجو' }) as HTMLInputElement;
-  const filterPanel = h('div', { className: 'filters' });
+  const filterPanel = h('div', { className: 'filters', id: 'resource-filters' });
   const applyFilters = (): void => {
     filterPanel.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select').forEach(input => {
       if (input.value) params.set(input.name || input.dataset.name || '', input.value);
@@ -222,7 +227,17 @@ export async function renderResourcePage(tag: string): Promise<HTMLElement> {
   const pageSize = h('select', { name: 'page_size', 'aria-label': 'تعداد در صفحه' }, ...[25, 50, 100, 200].map(value => h('option', { value: String(value), text: `${value.toLocaleString('fa-IR')} ردیف` }))) as HTMLSelectElement;
   pageSize.value = params.get('page_size') ?? '25';
   pageSize.addEventListener('change', () => { params.set('page_size', pageSize.value); params.set('page', '1'); void load(); });
-  const toolbar = h('div', { className: 'resource-toolbar' }, h('label', { className: 'search-input' }, icon('search'), searchInput), h('button', { className: 'button button--secondary filter-toggle', type: 'button', onClick: () => filterPanel.classList.toggle('is-open') }, icon('filter'), 'فیلترها'), sortSelect, pageSize);
+  const filterToggle = h('button', {
+    className: 'button button--secondary filter-toggle',
+    type: 'button',
+    'aria-controls': 'resource-filters',
+    'aria-expanded': 'false',
+    onClick: () => {
+      const open = filterPanel.classList.toggle('is-open');
+      filterToggle.setAttribute('aria-expanded', String(open));
+    },
+  }, icon('filter'), 'فیلترها') as HTMLButtonElement;
+  const toolbar = h('div', { className: 'resource-toolbar' }, h('label', { className: 'search-input' }, icon('search'), searchInput), filterToggle, sortSelect, pageSize);
   body.append(toolbar, filterPanel, h('div', { className: 'resource-content' }));
   const content = body.querySelector<HTMLElement>('.resource-content') as HTMLElement;
   searchInput.addEventListener('input', debounce(() => { if (searchInput.value) params.set('search', searchInput.value); else params.delete('search'); params.set('page', '1'); void load(); }, 400));
@@ -246,13 +261,14 @@ export async function renderResourcePage(tag: string): Promise<HTMLElement> {
         return;
       }
       const table = h('table', { className: 'data-table' },
+        h('caption', { className: 'sr-only', text: `فهرست ${meta.title}` }),
         h('thead', {}, h('tr', {}, ...columns.map(field => h('th', { scope: 'col', text: labelForField(field) })), h('th', { scope: 'col', text: 'عملیات' }))),
         h('tbody'),
       );
       const tbody = table.querySelector('tbody') as HTMLTableSectionElement;
       for (const row of rows) {
         const id = row.id as string | number | undefined;
-        const actionCell = h('td', { className: 'row-actions' });
+        const actionCell = h('td', { className: 'row-actions', dataset: { label: 'عملیات' } });
         if (tag === 'students' && id !== undefined) actionCell.append(h('button', { className: 'icon-button', type: 'button', title: 'پرونده دانش‌آموز', 'aria-label': 'پرونده دانش‌آموز', onClick: () => navigate(`/students/${id}`) }, icon('eye')));
         else if (retrieveOperation && id !== undefined) actionCell.append(h('button', { className: 'icon-button', type: 'button', title: 'مشاهده', 'aria-label': 'مشاهده', onClick: async () => {
           try {

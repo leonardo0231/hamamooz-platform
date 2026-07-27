@@ -35,6 +35,8 @@ function formatHint(schema: ContractSchema): string | null {
 function inputFor(name: string, unresolved: ContractSchema, initial: unknown, required: boolean): { wrapper: HTMLElement; read: () => unknown; input: HTMLElement } {
   const schema = resolveSchema(unresolved);
   const id = `field-${name}-${Math.random().toString(36).slice(2)}`;
+  const hintId = `${id}-hint`;
+  const errorId = `${id}-error`;
   const label = h('label', { for: id }, fieldLabel(name, schema), required ? h('span', { className: 'required-mark', text: ' *' }) : null);
   const hint = formatHint(schema);
   let input: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
@@ -51,9 +53,9 @@ function inputFor(name: string, unresolved: ContractSchema, initial: unknown, re
     input = h('select', { id, name, required }, h('option', { value: '', text: 'انتخاب کنید' }), ...schema.enum.map(value => h('option', { value: String(value), text: enumLabels[String(value)] ?? String(value), selected: initial === value }))) as HTMLSelectElement;
     read = () => input.value === '' ? null : input.value;
   } else if (schema.type === 'boolean') {
-    input = h('input', { id, name, type: 'checkbox', checked: Boolean(initial) }) as HTMLInputElement;
+    input = h('input', { id, name, type: 'checkbox', checked: Boolean(initial), 'aria-describedby': `${hint ? hintId : ''} ${errorId}`.trim() }) as HTMLInputElement;
     read = () => (input as HTMLInputElement).checked;
-    const wrapper = h('div', { className: 'form-field form-field--checkbox' }, input, label, hint ? h('small', { text: hint }) : null, h('div', { className: 'field-error', dataset: { field: name } }));
+    const wrapper = h('div', { className: 'form-field form-field--checkbox' }, input, label, hint ? h('small', { id: hintId, text: hint }) : null, h('div', { className: 'field-error', id: errorId, dataset: { field: name }, 'aria-live': 'polite' }));
     return { wrapper, read, input };
   } else if (schema.format === 'binary') {
     input = h('input', { id, name, type: 'file', required }) as HTMLInputElement;
@@ -79,7 +81,8 @@ function inputFor(name: string, unresolved: ContractSchema, initial: unknown, re
       return input.value;
     };
   }
-  return { wrapper: h('div', { className: 'form-field' }, label, input, hint ? h('small', { text: hint }) : null, h('div', { className: 'field-error', dataset: { field: name } })), read, input };
+  input.setAttribute('aria-describedby', `${hint ? hintId : ''} ${errorId}`.trim());
+  return { wrapper: h('div', { className: 'form-field' }, label, input, hint ? h('small', { id: hintId, text: hint }) : null, h('div', { className: 'field-error', id: errorId, dataset: { field: name }, 'aria-live': 'polite' })), read, input };
 }
 
 
@@ -120,12 +123,18 @@ export function createSchemaForm(options: {
 
   const setErrors = (error: ApiError): void => {
     form.querySelectorAll<HTMLElement>('.field-error').forEach(node => { node.textContent = ''; });
+    form.querySelectorAll<HTMLElement>('[aria-invalid="true"]').forEach(control => control.removeAttribute('aria-invalid'));
+    let firstInvalid: HTMLElement | null = null;
     for (const [field, messages] of Object.entries(error.fieldErrors)) {
       const node = form.querySelector<HTMLElement>(`.field-error[data-field="${CSS.escape(field)}"]`);
       if (node) node.textContent = messages.join('، ');
+      const control = form.querySelector<HTMLElement>(`[name="${CSS.escape(field)}"]`);
+      if (control) {
+        control.setAttribute('aria-invalid', 'true');
+        firstInvalid ??= control;
+      }
     }
     generalError.textContent = error.message + (error.requestId ? ` — شناسه پیگیری: ${error.requestId}` : '');
-    const firstInvalid = form.querySelector<HTMLElement>('.field-error:not(:empty)')?.previousElementSibling as HTMLElement | null;
     firstInvalid?.focus();
   };
   const setSubmitting = (submitting: boolean): void => {
@@ -165,6 +174,14 @@ export function createSchemaForm(options: {
       setSubmitting(false);
     }
   });
+  form.addEventListener('input', event => {
+    const control = event.target as HTMLElement;
+    const name = control.getAttribute('name');
+    if (!name || control.getAttribute('aria-invalid') !== 'true') return;
+    control.removeAttribute('aria-invalid');
+    const message = form.querySelector<HTMLElement>(`.field-error[data-field="${CSS.escape(name)}"]`);
+    if (message) message.textContent = '';
+  });
   return { element: form, setErrors, setSubmitting };
 }
 
@@ -176,7 +193,8 @@ export function openSchemaDialog(options: {
   submitLabel: string;
   onSubmit: (payload: Record<string, unknown> | FormData) => Promise<void>;
 }): HTMLDialogElement {
-  const dialog = h('dialog', { className: 'dialog dialog--wide' }) as HTMLDialogElement;
+  const titleId = `dialog-title-${Math.random().toString(36).slice(2)}`;
+  const dialog = h('dialog', { className: 'dialog dialog--wide', 'aria-labelledby': titleId }) as HTMLDialogElement;
   let dirty = false;
   const requestClose = async (): Promise<void> => {
     if (dirty && !await confirmDialog({ title: 'تغییرات ذخیره‌نشده', message: 'اطلاعات واردشده ذخیره نشده‌اند. فرم بسته شود؟', confirmLabel: 'بستن فرم', dangerous: true })) return;
@@ -187,7 +205,7 @@ export function openSchemaDialog(options: {
   const form = createSchemaForm({ ...options, onSubmit: async payload => { await options.onSubmit(payload); dirty = false; dialog.close(); } });
   form.element.addEventListener('input', () => { dirty = true; });
   form.element.addEventListener('change', () => { dirty = true; });
-  dialog.append(h('div', { className: 'dialog__body dialog__body--wide' }, h('div', { className: 'dialog__header' }, h('h2', { text: options.title }), close), form.element));
+  dialog.append(h('div', { className: 'dialog__body dialog__body--wide' }, h('div', { className: 'dialog__header' }, h('h2', { id: titleId, text: options.title }), close), form.element));
   dialog.addEventListener('cancel', event => { event.preventDefault(); void requestClose(); });
   dialog.addEventListener('close', () => dialog.remove(), { once: true });
   document.body.append(dialog);

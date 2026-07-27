@@ -3,6 +3,7 @@ import { endpoints } from '../api/endpoints.js';
 import type { Pagination } from '../api/types.js';
 import { store } from '../app/store.js';
 import { navigate } from '../app/router.js';
+import { hasAnyRole, hasWriteScope, teacherWriteRoles } from '../app/permissions.js';
 import { onWindowEventWhileConnected, h, clear, formatDate, formatNumber } from '../utils/dom.js';
 import { emptyState, errorState, skeletonCards } from '../components/feedback.js';
 import { icon } from '../components/icons.js';
@@ -18,23 +19,40 @@ interface DashboardSummary {
 
 interface AlertSummary { id: string; student_name: string; class_title: string; severity: string; status: string; absence_percent: string; created_at: string; }
 
-function lineChart(values: number[]): SVGSVGElement {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 600 220');
-  svg.classList.add('line-chart');
-  if (!values.length) return svg;
-  const min = Math.min(...values, 0);
-  const max = Math.max(...values, 20);
-  const points = values.map((value, index) => {
-    const x = 30 + (index * 540 / Math.max(1, values.length - 1));
-    const y = 190 - ((value - min) / Math.max(1, max - min)) * 150;
-    return { x, y, value };
-  });
-  const grid = [40, 80, 120, 160, 200].map(y => `<line x1="20" y1="${y}" x2="580" y2="${y}" class="chart-grid"/>`).join('');
-  const path = points.map((p, index) => `${index ? 'L' : 'M'}${p.x},${p.y}`).join(' ');
-  const area = `${path} L${points.at(-1)?.x},200 L${points[0]?.x},200 Z`;
-  svg.innerHTML = `${grid}<path d="${area}" class="chart-area"/><path d="${path}" class="chart-line"/>${points.map(p => `<circle cx="${p.x}" cy="${p.y}" r="6" class="chart-point"><title>${p.value}</title></circle>`).join('')}`;
-  return svg;
+function classComparison(items: DashboardSummary['class_averages']): HTMLElement {
+  const rows = items
+    .map(item => ({ ...item, numericAverage: item.average === null ? null : Number(item.average) }))
+    .sort((a, b) => (b.numericAverage ?? -1) - (a.numericAverage ?? -1));
+  const available = rows.filter(row => row.numericAverage !== null && Number.isFinite(row.numericAverage));
+  if (!available.length) return emptyState('داده عملکردی وجود ندارد', 'پس از محاسبه نتایج نوبت، مقایسه کلاس‌ها در این بخش نمایش داده می‌شود.');
+
+  const mean = available.reduce((total, row) => total + (row.numericAverage ?? 0), 0) / available.length;
+  return h('div', { className: 'class-comparison' },
+    h('div', { className: 'chart-summary', role: 'status' },
+      h('span', {}, 'میانگین کلاس‌های دارای داده', h('strong', { text: formatNumber(mean, 1) })),
+      h('span', {}, 'کلاس بدون داده', h('strong', { text: formatNumber(rows.length - available.length) })),
+    ),
+    h('div', { className: 'class-comparison__list', role: 'list', 'aria-label': 'مقایسه میانگین کلاس‌ها از ۲۰' },
+      ...rows.map(row => {
+        const valid = row.numericAverage !== null && Number.isFinite(row.numericAverage);
+        const value = valid ? Math.max(0, Math.min(20, row.numericAverage ?? 0)) : 0;
+        const valueText = valid ? `${formatNumber(value, 1)} از ۲۰` : 'بدون داده';
+        return h('div', { className: `class-comparison__row ${valid ? '' : 'is-missing'}`, role: 'listitem' },
+          h('div', { className: 'class-comparison__label' }, h('strong', { text: row.enrollment__class_section__title }), h('small', { text: `${formatNumber(row.students)} دانش‌آموز` })),
+          h('div', {
+            className: 'class-comparison__track',
+            role: 'progressbar',
+            'aria-label': `میانگین ${row.enrollment__class_section__title}`,
+            'aria-valuemin': '0',
+            'aria-valuemax': '20',
+            'aria-valuenow': valid ? String(value) : undefined,
+            'aria-valuetext': valueText,
+          }, h('i', { style: { width: `${value / 20 * 100}%` } })),
+          h('strong', { className: 'class-comparison__value', text: valid ? formatNumber(value, 1) : '—' }),
+        );
+      }),
+    ),
+  );
 }
 
 function metricCard(label: string, value: number, cardIcon: string, tone: string, detail: string): HTMLElement {
@@ -46,48 +64,73 @@ function activityLabel(action: string): string {
   return known[action] ?? action.replaceAll('.', ' / ').replaceAll('_', ' ');
 }
 
+const workflowLabels: Record<string, { label: string; tone: string }> = {
+  draft: { label: 'پیش‌نویس', tone: 'neutral' },
+  submitted: { label: 'ارسال‌شده', tone: 'warning' },
+  rejected: { label: 'ردشده', tone: 'danger' },
+  approved: { label: 'تأییدشده', tone: 'success' },
+  locked: { label: 'قفل‌شده', tone: 'success' },
+};
+
 export async function renderDashboardPage(): Promise<HTMLElement> {
   const user = store.state.user;
   const name = user?.first_name || user?.username || 'کاربر';
   const page = h('section', { className: 'page dashboard-page' });
-  const content = h('div');
-  page.append(h('div', { className: 'page-heading' }, h('div', {}, h('span', { className: 'eyebrow', text: 'نمای مدیریتی' }), h('h1', { text: `صبح بخیر، ${name}` }), h('p', { text: 'نمای زنده‌ی داده‌های آموزشی در حوزه انتخاب‌شده' })), h('div', { className: 'page-actions' }, h('button', { className: 'button button--secondary', type: 'button', onClick: () => navigate('/reports') }, icon('file'), 'گزارش‌ها'), h('button', { className: 'button button--primary', type: 'button', onClick: () => navigate('/resources/assessments') }, icon('plus'), 'اقدام آموزشی'))), content);
+  const content = h('div', { 'aria-live': 'polite' });
+  const actions = h('div', { className: 'page-actions' }, h('button', { className: 'button button--secondary', type: 'button', onClick: () => navigate('/reports') }, icon('file'), 'گزارش‌ها'));
+  if (hasAnyRole(teacherWriteRoles) && hasWriteScope()) actions.append(h('button', { className: 'button button--primary', type: 'button', onClick: () => navigate('/resources/assessments') }, icon('plus'), 'اقدام آموزشی'));
+  page.append(h('div', { className: 'page-heading' }, h('div', {}, h('span', { className: 'eyebrow', text: 'نمای مدیریتی' }), h('h1', { text: `صبح بخیر، ${name}` }), h('p', { text: 'خلاصه تصمیم‌محور داده‌های آموزشی در حوزه انتخاب‌شده' })), actions), content);
 
   async function load(): Promise<void> {
     clear(content);
+    content.setAttribute('aria-busy', 'true');
     content.append(skeletonCards(), h('div', { className: 'dashboard-grid' }, h('div', { className: 'card skeleton dashboard-chart' }), h('div', { className: 'card skeleton' })));
     try {
-      const [summary, alerts] = await Promise.all([
+      const [summaryResult, alertsResult] = await Promise.allSettled([
         apiRequest<DashboardSummary>(endpoints.dashboard.summary),
-        apiRequest<Pagination<AlertSummary>>(endpoints.alerts.list, { query: { page_size: 5, status: 'open', ordering: '-created_at' } }).catch(() => ({ count: 0, next: null, previous: null, results: [] })),
+        apiRequest<Pagination<AlertSummary>>(endpoints.alerts.list, { query: { page_size: 5, status: 'open', ordering: '-created_at' } }),
       ]);
+      if (summaryResult.status === 'rejected') throw summaryResult.reason;
+      const summary = summaryResult.value;
+      const alerts = alertsResult.status === 'fulfilled' ? alertsResult.value : null;
+      const alertsError = alertsResult.status === 'rejected' ? alertsResult.reason : null;
       clear(content);
+      content.setAttribute('aria-busy', 'false');
+      const attentionCount = (alerts?.count ?? 0) + summary.counts.missing_scores;
+      const attention = alertsError
+        ? h('article', { className: 'attention-strip attention-strip--warning', role: 'alert' }, h('span', { className: 'attention-strip__icon' }, icon('warning')), h('div', {}, h('strong', { text: 'بخشی از وضعیت داشبورد دریافت نشد' }), h('p', { text: 'خلاصه آموزشی نمایش داده شده، اما وضعیت هشدارها نامشخص است.' })), h('button', { className: 'button button--secondary', type: 'button', onClick: () => void load() }, icon('refresh'), 'تلاش دوباره'))
+        : attentionCount > 0
+          ? h('article', { className: 'attention-strip attention-strip--danger' }, h('span', { className: 'attention-strip__icon' }, icon('bell')), h('div', {}, h('strong', { text: `${formatNumber(attentionCount)} مورد نیازمند توجه` }), h('p', { text: `${formatNumber(alerts?.count ?? 0)} هشدار باز و ${formatNumber(summary.counts.missing_scores)} نمره ثبت‌نشده` })), h('button', { className: 'button button--secondary', type: 'button', onClick: () => navigate((alerts?.count ?? 0) > 0 ? '/alerts' : '/resources/assessments') }, 'بررسی موارد', icon('chevron')))
+          : h('article', { className: 'attention-strip attention-strip--success', role: 'status' }, h('span', { className: 'attention-strip__icon' }, icon('check')), h('div', {}, h('strong', { text: 'مورد فوری ثبت نشده است' }), h('p', { text: `داده‌های ${summary.selected_term.title} در حوزه فعال پایدار هستند.` })), h('small', { text: `دریافت در ${formatDate(new Date(), true)}` }));
       const metrics = h('div', { className: 'metric-grid' },
-        metricCard('کل دانش‌آموزان', summary.counts.students, 'users', 'purple', 'در حوزه فعال'),
+        metricCard('کل دانش‌آموزان', summary.counts.students, 'users', 'primary', 'در حوزه فعال'),
         metricCard('کلاس‌های فعال', summary.counts.classes, 'building', 'blue', `نوبت ${summary.selected_term.title}`),
         metricCard('دبیران فعال', summary.counts.teachers, 'user', 'green', 'دارای ارائه درس'),
         metricCard('نمره‌های ثبت‌نشده', summary.counts.missing_scores, 'warning', 'red', 'نیازمند پیگیری'),
       );
-      const averages = summary.class_averages.map(item => Number(item.average ?? 0));
       const performance = h('article', { className: 'card dashboard-chart' },
-        h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'روند عملکرد کلاس‌ها' }), h('p', { text: `میانگین ثبت‌شده در ${summary.selected_term.title}` })), h('span', { className: 'card-icon' }, icon('chart'))),
-        averages.length ? lineChart(averages) : emptyState('داده عملکردی وجود ندارد', 'پس از محاسبه نتایج نوبت، نمودار کلاس‌ها نمایش داده می‌شود.'),
-        averages.length ? h('div', { className: 'chart-labels' }, ...summary.class_averages.map(item => h('span', { text: item.enrollment__class_section__title }))) : null,
+        h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'مقایسه عملکرد کلاس‌ها' }), h('p', { text: `میانگین کلاس‌ها از ۲۰ در ${summary.selected_term.title}` })), h('span', { className: 'card-icon' }, icon('chart'))),
+        classComparison(summary.class_averages),
       );
+      const schools = [...summary.students_by_school].sort((a, b) => b.students - a.students);
       const schoolBars = h('article', { className: 'card' }, h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'دانش‌آموزان به تفکیک مدرسه' }), h('p', { text: 'تعداد ثبت‌نام فعال' })), h('span', { className: 'card-icon' }, icon('building'))),
-        summary.students_by_school.length ? h('div', { className: 'bar-list' }, ...summary.students_by_school.map(item => {
+        schools.length ? h('div', { className: 'bar-list', role: 'list', 'aria-label': 'توزیع دانش‌آموزان بین مدارس' }, ...schools.map(item => {
           const max = Math.max(...summary.students_by_school.map(row => row.students), 1);
-          return h('div', { className: 'bar-row' }, h('span', { text: item.school__name }), h('div', { className: 'bar-track' }, h('i', { style: { width: `${Math.max(4, item.students / max * 100)}%` } })), h('strong', { text: formatNumber(item.students) }));
+          const percent = item.students / max * 100;
+          return h('div', { className: 'bar-row', role: 'listitem' }, h('span', { text: item.school__name }), h('div', { className: 'bar-track', role: 'progressbar', 'aria-label': `دانش‌آموزان ${item.school__name}`, 'aria-valuemin': '0', 'aria-valuemax': String(max), 'aria-valuenow': String(item.students), 'aria-valuetext': `${formatNumber(item.students)} دانش‌آموز` }, h('i', { style: { width: `${percent}%` } })), h('strong', { text: formatNumber(item.students) }));
         })) : emptyState('مدرسه‌ای در حوزه فعال نیست', 'حوزه سازمان یا مدرسه را از نوار بالا انتخاب کنید.'));
-      const alertPanel = h('article', { className: 'card alerts-preview' }, h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'پیگیری‌های فوری' }), h('p', { text: `${formatNumber(alerts.count)} هشدار باز` })), h('span', { className: 'card-icon card-icon--danger' }, icon('bell'))),
-        alerts.results.length ? h('div', { className: 'compact-list' }, ...alerts.results.map(alert => h('button', { className: 'compact-list__item', type: 'button', onClick: () => navigate(`/alerts?selected=${alert.id}`) }, h('span', { className: `severity-dot severity-dot--${alert.severity}` }), h('div', {}, h('strong', { text: alert.student_name }), h('small', { text: `${alert.class_title} · غیبت ${alert.absence_percent}٪` })), icon('chevron')))) : emptyState('هشدار بازی وجود ندارد', 'در حوزه فعال، هشدار نیازمند اقدام ثبت نشده است.'),
+      const alertPanel = h('article', { className: 'card alerts-preview' }, h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'پیگیری‌های فوری' }), h('p', { text: alerts ? `${formatNumber(alerts.count)} هشدار باز` : 'وضعیت هشدارها نامشخص' })), h('span', { className: 'card-icon card-icon--danger' }, icon('bell'))),
+        alertsError ? errorState(alertsError, () => void load()) : alerts?.results.length ? h('div', { className: 'compact-list' }, ...alerts.results.map(alert => h('button', { className: 'compact-list__item', type: 'button', onClick: () => navigate(`/alerts?selected=${alert.id}`) }, h('span', { className: `severity-dot severity-dot--${alert.severity}` }), h('div', {}, h('strong', { text: alert.student_name }), h('small', { text: `${alert.class_title} · غیبت ${alert.absence_percent}٪` })), icon('chevron')))) : emptyState('هشدار بازی وجود ندارد', 'در حوزه فعال، هشدار نیازمند اقدام ثبت نشده است.'),
         h('button', { className: 'button button--success button--block', type: 'button', onClick: () => navigate('/alerts') }, 'مشاهده مرکز هشدارها', icon('chevron')));
-      const workflowItems = Object.entries(summary.assessment_workflow).map(([status, count]) =>
-        h('div', {},
-          h('span', { className: `badge badge--${status === 'locked' || status === 'approved' ? 'success' : status === 'rejected' ? 'danger' : 'warning'}`, text: status }),
+      const workflowStatuses = [...Object.keys(workflowLabels), ...Object.keys(summary.assessment_workflow).filter(status => !workflowLabels[status])];
+      const workflowItems = workflowStatuses.map(status => {
+        const count = summary.assessment_workflow[status] ?? 0;
+        const presentation = workflowLabels[status] ?? { label: status.replaceAll('_', ' '), tone: 'neutral' };
+        return h('button', { className: 'workflow-item', type: 'button', onClick: () => navigate(`/resources/assessments?status=${encodeURIComponent(status)}`), 'aria-label': `${presentation.label}: ${formatNumber(count)} ارزیابی` },
+          h('span', { className: `badge badge--${presentation.tone}`, text: presentation.label }),
           h('strong', { text: formatNumber(count) }),
-        ),
-      );
+        );
+      });
       const workflow = h('article', { className: 'card' },
         h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'گردش‌کار ارزیابی‌ها' }), h('p', { text: 'وضعیت ارزیابی‌های نوبت فعال' })), h('span', { className: 'card-icon' }, icon('sparkles'))),
         h('div', { className: 'workflow-grid' }, ...workflowItems),
@@ -102,13 +145,14 @@ export async function renderDashboardPage(): Promise<HTMLElement> {
         activityContent,
       );
       const banner = h('article', { className: 'report-banner' }, h('span', { className: 'report-banner__visual' }, icon('file')), h('div', {}, h('h2', { text: 'گزارش تحلیلی نوبت فعال' }), h('p', { text: 'گزارش‌های رسمی از داده‌های قفل‌شده و نسخه فرمول محاسبه تولید می‌شوند.' })), h('button', { className: 'button button--success', type: 'button', onClick: () => navigate('/reports') }, icon('file'), 'ساخت گزارش'));
-      content.append(metrics, h('div', { className: 'dashboard-grid dashboard-grid--main' }, performance, schoolBars, alertPanel), h('div', { className: 'dashboard-grid dashboard-grid--secondary' }, workflow, activities), banner);
+      content.append(attention, metrics, h('div', { className: 'dashboard-grid dashboard-grid--main' }, performance, schoolBars, alertPanel), h('div', { className: 'dashboard-grid dashboard-grid--secondary' }, workflow, activities), banner);
     } catch (error) {
       clear(content);
+      content.setAttribute('aria-busy', 'false');
       content.append(errorState(error, () => void load()));
     }
   }
   onWindowEventWhileConnected(page, 'hamamooz:scope-change', () => void load());
-  await load();
+  void load();
   return page;
 }

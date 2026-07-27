@@ -29,7 +29,7 @@ interface AttendanceAlert {
 const labels: Record<string, string> = { critical: 'بحرانی', warning: 'مهم', open: 'باز', acknowledged: 'در حال بررسی', resolved: 'حل‌شده', daily: 'روزانه', period: 'زنگ درسی' };
 
 function alertCard(alert: AttendanceAlert, selected: boolean, onSelect: () => void): HTMLElement {
-  return h('button', { className: `alert-list-item ${selected ? 'is-selected' : ''}`, type: 'button', dataset: { id: alert.id }, onClick: onSelect },
+  return h('button', { className: `alert-list-item ${selected ? 'is-selected' : ''}`, type: 'button', dataset: { id: alert.id }, 'aria-pressed': String(selected), onClick: onSelect },
     h('span', { className: 'avatar avatar--soft', text: alert.student_name.split(/\s+/).map(part => part[0]).slice(0, 2).join('') }),
     h('div', {}, h('div', { className: 'alert-list-item__title' }, h('strong', { text: alert.student_name }), h('span', { className: `badge badge--${alert.severity === 'critical' ? 'danger' : 'warning'}`, text: labels[alert.severity] })), h('p', { text: `${alert.class_title} · غیبت ${formatNumber(alert.absence_percent)}٪` }), h('small', { text: formatDate(alert.created_at, true) })),
   );
@@ -79,7 +79,7 @@ export async function renderAlertsPage(): Promise<HTMLElement> {
   const canEvaluate = hasAnyRole(policyManagementRoles);
   const evaluateButton = h('button', { className: 'button button--secondary', type: 'button', disabled: !hasWriteScope(), title: hasWriteScope() ? 'اجرای سیاست انتخاب‌شده' : 'ابتدا حوزه فعال را انتخاب کنید', onClick: () => void evaluate() }, icon('refresh'), 'ارزیابی سیاست‌ها') as HTMLButtonElement;
   const list = h('div', { className: 'alerts-list' });
-  const detail = h('div', { className: 'alerts-detail-panel' });
+  const detail = h('div', { className: 'alerts-detail-panel', role: 'region', 'aria-label': 'جزئیات هشدار انتخاب‌شده', 'aria-live': 'polite', tabindex: '-1' });
   const layout = h('div', { className: 'alerts-center card' }, h('div', { className: 'alerts-center__toolbar' }, h('label', { className: 'search-input' }, icon('search'), search), severity, status, canEvaluate ? policy : null, canEvaluate ? evaluateButton : null), h('div', { className: 'alerts-center__content' }, list, detail));
   page.append(h('div', { className: 'page-heading' }, h('div', {}, h('span', { className: 'eyebrow', text: 'تحلیل و پیگیری' }), h('h1', { text: 'مرکز هشدارها و پیگیری' }), h('p', { text: 'هشدارهای حضور و غیاب تولیدشده توسط Policyهای Backend' }))), stats, layout);
   let selectedId = new URLSearchParams(location.search).get('selected');
@@ -125,7 +125,18 @@ export async function renderAlertsPage(): Promise<HTMLElement> {
       clear(list);
       if (!filtered.results.length) { list.append(emptyState('هشداری یافت نشد', 'فیلترها را تغییر دهید یا ارزیابی Policyها را اجرا کنید.')); detail.append(emptyState('هشداری انتخاب نشده است', 'یک هشدار را از فهرست انتخاب کنید.')); return; }
       selectedId = filtered.results.some(item => item.id === selectedId) ? selectedId : filtered.results[0]?.id ?? null;
-      for (const alert of filtered.results) list.append(alertCard(alert, alert.id === selectedId, () => { selectedId = alert.id; clear(detail); detail.append(detailPanel(alert, load)); history.replaceState({}, '', `/alerts?selected=${alert.id}`); list.querySelectorAll<HTMLElement>('.alert-list-item').forEach(node => node.classList.toggle('is-selected', node.dataset.id === alert.id)); }));
+      for (const alert of filtered.results) list.append(alertCard(alert, alert.id === selectedId, () => {
+        selectedId = alert.id;
+        clear(detail);
+        detail.append(detailPanel(alert, load));
+        history.replaceState({}, '', `/alerts?selected=${alert.id}`);
+        list.querySelectorAll<HTMLElement>('.alert-list-item').forEach(node => {
+          const selected = node.dataset.id === alert.id;
+          node.classList.toggle('is-selected', selected);
+          node.setAttribute('aria-pressed', String(selected));
+        });
+        detail.focus({ preventScroll: true });
+      }));
       const selected = filtered.results.find(item => item.id === selectedId);
       if (selected) detail.append(detailPanel(selected, load));
     } catch (error) {
