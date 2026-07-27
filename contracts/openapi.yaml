@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: HamAmoz School Platform API
-  version: 1.0.0 (v1)
+  version: 1.0.0
   description: API نسخه MVP سامانه چندشعبه‌ای هم‌آموز
 paths:
   /api/v1/academic-years/:
@@ -3313,6 +3313,7 @@ paths:
         schema:
           type: string
           enum:
+          - cancelled
           - completed
           - failed
           - processing
@@ -3322,6 +3323,7 @@ paths:
           * `processing` - در حال پردازش
           * `completed` - تکمیل‌شده
           * `failed` - ناموفق
+          * `cancelled` - لغوشده
       tags:
       - imports
       security:
@@ -3380,6 +3382,62 @@ paths:
               schema:
                 $ref: '#/components/schemas/ImportJob'
           description: ''
+  /api/v1/imports/{id}/cancel/:
+    post:
+      operationId: imports_cancel_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this import job.
+        required: true
+      tags:
+      - imports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportJobRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportJobRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportJobRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJob'
+          description: ''
+  /api/v1/imports/{id}/errors/:
+    get:
+      operationId: imports_errors_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this import job.
+        required: true
+      tags:
+      - imports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJob'
+          description: ''
   /api/v1/imports/{id}/retry/:
     post:
       operationId: imports_retry_create
@@ -3413,6 +3471,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ImportJob'
+          description: ''
+  /api/v1/imports/templates/{template_type}/:
+    get:
+      operationId: imports_templates_retrieve
+      parameters:
+      - in: path
+        name: template_type
+        schema:
+          type: string
+          enum:
+          - enrollments
+          - monthly_evaluations
+          - scores
+          - students
+        required: true
+      tags:
+      - imports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
           description: ''
   /api/v1/monthly-evaluations/:
     get:
@@ -7338,12 +7422,14 @@ components:
       - processing
       - completed
       - failed
+      - cancelled
       type: string
       description: |-
         * `queued` - در صف
         * `processing` - در حال پردازش
         * `completed` - تکمیل‌شده
         * `failed` - ناموفق
+        * `cancelled` - لغوشده
     ImportTypeEnum:
       enum:
       - students
