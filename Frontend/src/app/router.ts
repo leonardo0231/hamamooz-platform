@@ -3,7 +3,7 @@ import { routeFactories, type RouteDefinition } from './routes.js';
 import { ensureUser } from './auth.js';
 import { store } from './store.js';
 import { createShell } from '../components/shell.js';
-import { clear, h } from '../utils/dom.js';
+import { h } from '../utils/dom.js';
 import { loadingState } from '../components/feedback.js';
 
 const routes: RouteDefinition[] = [
@@ -43,8 +43,7 @@ export async function renderRoute(): Promise<void> {
   const version = ++renderVersion;
   const root = document.querySelector<HTMLElement>('#app');
   if (!root) throw new Error('Application root is missing.');
-  clear(root);
-  root.append(loadingState('در حال آماده‌سازی صفحه…'));
+  if (!root.childElementCount) root.append(loadingState('در حال آماده‌سازی صفحه…'));
   const matched = matchRoute(location.pathname);
   const route = matched?.route;
 
