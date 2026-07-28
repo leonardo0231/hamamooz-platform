@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <title>کارنامه تحصیلی هم‌آموز</title>
+  <style>
+    @font-face { font-family: "Estedad"; src: url("static/fonts/Estedad.woff2"); font-weight: 100 900; }
+    @font-face { font-family: "Vazirmatn"; src: url("static/fonts/Vazirmatn.woff2"); font-weight: 100 900; }
+    @page {
+      size: A4 portrait;
+      margin: 14mm 12mm 15mm;
+      @bottom-center { content: "صفحه " counter(page) " از " counter(pages); font-size: 9px; color: #64748b; }
+    }
+    * { box-sizing: border-box; }
+    body { font-family: "Estedad", "Vazirmatn", "DejaVu Sans", sans-serif; color: #0f172a; font-size: 11px; margin: 0; }
+    .report { min-height: 260mm; position: relative; }
+    .report:not(:last-child) { break-after: page; }
+    .header { display: grid; grid-template-columns: 70px 1fr 70px; align-items: center; border: 2px solid #0a2848; border-radius: 10px; padding: 8px 12px; }
+    .logo { width: 58px; height: 58px; object-fit: contain; }
+    h1 { margin: 0; text-align: center; color: #0a2848; font-size: 19px; }
+    .school-name { text-align: center; font-size: 12px; margin-top: 4px; }
+    .meta { margin: 10px 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px 12px; background: #fbf3e7; border: 1px solid #e2ae5b; border-radius: 8px; padding: 8px; }
+    .meta strong { color: #0f2f4a; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { border: 1px solid #94a3b8; padding: 6px 4px; text-align: center; }
+    th { background: #e8eef3; color: #0a2848; font-weight: 700; }
+    tbody tr:nth-child(even) { background: #f8fafc; }
+    .fail { color: #b91c1c; font-weight: 700; }
+    .summary { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 10px; border: 1px solid #c98c3d; border-radius: 8px; overflow: hidden; }
+    .summary div { padding: 7px; text-align: center; border-left: 1px solid #cbd5e1; }
+    .summary div:last-child { border-left: 0; }
+    .summary strong { display: block; color: #0f2f4a; margin-bottom: 3px; }
+    .signatures { display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; margin-top: 36px; }
+    .signature-space { height: 48px; }
+    .footer { position: absolute; right: 0; left: 0; bottom: 3mm; color: #64748b; font-size: 8px; display: flex; justify-content: space-between; }
+    .empty { color: #94a3b8; }
+  </style>
+</head>
+<body>
+{% for report in reports %}
+<section class="report">
+  <header class="header">
+    <div>{% if report.school.logo_url %}<img class="logo" src="{{ report.school.logo_url }}" alt="لوگو">{% endif %}</div>
+    <div>
+      <h1>کارنامه تحصیلی</h1>
+      <div class="school-name">{{ report.school.name }}{% if report.school.branch %} - {{ report.school.branch }}{% endif %}</div>
+    </div>
+    <div></div>
+  </header>
+
+  <div class="meta">
+    <div><strong>نام دانش‌آموز:</strong> {{ report.student.full_name }}</div>
+    <div><strong>کد ملی:</strong> {{ report.student.national_id }}</div>
+    <div><strong>شماره دانش‌آموزی:</strong> {{ report.student.student_number }}</div>
+    <div><strong>سال تحصیلی:</strong> {{ report.academic.year }}</div>
+    <div><strong>پایه:</strong> {{ report.academic.grade }}</div>
+    <div><strong>کلاس / نوبت:</strong> {{ report.academic.class }} / {{ report.academic.term }}</div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>ردیف</th><th>درس</th><th>ضریب</th><th>مستمر</th><th>میان‌ترم</th><th>پایانی</th><th>میانگین</th><th>وضعیت</th></tr>
+    </thead>
+    <tbody>
+    {% for row in report.subjects %}
+      <tr>
+        <td>{{ forloop.counter }}</td><td>{{ row.title }}</td><td>{{ row.coefficient }}</td>
+        <td>{% if row.continuous is not None %}{{ row.continuous }}{% else %}<span class="empty">-</span>{% endif %}</td>
+        <td>{% if row.midterm is not None %}{{ row.midterm }}{% else %}<span class="empty">-</span>{% endif %}</td>
+        <td>{% if row.final is not None %}{{ row.final }}{% else %}<span class="empty">-</span>{% endif %}</td>
+        <td class="{% if not row.passed %}fail{% endif %}">{% if row.average is not None %}{{ row.average }}{% else %}<span class="empty">-</span>{% endif %}</td>
+        <td class="{% if not row.passed %}fail{% endif %}">{% if row.passed %}قبول{% else %}نیازمند بررسی{% endif %}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="8">داده‌ای برای نمایش وجود ندارد.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="summary">
+    <div><strong>معدل نوبت</strong>{% if report.summary.average is not None %}{{ report.summary.average }}{% else %}-{% endif %}</div>
+    <div><strong>رتبه کلاس</strong>{% if report.summary.class_rank %}{{ report.summary.class_rank }}{% else %}-{% endif %}</div>
+    <div><strong>نتیجه</strong>{{ report.summary.status_label }}</div>
+    <div><strong>نسخه فرمول</strong>{{ report.summary.formula_version }}</div>
+  </div>
+
+  <div class="signatures">
+    <div>امضای دبیر<div class="signature-space"></div></div>
+    <div>امضای معاون آموزشی<div class="signature-space"></div></div>
+    <div>امضا و مهر مدیر<div class="signature-space"></div></div>
+  </div>
+  <footer class="footer"><span>{{ report.school.address }} {{ report.school.phone }}</span><span>تولیدشده توسط سامانه هم‌آموز</span></footer>
+</section>
+{% endfor %}
+</body>
+</html>

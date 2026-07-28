@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hamamooz-backend"
+version = "0.1.0"
+description = "HamAmoz multi-branch school platform MVP backend"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "Django==5.2.16",
+    "djangorestframework==3.16.0",
+    "djangorestframework-simplejwt==5.5.1",
+    "django-filter==25.1",
+    "django-cors-headers==4.7.0",
+    "drf-spectacular==0.28.0",
+    "psycopg[binary]==3.2.9",
+    "celery[redis]==5.6.3",
+    "django-storages[s3]==1.14.6",
+    "boto3==1.39.3",
+    "openpyxl==3.1.5",
+    "xlrd==2.0.2",
+    "weasyprint==69.0",
+    "gunicorn==23.0.0",
+    "sentry-sdk[django]==2.33.0",
+    "Pillow==12.3.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==8.4.1",
+    "pytest-django==4.11.1",
+    "pytest-cov==6.2.1",
+    "factory-boy==3.3.3",
+    "ruff==0.12.4",
+    "pip-audit==2.10.1",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+python_files = ["test_*.py"]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --disable-warnings"
+
+[tool.coverage.run]
+branch = true
+source = ["hamamooz"]
+omit = ["*/migrations/*", "*/tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 78
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+exclude = ["*/migrations/*"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["config", "hamamooz"]
+
+
+[tool.setuptools.packages.find]
+include = ["config*", "hamamooz*"]
+exclude = ["tests*", "docs*", "docker*", "nginx*", "scripts*", "templates*"]

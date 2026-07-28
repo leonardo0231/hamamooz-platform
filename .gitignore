@@ -1,0 +1,49 @@
+.idea/
+.vscode/
+.DS_Store
+*.py[cod]
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+.env
+*.sqlite3
+media/
+Backend/.test-media/
+staticfiles/
+backups/
+*.log
+Backend/docs/import_templates/*.generated.xlsx
+
+# Frontend dependencies
+node_modules/
+Frontend/node_modules/
+
+# Frontend builds
+dist/
+Frontend/dist/
+Frontend/build/
+Frontend/.next/
+Frontend/.nuxt/
+Frontend/.vite/
+
+# Frontend test coverage
+Frontend/coverage/
+
+# Frontend caches
+*.tsbuildinfo
+.eslintcache
+Frontend/.cache/
+
+# Local environment files
+Frontend/.env
+Frontend/.env.local
+Frontend/.env.development.local
+Frontend/.env.test.local
+Frontend/.env.production.local
+
+# Generated temporary OpenAPI comparison file
+contracts/openapi.generated.yaml
