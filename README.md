@@ -1,278 +1,134 @@
 # HamAmoz Platform
 
-Backend نسخهٔ MVP سامانهٔ تحت وب مدیریت آموزشی چندشعبه‌ای هم‌آموز؛ ساخته‌شده با
-Django REST Framework و معماری Modular Monolith.
+HamAmoz is a multi-branch school-management platform. It provides a Django REST API for academic operations, attendance, reporting, imports, and scoped access control, plus a TypeScript browser frontend generated against the committed OpenAPI contract.
 
-این پروژه گردش‌کارهای اصلی یک مجموعهٔ آموزشی را از مدیریت شعبه، کلاس و ثبت‌نام
-تا نمره، حضور و غیاب، گزارش و اعلان والدین پوشش می‌دهد. جداسازی دادهٔ شعبه‌ها در
-لایه‌های Query، Permission، Service، Task و Export اعمال می‌شود.
+## Architecture
 
-> [!IMPORTANT]
-> سورس Backend در حال حاضر روی شاخهٔ `backend/mvp-bootstrap` نگهداری می‌شود.
-> شاخهٔ `main` نقطهٔ یکپارچه‌سازی است و تغییرات فقط از طریق Pull Request وارد آن
-> می‌شوند.
-
-## قابلیت‌ها
-
-- مدیریت مجموعه، ۱۳ شعبهٔ نمونه، سال تحصیلی، نوبت، پایه، کلاس و ظرفیت
-- کاربر سفارشی، احراز هویت JWT، چرخش و blacklist توکن و نقش‌های وابسته به حوزه
-- مدیریت دانش‌آموز، ولی، ارتباط چندفرزندی، ثبت‌نام تاریخ‌مند، انتقال و تغییر کلاس
-- تعریف درس، ارائهٔ درس، دبیر، ارزیابی، ثبت گروهی نمره و گردش تأیید نمرات
-- محاسبهٔ نمرهٔ نرمال‌شده، معدل، قبولی و رتبهٔ Dense با سیاست نسخه‌دار
-- ورود اتمیک فایل‌های XLSX برای دانش‌آموز، ثبت‌نام، نمره و ارزیابی ماهانه
-- حضور و غیاب روزانه یا زنگ، توجیه غیبت، هشدار و اعلان والدین
-- تولید و آرشیو کارنامهٔ فارسی HTML/PDF و داشبورد عملیاتی
-- Audit trail، لاگ JSON، Health Check و اتصال اختیاری Sentry
-- PostgreSQL، Redis، Celery، ذخیره‌سازی محلی یا MinIO/S3 و پشتیبان‌گیری دوره‌ای
-- قرارداد OpenAPI، Swagger UI و ReDoc
-
-## فناوری‌ها و پیش‌نیازها
-
-روش مرجع اجرا Docker است و فقط به Git و Docker Engine به‌همراه Compose plugin
-نیاز دارد. Compose سرویس‌های PostgreSQL 17، Redis 7.4، Nginx، Django، Celery
-Worker و Celery Beat را ایجاد می‌کند. MinIO با profile اختیاری `s3` فعال می‌شود.
-
-برای توسعهٔ بدون Docker به Python `>=3.12,<3.14`، PostgreSQL و Redis نیاز است.
-SQLite فقط برای توسعهٔ سریع و تست‌هایی مناسب است که به قفل واقعی پایگاه داده
-وابسته نیستند.
-
-## نصب و اجرای سریع با Docker
-
-```bash
-git clone https://github.com/leonardo0231/hamamooz-platform.git
-cd hamamooz-platform
-git switch backend/mvp-bootstrap
-cd Backend
-
-cp .env.example .env
+```text
+Browser -> Frontend (Nginx, port 5173) -> /api proxy -> Django API (port 8000)
+                                                    -> PostgreSQL
+                                                    -> Redis cache / Celery broker
+                                                    -> Celery worker and beat
 ```
 
-پیش از اجرا، دست‌کم `DJANGO_SECRET_KEY`، `POSTGRES_PASSWORD` و بخش password در
-`DATABASE_URL` را در فایل `.env` به مقادیر یکسان و امن تغییر دهید. سپس:
+The source tree is a monorepo:
 
-```bash
-docker compose up --build -d
+```text
+Backend/       Django REST Framework service, Celery tasks, migrations, tests
+Frontend/      TypeScript frontend and static Nginx container
+contracts/     Generated OpenAPI contract and API changelog
+docs/          Shared integration documents
+```
+
+## Prerequisites
+
+- Docker Engine with the Compose plugin for the supported local stack
+- Python 3.12 or 3.13, PostgreSQL, and Redis only for non-Docker backend development
+- Node.js 20+ and npm for non-Docker frontend development
+
+## Environment
+
+Create a local configuration file from the committed template:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Set a unique `DJANGO_SECRET_KEY` and a matching value for `POSTGRES_PASSWORD` and the password portion of `DATABASE_URL`. Do not commit `.env`.
+
+Important variables include `DJANGO_ALLOWED_HOSTS`, `DJANGO_CORS_ALLOWED_ORIGINS`, `DATABASE_URL`, `REDIS_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `USE_S3`, `HAMAMOOZ_API_PORT`, and `HAMAMOOZ_FRONTEND_PORT`. The complete backend templates are in `Backend/.env.example` and `Backend/.env.production.example`.
+
+## Docker setup
+
+```powershell
+docker compose config
+docker compose build
+docker compose up -d
 docker compose ps
-curl -fsS http://localhost:8000/api/v1/health/ready/
 ```
 
-خروجی health check باید JSON با وضعیت آماده‌بودن سرویس باشد. سرویس `release`
-پیش از `web`، `worker` و `beat`، migrationها و `collectstatic` را اجرا می‌کند.
+Default URLs:
 
-برای ایجاد دادهٔ آزمایشی و مدیر سامانه:
-
-```bash
-docker compose exec web python manage.py seed_demo \
-  --admin-password 'Change-This-Temporary-Password-123!'
-```
-
-این فرمان idempotent است و کاربر `admin`، ساختار ۱۳ شعبه، سال تحصیلی، پایه‌ها و
-داده‌های پایه را می‌سازد.
-
-### آدرس‌های محلی
-
-| سرویس | آدرس |
+| Service | URL |
 |---|---|
-| API | `http://localhost:8000/api/v1/` |
-| Swagger | `http://localhost:8000/api/v1/docs/` |
-| ReDoc | `http://localhost:8000/api/v1/redoc/` |
-| OpenAPI schema | `http://localhost:8000/api/v1/schema/` |
-| Django Admin | `http://localhost:8000/admin/` |
-| Liveness | `http://localhost:8000/api/v1/health/live/` |
-| Readiness | `http://localhost:8000/api/v1/health/ready/` |
+| Frontend | http://localhost:5173 |
+| API | http://localhost:8000/api/v1/ |
+| API readiness | http://localhost:8000/api/v1/health/ready/ |
+| Swagger | http://localhost:8000/api/v1/docs/ |
+| ReDoc | http://localhost:8000/api/v1/redoc/ |
+| Admin | http://localhost:8000/admin/ |
 
-برای توقف سرویس‌ها بدون حذف volumeها:
+The frontend uses `/api/v1/` at runtime; Nginx proxies that route to the internal `web:8000` service. PostgreSQL, both Redis services, and persistent media/static data use named Docker volumes.
 
-```bash
+For a local port conflict, override a port for that invocation, for example:
+
+```powershell
+$env:HAMAMOOZ_FRONTEND_PORT='8181'; docker compose up -d frontend
+```
+
+Stop services without removing persistent volumes:
+
+```powershell
 docker compose down
 ```
 
-## پیکربندی
+To remove the local volumes as well (this deletes local database and media data):
 
-فایل `.env.example` تنظیمات توسعه و `.env.production.example` baseline محیط
-Production است. فایل `.env` شامل secret است و نباید commit شود.
-
-| گروه | متغیرهای اصلی | کاربرد |
-|---|---|---|
-| Django | `DJANGO_SETTINGS_MODULE`, `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS` | انتخاب settings، امضا و میزبان‌های مجاز |
-| Browser security | `DJANGO_CORS_ALLOWED_ORIGINS`, `DJANGO_CSRF_TRUSTED_ORIGINS` | originهای مجاز Frontend |
-| Database | `POSTGRES_*`, `DATABASE_URL` | ساخت PostgreSQL و اتصال Django |
-| Async/cache | `REDIS_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND` | Cache، broker و نتیجهٔ Taskها |
-| Storage | `USE_S3`, `AWS_*` | انتخاب FileSystem یا S3/MinIO خصوصی |
-| Authentication | `JWT_ACCESS_MINUTES`, `JWT_REFRESH_DAYS` | عمر access و refresh token |
-| Notifications | `ATTENDANCE_SMS_BACKEND`, `EMAIL_*` | Backend پیامک و ایمیل |
-| Operations | `SENTRY_DSN`, `LOG_LEVEL`, `BACKUP_*` | پایش، لاگ و نگهداری backup |
-
-مرجع کامل و مقدارهای پیش‌فرض در
-[راهنمای پیکربندی](https://github.com/leonardo0231/hamamooz-platform/blob/backend/mvp-bootstrap/Backend/docs/11-CONFIGURATION_FA.md)
-ثبت شده است.
-
-برای فعال‌کردن MinIO/S3، مقادیر `AWS_*` را تکمیل و اجرا کنید:
-
-```bash
-docker compose --profile s3 up --build -d
+```powershell
+docker compose down --volumes
 ```
 
-## نمونهٔ استفاده از API
+## Local development
 
-پس از اجرای `seed_demo`، توکن را با نام کاربری یا ایمیل دریافت کنید:
+Backend:
 
-```bash
-curl -X POST http://localhost:8000/api/v1/auth/token/ \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"Change-This-Temporary-Password-123!"}'
-```
-
-پاسخ شامل `access`، `refresh` و خلاصهٔ `user` است. مقدار `access` را در درخواست
-محافظت‌شده قرار دهید:
-
-```bash
-curl http://localhost:8000/api/v1/auth/me/ \
-  -H "Authorization: Bearer <access-token>"
-```
-
-در عملیات نوشتنی چندشعبه‌ای، کاربران غیر از `system_admin` باید یکی از
-هدرهای حوزهٔ صریح را نیز ارسال کنند:
-
-```http
-Authorization: Bearer <access-token>
-X-School-ID: <school-uuid>
-```
-
-هدر `X-Organization-ID` برای منابع مجموعه‌ای استفاده می‌شود. UUID نامعتبر،
-حوزهٔ غیرمجاز یا هدرهای متعارض با پاسخ `403` رد می‌شوند. فهرست کامل endpointها
-از Swagger/ReDoc در زمان اجرا و از
-[قرارداد OpenAPI](https://github.com/leonardo0231/hamamooz-platform/blob/backend/mvp-bootstrap/contracts/openapi.yaml)
-در مخزن در دسترس است.
-
-## معماری
-
-پروژه یک Modular Monolith است: ماژول‌های دامنه مرز مستقل دارند، اما API،
-تراکنش‌ها و استقرار در یک سرویس Django باقی می‌مانند. View و Serializer مسئول
-انتقال و اعتبارسنجی ورودی‌اند؛ گردش‌کارهای چندمرحله‌ای در Service layer قرار
-دارند و Taskهای Celery پس از اعتبارسنجی دوبارهٔ حوزه همان Serviceها را فراخوانی
-می‌کنند.
-
-```mermaid
-flowchart LR
-    Client["Web / API client"] --> Nginx["Nginx gateway"]
-    Nginx --> API["Django REST API"]
-    API --> Modules["Domain modules + services"]
-    Modules --> DB[("PostgreSQL")]
-    API --> Cache[("Redis cache")]
-    Modules --> Broker[("Redis broker")]
-    Broker --> Worker["Celery workers"]
-    Worker --> DB
-    Worker --> Storage[("FileSystem / S3")]
-    Beat["Celery Beat"] --> Broker
-```
-
-ماژول‌های دامنه در `Backend/hamamooz/apps/` قرار دارند:
-
-- `organizations`: مجموعه، شعبه، سال، نوبت، پایه و کلاس
-- `accounts`: کاربران، JWT، نقش و دسترسی
-- `students`: دانش‌آموز، ولی و ثبت‌نام
-- `academics`: درس، ارزیابی، نمره و محاسبات
-- `evaluations`: ارزیابی ماهانه
-- `attendance`: حضور و غیاب، هشدار و اعلان
-- `imports`: ورود فایل‌های آموزشی
-- `reports`: تولید و آرشیو گزارش
-- `dashboard`: نمای عملیاتی
-- `core`: tenancy، audit، logging، health و زیرساخت مشترک
-
-`core` مدل‌های دامنه را import نمی‌کند؛ ماژول‌های دامنه می‌توانند به زیرساخت
-مشترک `core` وابسته باشند. جزئیات بیشتر در
-[سند معماری](https://github.com/leonardo0231/hamamooz-platform/blob/backend/mvp-bootstrap/Backend/docs/02-ARCHITECTURE_FA.md)
-و تصمیم‌ها در
-[ADRها](https://github.com/leonardo0231/hamamooz-platform/tree/backend/mvp-bootstrap/Backend/docs/decisions)
-آمده است.
-
-## توسعهٔ محلی
-
-```bash
+```powershell
 cd Backend
 python -m venv .venv
-
-# Linux/macOS
-source .venv/bin/activate
-
-# Windows PowerShell
-# .\.venv\Scripts\Activate.ps1
-
-python -m pip install -r requirements/dev.txt
-cp .env.example .env
+.\.venv\Scripts\python -m pip install -r requirements\dev.txt
+.\.venv\Scripts\python manage.py migrate
+.\.venv\Scripts\python manage.py runserver
 ```
 
-برای اجرای سبک با SQLite، متغیرهای زیر را در shell تنظیم کنید یا مقدار متناظرشان
-را در `.env` قرار دهید:
+Frontend:
 
-```bash
-export DJANGO_SETTINGS_MODULE=config.settings.development
-export DATABASE_URL=sqlite:///db.sqlite3
-export USE_S3=false
-export CELERY_TASK_ALWAYS_EAGER=true
-export DJANGO_SECRET_KEY=development-only-secret
-
-python manage.py migrate
-python manage.py generate_import_templates
-python manage.py runserver
+```powershell
+cd Frontend
+npm ci
+npm run dev
 ```
 
-> [!NOTE]
-> در Windows، تولید PDF با WeasyPrint به DLLهای Pango/GObject نیاز دارد. مسیر
-> Docker وابستگی‌های لازم را داخل image نصب می‌کند.
+The frontend development default API URL is `http://localhost:8000/api/v1/`.
 
-## تست و کنترل کیفیت
+## Testing and contract generation
 
-تست‌ها با pytest و pytest-django اجرا می‌شوند. حد پوشش branch-aware پروژه ۷۸٪
-است و سناریوهای قفل ردیف و رقابت هم‌زمان باید روی PostgreSQL اجرا شوند.
+```powershell
+cd Frontend
+npm run typecheck
+npm run lint
+npm test
 
-```bash
-cd Backend
-pytest --cov=hamamooz --cov-report=term-missing
-ruff check .
-ruff format --check hamamooz config tests
-python manage.py check
-python manage.py makemigrations --check --dry-run
+cd ..\Backend
+.\.venv\Scripts\python -m ruff check .
+.\.venv\Scripts\python -m ruff format --check .
+.\.venv\Scripts\python manage.py check
+.\.venv\Scripts\python -m pytest --cov=hamamooz --cov-report=term-missing
+.\scripts\generate_openapi.sh ..\contracts\openapi.yaml
 ```
 
-CI علاوه بر این موارد، dependency audit، اعتبارسنجی و مقایسهٔ OpenAPI، اتصال
-Redis/Celery و S3، import حجیم، قفل PostgreSQL و چرخهٔ واقعی backup/restore را
-بررسی می‌کند.
+`contracts/openapi.yaml` is generated from the backend and must not be edited manually.
 
-پس از هر تغییر قرارداد API، schema را از کد تولید کنید:
+## Troubleshooting
 
-```bash
-cd Backend
-./scripts/generate_openapi.sh ../contracts/openapi.yaml
-```
+- Use `docker compose logs --tail=100` to inspect service startup.
+- If a host port is in use, set `HAMAMOOZ_API_PORT` or `HAMAMOOZ_FRONTEND_PORT` to an available port before `docker compose up`.
+- The `release` service runs migrations and `collectstatic`; `web`, `worker`, and `beat` wait for it.
+- Use PostgreSQL rather than SQLite for tests that require real row locking.
 
-فایل `contracts/openapi.yaml` خروجی تولیدشده و منبع قرارداد مشترک با Frontend
-است؛ آن را دستی ویرایش نکنید.
+## Contributing
 
-## مشارکت
-
-این مخزن سه شاخهٔ دائمی دارد:
-
-- `main`: نسخهٔ یکپارچه و قابل انتشار
-- `backend/mvp-bootstrap`: توسعهٔ Backend، قرارداد API و مستندات مرتبط
-- `frontend/mvp-bootstrap`: توسعهٔ Frontend
-
-تغییر مستقیم روی `main` مجاز نیست. برای مشارکت در Backend:
-
-1. تغییر را روی شاخهٔ `backend/mvp-bootstrap` و در مسیرهای `Backend/`،
-   `contracts/`، `docs/` یا فایل‌های مشترک مجاز انجام دهید.
-2. تست، lint، migration check و در صورت لزوم بازتولید OpenAPI را اجرا کنید.
-3. مستندات و `contracts/API_CHANGELOG.md` را برای تغییر قرارداد به‌روز کنید.
-4. Pull Request به `main` بسازید و بخش‌های تست، امنیت، scope و ریسک template را
-   تکمیل کنید.
-
-قواعد دسترسی چندشعبه‌ای باید در QuerySet، object permission، Service، Task،
-Export و Report حفظ شوند؛ پنهان‌کردن فیلد در Serializer کنترل مجوز محسوب
-نمی‌شود.
+Keep backend code in `Backend/`, frontend code in `Frontend/`, and regenerate the OpenAPI contract whenever an API change affects clients. Run the relevant checks before opening a pull request and include migration, permission/scope, and contract impacts.
 
 ## License
 
-در حال حاضر فایل License یا اعلان مجوز صریحی در این مخزن وجود ندارد. بنابراین
-README مجوز متن‌باز مشخصی به پروژه نسبت نمی‌دهد. پیش از استفاده، توزیع یا ایجاد
-اثر مشتق، شرایط را با مالک مخزن هماهنگ کنید.
+No license file is currently present. Obtain the repository owner’s permission before redistribution or derivative use.

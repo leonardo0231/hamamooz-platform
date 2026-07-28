@@ -38,7 +38,7 @@ try { env = parseEnv(await readFile(resolve(root, '.env'), 'utf8')); } catch {}
 const apiBaseUrl = process.env.VITE_API_BASE_URL || env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1/';
 const appName = process.env.VITE_APP_NAME || env.VITE_APP_NAME || 'هم‌آموز';
 const requestTimeoutMs = process.env.VITE_REQUEST_TIMEOUT_MS || env.VITE_REQUEST_TIMEOUT_MS || '20000';
-const apiOrigin = new URL(apiBaseUrl).origin;
+const apiOrigin = apiBaseUrl.startsWith('/') ? '' : new URL(apiBaseUrl).origin;
 const sourceHtml = await readFile(resolve(root, 'src/index.html'), 'utf8');
 await writeFile(resolve(root, 'dist/index.html'), sourceHtml.replaceAll('__API_BASE_URL__', apiBaseUrl).replaceAll('__API_ORIGIN__', apiOrigin).replaceAll('__APP_NAME__', appName).replaceAll('__REQUEST_TIMEOUT_MS__', requestTimeoutMs));
 await cp(resolve(root, 'src/styles/app.css'), resolve(root, 'dist/app.css'));

@@ -1,0 +1,115 @@
+name: hamamooz
+
+x-backend: &backend
+  build:
+    context: ./Backend
+  env_file: .env
+  restart: unless-stopped
+  volumes:
+    - static_data:/app/staticfiles
+    - media_data:/app/media
+
+services:
+  release:
+    <<: *backend
+    restart: "no"
+    command: sh -c "python manage.py migrate --noinput && python manage.py collectstatic --noinput"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      redis-broker:
+        condition: service_healthy
+
+  web:
+    <<: *backend
+    depends_on:
+      release:
+        condition: service_completed_successfully
+    ports:
+      - "${HAMAMOOZ_API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/v1/health/ready/"]
+      interval: 20s
+      timeout: 7s
+      retries: 8
+
+  worker:
+    <<: *backend
+    command: celery -A config worker -l INFO -Q default,imports,reports,calculations,notifications --concurrency=2
+    depends_on:
+      release:
+        condition: service_completed_successfully
+
+  beat:
+    <<: *backend
+    command: celery -A config beat -l INFO --schedule=/tmp/celerybeat-schedule
+    depends_on:
+      release:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ./Frontend
+      args:
+        VITE_API_BASE_URL: /api/v1/
+        VITE_APP_NAME: ${VITE_APP_NAME:-HamAmoz}
+        VITE_REQUEST_TIMEOUT_MS: ${VITE_REQUEST_TIMEOUT_MS:-20000}
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    ports:
+      - "${HAMAMOOZ_FRONTEND_PORT:-5173}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-hamamooz}
+      POSTGRES_USER: ${POSTGRES_USER:-hamamooz}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis-cache:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_cache_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis-broker:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory-policy noeviction
+    volumes:
+      - redis_broker_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
+  redis_cache_data:
+  redis_broker_data:
+  static_data:
+  media_data:
