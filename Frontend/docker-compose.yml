@@ -1,0 +1,18 @@
+name: hamamooz-frontend
+
+services:
+  frontend:
+    build:
+      context: .
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8001/api/v1/}
+        VITE_APP_NAME: ${VITE_APP_NAME:-هم‌آموز}
+        VITE_REQUEST_TIMEOUT_MS: ${VITE_REQUEST_TIMEOUT_MS:-20000}
+    restart: unless-stopped
+    ports:
+      - "${HAMAMOOZ_FRONTEND_PORT:-5173}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
