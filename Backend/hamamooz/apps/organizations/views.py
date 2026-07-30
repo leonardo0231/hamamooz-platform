@@ -75,7 +75,7 @@ class TermViewSet(AuditedModelViewSet):
     def get_queryset(self):
         return Term.objects.filter(
             academic_year__organization_id__in=accessible_organization_ids(self.request.user)
-        ).select_related("academic_year")
+        ).select_related("academic_year__organization")
 
 
 class GradeLevelViewSet(AuditedModelViewSet):
@@ -105,7 +105,7 @@ class ClassSectionViewSet(AuditedModelViewSet):
     def get_queryset(self):
         return (
             ClassSection.objects.filter(school_id__in=selected_school_ids(self.request))
-            .select_related("school", "academic_year", "grade_level")
+            .select_related("school__organization", "academic_year", "grade_level")
             .annotate(
                 enrolled_count=Count(
                     "enrollments",

@@ -1,8 +1,9 @@
 from io import BytesIO
 
 import pytest
+from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 
 from hamamooz.apps.academics.calculations import recalculate_class_term
 from hamamooz.apps.academics.models import Assessment, Score
@@ -28,6 +29,37 @@ def xlsx_upload(rows):
         output.getvalue(),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+@pytest.mark.django_db
+def test_import_template_download_is_authorized_valid_xlsx(api_client, base_data, settings, tmp_path):
+    settings.BASE_DIR = tmp_path
+    call_command("generate_import_templates", verbosity=0)
+    url = "/api/v1/imports/templates/students/"
+
+    unauthenticated = api_client.get(url)
+    assert unauthenticated.status_code == 401
+
+    api_client.force_authenticate(base_data["teacher1"])
+    authenticated = api_client.get(url)
+    assert authenticated.status_code == 200
+    authenticated.close()
+
+    api_client.force_authenticate(base_data["manager"])
+    missing = api_client.get("/api/v1/imports/templates/not-a-template/")
+    assert missing.status_code == 404
+
+    response = api_client.get(url)
+    payload = b"".join(response.streaming_content)
+    assert response.status_code == 200
+    assert response["Content-Type"] == (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    assert response["Content-Disposition"] == 'attachment; filename="students_template.xlsx"'
+    assert len(payload) > 100
+    assert payload.startswith(b"PK")
+    workbook = load_workbook(BytesIO(payload), read_only=True)
+    assert workbook.active.max_column > 0
 
 
 def create_assessment_via_api(api_client, base_data, title="ارزیابی API"):

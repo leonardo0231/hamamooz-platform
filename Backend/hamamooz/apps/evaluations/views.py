@@ -33,7 +33,7 @@ class MonthlyEvaluationViewSet(ReadOnlyModelViewSet):
             )
             .select_related(
                 "enrollment__student",
-                "enrollment__school",
+                "enrollment__school__organization",
                 "enrollment__academic_year",
                 "enrollment__class_section",
                 "recorded_by",

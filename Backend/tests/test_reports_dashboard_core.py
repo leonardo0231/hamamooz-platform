@@ -4,6 +4,7 @@ from decimal import Decimal
 import pytest
 from rest_framework.test import APIRequestFactory
 
+from hamamooz.apps.academics.calculations import recalculate_class_term
 from hamamooz.apps.academics.models import Assessment, Score
 from hamamooz.apps.academics.services import bulk_upsert_scores
 from hamamooz.apps.accounts.models import Role, RoleAssignment
@@ -187,6 +188,43 @@ def test_dashboard_counts_missing_scores_against_exact_active_roster(api_client,
     assert response.status_code == 200
     assert response.data["counts"]["students"] == 2
     assert response.data["counts"]["missing_scores"] == 1
+
+
+@pytest.mark.django_db
+def test_dashboard_class_average_is_visible_for_reportable_partial_grades(api_client, base_data):
+    assessment = Assessment.objects.create(
+        course_offering=base_data["offering1"],
+        assessment_type=base_data["continuous"],
+        title="Dashboard statistics",
+        assessment_date=date(2026, 10, 1),
+        max_score=Decimal("20"),
+        created_by=base_data["teacher1"],
+    )
+    bulk_upsert_scores(
+        assessment=assessment,
+        entries=[
+            {
+                "enrollment": base_data["enrollments"][0],
+                "value": Decimal("17"),
+                "status": Score.Status.PRESENT,
+            }
+        ],
+        actor=base_data["teacher1"],
+    )
+    assessment.status = Assessment.Status.LOCKED
+    assessment.save(update_fields=["status"])
+    recalculate_class_term(base_data["class1"], base_data["term"])
+    api_client.force_authenticate(base_data["manager"])
+
+    response = api_client.get(
+        "/api/v1/dashboard/summary/",
+        HTTP_X_SCHOOL_ID=str(base_data["school1"].id),
+    )
+
+    assert response.status_code == 200
+    averages = response.data["class_averages"]
+    assert averages
+    assert any(Decimal(str(item["average"])) == Decimal("17.00") for item in averages)
 
 
 @pytest.mark.django_db

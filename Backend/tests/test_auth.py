@@ -26,3 +26,15 @@ def test_jwt_login_accepts_email(api_client, base_data):
     )
     assert response.status_code == 200
     assert response.data["user"]["username"] == "teacher1"
+
+
+@pytest.mark.django_db
+def test_auth_me_exposes_readable_role_scope_names(api_client, base_data):
+    api_client.force_authenticate(user=base_data["teacher1"])
+
+    response = api_client.get("/api/v1/auth/me/")
+
+    assert response.status_code == 200
+    assignment = response.data["role_assignments"][0]
+    assert assignment["organization_name"] == base_data["organization"].name
+    assert assignment["school_name"] == base_data["school1"].name

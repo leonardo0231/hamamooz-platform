@@ -135,12 +135,18 @@ class ImportJobViewSet(AuditedModelViewSet):
         sheet.append(["row", "message"])
         for item in job.errors or []:
             sheet.append([item.get("row"), item.get("message", "")])
+        scope_sheet = workbook.create_sheet("scope")
+        scope_sheet.append(["مجموعه", job.organization.name])
+        scope_sheet.append(["مدرسه", job.school.name])
         output = BytesIO()
         workbook.save(output)
         output.seek(0)
         return FileResponse(
             output,
             as_attachment=True,
-            filename=f"{slugify(str(job.id))}_errors.xlsx",
+            filename=(
+                f"{slugify(job.organization.name, allow_unicode=True)}-"
+                f"{slugify(job.school.name, allow_unicode=True)}-errors.xlsx"
+            ),
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )

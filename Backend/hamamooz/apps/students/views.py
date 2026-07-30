@@ -53,6 +53,7 @@ class StudentViewSet(AuditedModelViewSet):
                 enrollments__school_id__in=school_ids,
                 enrollments__class_section_id__in=class_ids,
             )
+            .select_related("organization")
             .prefetch_related("guardian_links__guardian")
             .distinct()
         )
@@ -97,10 +98,14 @@ class GuardianViewSet(AuditedModelViewSet):
     def get_queryset(self):
         school_ids = selected_school_ids(self.request)
         class_ids = allowed_class_ids(self.request.user, school_ids)
-        return Guardian.objects.filter(
-            student_links__student__enrollments__school_id__in=school_ids,
-            student_links__student__enrollments__class_section_id__in=class_ids,
-        ).distinct()
+        return (
+            Guardian.objects.filter(
+                student_links__student__enrollments__school_id__in=school_ids,
+                student_links__student__enrollments__class_section_id__in=class_ids,
+            )
+            .select_related("organization")
+            .distinct()
+        )
 
 
 class EnrollmentViewSet(AuditedModelViewSet):
@@ -129,7 +134,13 @@ class EnrollmentViewSet(AuditedModelViewSet):
         class_ids = allowed_class_ids(self.request.user, school_ids)
         return (
             Enrollment.objects.filter(school_id__in=school_ids, class_section_id__in=class_ids)
-            .select_related("student", "school", "academic_year", "grade_level", "class_section")
+            .select_related(
+                "student",
+                "school__organization",
+                "academic_year",
+                "grade_level",
+                "class_section",
+            )
             .prefetch_related("events__actor")
         )
 

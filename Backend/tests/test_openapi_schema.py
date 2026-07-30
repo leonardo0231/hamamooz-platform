@@ -66,3 +66,22 @@ def test_openapi_security_requirements_are_not_duplicated():
             assert len(normalized) == len(set(normalized)), (
                 f"duplicate security for {method} {path}"
             )
+
+
+def test_dashboard_and_attendance_policy_openapi_contracts_are_typed():
+    schema = SchemaGenerator().get_schema(request=None, public=True)
+
+    dashboard = schema["paths"]["/api/v1/dashboard/summary/"]["get"]
+    assert _json_response_schema(dashboard, 200) == {
+        "$ref": "#/components/schemas/DashboardSummary"
+    }
+    dashboard_schema = schema["components"]["schemas"]["DashboardSummary"]
+    assert dashboard_schema["properties"]["counts"] == {
+        "$ref": "#/components/schemas/DashboardCounts"
+    }
+    assert dashboard_schema["properties"]["latest_activities"]["type"] == "array"
+
+    policy = schema["components"]["schemas"]["AttendancePolicyRequest"]
+    channels = policy["properties"]["notification_channels"]
+    assert channels["type"] == "array"
+    assert channels["items"] == {"$ref": "#/components/schemas/NotificationChannelsEnum"}

@@ -43,6 +43,9 @@ class MonthlyEvaluationSerializer(serializers.ModelSerializer):
     student_number = serializers.CharField(source="enrollment.student_number", read_only=True)
     school = serializers.UUIDField(source="enrollment.school_id", read_only=True)
     school_name = serializers.CharField(source="enrollment.school.name", read_only=True)
+    organization_name = serializers.CharField(
+        source="enrollment.school.organization.name", read_only=True
+    )
     academic_year = serializers.UUIDField(source="enrollment.academic_year_id", read_only=True)
     academic_year_title = serializers.CharField(
         source="enrollment.academic_year.title", read_only=True
@@ -64,6 +67,7 @@ class MonthlyEvaluationSerializer(serializers.ModelSerializer):
             "student_number",
             "school",
             "school_name",
+            "organization_name",
             "academic_year",
             "academic_year_title",
             "class_title",
