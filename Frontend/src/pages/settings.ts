@@ -1,7 +1,7 @@
 import { config } from '../app/config.js';
 import { contract } from '../api/contract.js';
 import type { Role } from '../api/types.js';
-import { administrativeRoles, hasAnyRole } from '../app/permissions.js';
+import { administrativeRoles, hasAnyRole, isSystemAdmin } from '../app/permissions.js';
 import { navigate } from '../app/router.js';
 import { h } from '../utils/dom.js';
 import { icon } from '../components/icons.js';
@@ -25,9 +25,15 @@ const sections: Array<{ title: string; description: string; route: string; icon:
 
 export function renderSettingsPage(): HTMLElement {
   const visibleSections = sections.filter(section => hasAnyRole(section.roles));
+  const diagnostics = isSystemAdmin()
+    ? h('details', { className: 'card system-info technical-details' },
+      h('summary', {}, icon('settings'), h('span', {}, h('strong', { text: 'اطلاعات فنی و یکپارچه‌سازی' }), h('small', { text: 'ویژه مدیر کل سامانه و پشتیبانی فنی' }))),
+      h('dl', { className: 'detail-grid detail-grid--technical' }, h('div', {}, h('dt', { text: 'نام برنامه' }), h('dd', { text: config.appName })), h('div', {}, h('dt', { text: 'نسخه قرارداد API' }), h('dd', { text: contract.meta.version })), h('div', {}, h('dt', { text: 'Base URL' }), h('dd', { className: 'ltr', text: config.apiBaseUrl })), h('div', {}, h('dt', { text: 'Timeout' }), h('dd', { text: `${config.requestTimeoutMs.toLocaleString('fa-IR')} میلی‌ثانیه` })), h('div', {}, h('dt', { text: 'تعداد عملیات قرارداد' }), h('dd', { text: contract.operations.length.toLocaleString('fa-IR') })), h('div', {}, h('dt', { text: 'تعداد Schema' }), h('dd', { text: Object.keys(contract.schemas).length.toLocaleString('fa-IR') }))),
+    )
+    : null;
   return h('section', { className: 'page' },
     h('div', { className: 'page-heading' }, h('div', {}, h('span', { className: 'eyebrow', text: 'پیکربندی' }), h('h1', { text: 'تنظیمات سامانه' }), h('p', { text: 'دسترسی هر بخش در Backend و براساس نقش و Scope کنترل می‌شود.' }))),
     h('div', { className: 'settings-grid' }, ...visibleSections.map(section => h('button', { className: 'settings-card card', type: 'button', onClick: () => navigate(section.route) }, h('span', { className: 'settings-card__icon' }, icon(section.icon)), h('div', {}, h('h2', { text: section.title }), h('p', { text: section.description })), icon('chevron')))),
-    h('article', { className: 'card system-info' }, h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'اطلاعات Integration' }), h('p', { text: 'برای بررسی و پشتیبانی فنی' })), h('span', { className: 'card-icon' }, icon('settings'))), h('dl', { className: 'detail-grid' }, h('div', {}, h('dt', { text: 'نام برنامه' }), h('dd', { text: config.appName })), h('div', {}, h('dt', { text: 'نسخه قرارداد API' }), h('dd', { text: contract.meta.version })), h('div', {}, h('dt', { text: 'Base URL' }), h('dd', { className: 'ltr', text: config.apiBaseUrl })), h('div', {}, h('dt', { text: 'Timeout' }), h('dd', { text: `${config.requestTimeoutMs.toLocaleString('fa-IR')} میلی‌ثانیه` })), h('div', {}, h('dt', { text: 'تعداد عملیات قرارداد' }), h('dd', { text: contract.operations.length.toLocaleString('fa-IR') })), h('div', {}, h('dt', { text: 'تعداد Schema' }), h('dd', { text: Object.keys(contract.schemas).length.toLocaleString('fa-IR') })))),
+    diagnostics,
   );
 }

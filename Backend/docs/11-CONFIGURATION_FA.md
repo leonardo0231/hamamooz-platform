@@ -86,7 +86,12 @@ Backend SMS باید interface مورد انتظار `attendance.notifications` 
 | `REPORT_PROCESSING_TIMEOUT_MINUTES` | 30 | تشخیص Report stale |
 | `IMPORT_MAX_ROWS` | 5000 | سقف ردیف Workbook |
 | `IMPORT_MAX_COLUMNS` | 20 | سقف ستون |
+| `IMPORT_MAX_SMART_ROWS` | 5000 | سقف ردیف‌های ورودی قالب هوشمند عریض |
+| `IMPORT_MAX_SMART_COLUMNS` | 100 | سقف ستون‌های قالب هوشمند عریض |
+| `IMPORT_MAX_EXPANDED_ROWS` | 100000 | سقف امتیازهای طولی پس از تبدیل قالب عریض |
 | `IMPORT_MAX_UNCOMPRESSED_BYTES` | 50 MiB | سقف محتوای unzip شده |
+| `EVALUATION_FINAL_COMPLETION_PERCENT` | 100 | حداقل درصد تکمیل برای وضعیت نهایی |
+| `EVALUATION_TREND_EPSILON` | 0.5 | حداقل تغییر نمره برای تشخیص پیشرفت یا افت |
 
 ## Email
 

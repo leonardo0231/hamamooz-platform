@@ -1,8 +1,8 @@
 from io import BytesIO
 
 import pytest
-from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 from openpyxl import Workbook, load_workbook
 
 from hamamooz.apps.academics.calculations import recalculate_class_term
@@ -32,7 +32,9 @@ def xlsx_upload(rows):
 
 
 @pytest.mark.django_db
-def test_import_template_download_is_authorized_valid_xlsx(api_client, base_data, settings, tmp_path):
+def test_import_template_download_is_authorized_valid_xlsx(
+    api_client, base_data, settings, tmp_path
+):
     settings.BASE_DIR = tmp_path
     call_command("generate_import_templates", verbosity=0)
     url = "/api/v1/imports/templates/students/"

@@ -42,6 +42,7 @@ class ImportJobSerializer(serializers.ModelSerializer):
             "successful_rows",
             "error_count",
             "errors",
+            "result_summary",
             "started_at",
             "finished_at",
             "created_at",
@@ -61,6 +62,7 @@ class ImportJobSerializer(serializers.ModelSerializer):
             "successful_rows",
             "error_count",
             "errors",
+            "result_summary",
             "started_at",
             "finished_at",
             "created_at",
@@ -77,6 +79,13 @@ class ImportJobSerializer(serializers.ModelSerializer):
         if extension not in {".xlsx", ".xls"}:
             raise serializers.ValidationError(
                 {"source_file": "فقط فایل‌های XLSX و XLS پذیرفته می‌شوند."}
+            )
+        if (
+            attrs.get("import_type") == ImportJob.ImportType.COMPREHENSIVE_SCHOOL
+            and extension != ".xlsx"
+        ):
+            raise serializers.ValidationError(
+                {"source_file": "فایل جامع مدرسه فقط با قالب XLSX پذیرفته می‌شود."}
             )
         if source.size > 10 * 1024 * 1024:
             raise serializers.ValidationError(

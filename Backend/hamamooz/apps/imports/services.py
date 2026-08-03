@@ -21,6 +21,18 @@ from hamamooz.apps.evaluations.models import MetricScore, MonthlyEvaluation
 from hamamooz.apps.organizations.models import AcademicYear, ClassSection, GradeLevel
 from hamamooz.apps.students.models import Enrollment, Student
 
+from .adapters import (
+    LONG_MONTHLY_HEADERS,
+    LONG_MONTHLY_INTERNAL_HEADERS,
+    SMART_TEMPLATE_VERSION,
+    LoadedImportRows,
+    load_monthly_evaluation_xlsx,
+)
+from .comprehensive import (
+    apply_comprehensive_workbook,
+    load_comprehensive_workbook,
+    validate_comprehensive_workbook,
+)
 from .models import ImportJob
 
 EXPECTED_HEADERS = {
@@ -46,33 +58,11 @@ EXPECTED_HEADERS = {
         "status",
         "note",
     ],
-    ImportJob.ImportType.MONTHLY_EVALUATIONS: [
-        "نسخه قالب",
-        "کد مدرسه",
-        "سال تحصیلی",
-        "کد کلاس",
-        "شماره دانش‌آموزی",
-        "کد ملی",
-        "شماره ماه",
-        "کد شاخص",
-        "امتیاز",
-        "توضیحات",
-    ],
+    ImportJob.ImportType.MONTHLY_EVALUATIONS: LONG_MONTHLY_HEADERS,
 }
 
 INTERNAL_HEADERS = {import_type: headers for import_type, headers in EXPECTED_HEADERS.items()}
-INTERNAL_HEADERS[ImportJob.ImportType.MONTHLY_EVALUATIONS] = [
-    "template_version",
-    "school_code",
-    "academic_year_code",
-    "class_code",
-    "student_number",
-    "national_id",
-    "month_no",
-    "metric_code",
-    "score",
-    "note",
-]
+INTERNAL_HEADERS[ImportJob.ImportType.MONTHLY_EVALUATIONS] = LONG_MONTHLY_INTERNAL_HEADERS
 
 
 def _as_date(value, field):
@@ -123,6 +113,10 @@ def _load_rows(job):
             raise ValueError("ساختار فایل XLSX معتبر نیست.") from None
         workbook = load_workbook(BytesIO(payload), read_only=True, data_only=True)
         try:
+            if job.import_type == ImportJob.ImportType.COMPREHENSIVE_SCHOOL:
+                return load_comprehensive_workbook(job, workbook)
+            if job.import_type == ImportJob.ImportType.MONTHLY_EVALUATIONS:
+                return load_monthly_evaluation_xlsx(job, workbook)
             sheet = workbook.active
             if sheet.max_column > settings.IMPORT_MAX_COLUMNS:
                 raise ValueError("تعداد ستون‌های فایل بیش از حد مجاز است.")
@@ -165,7 +159,7 @@ def _normalize_import_rows(job, header, rows):
     if header != expected:
         raise ValueError(f"ستون‌ها باید دقیقاً به این ترتیب باشند: {', '.join(expected)}")
     loaded = []
-    for values in rows:
+    for source_row, values in enumerate(rows, start=2):
         if not any(v not in (None, "") for v in values):
             continue
         if len(loaded) >= settings.IMPORT_MAX_ROWS:
@@ -177,8 +171,12 @@ def _normalize_import_rows(job, header, rows):
             normalized.append(value)
         if len(normalized) != len(INTERNAL_HEADERS[job.import_type]):
             raise ValueError("تعداد ستون‌های یک ردیف با قالب فایل یکسان نیست.")
-        loaded.append(dict(zip(INTERNAL_HEADERS[job.import_type], normalized, strict=True)))
-    return loaded
+        row = dict(zip(INTERNAL_HEADERS[job.import_type], normalized, strict=True))
+        row["__source_row__"] = source_row
+        if job.import_type == ImportJob.ImportType.MONTHLY_EVALUATIONS:
+            row["framework_version"] = FRAMEWORK_VERSION
+        loaded.append(row)
+    return LoadedImportRows(rows=loaded, source_row_count=len(loaded), adapter="fixed-layout")
 
 
 def _validate_students(job, rows):
@@ -375,20 +373,35 @@ def _validate_scores(job, rows):
 def _validate_monthly_evaluations(job, rows):
     prepared, errors, seen = defaultdict(list), [], set()
     normalized_rows = []
-    year_codes, class_codes, student_numbers, national_ids = set(), set(), set(), set()
+    year_codes, class_codes, student_numbers, national_ids, enrollment_ids = (
+        set(),
+        set(),
+        set(),
+        set(),
+        set(),
+    )
 
-    for number, row in enumerate(rows, start=2):
+    for fallback_number, row in enumerate(rows, start=2):
+        number = row.get("__source_row__", fallback_number)
+        if row.get("__adapter_error__"):
+            errors.append({"row": number, "message": row["__adapter_error__"]})
+            continue
         year_code = str(row["academic_year_code"] or "").strip()
         class_code = str(row["class_code"] or "").strip()
         student_number = str(row["student_number"] or "").strip()
         national_id = str(row["national_id"] or "").strip().zfill(10)
-        normalized_rows.append((number, row, year_code, class_code, student_number, national_id))
+        enrollment_id = str(row.get("enrollment_id") or "").strip()
+        normalized_rows.append(
+            (number, row, year_code, class_code, student_number, national_id, enrollment_id)
+        )
         year_codes.add(year_code)
         class_codes.add(class_code)
         student_numbers.add(student_number)
         national_ids.add(national_id)
+        if enrollment_id:
+            enrollment_ids.add(enrollment_id)
 
-    enrollments = {
+    enrollments_by_identity = {
         (
             item.academic_year.code,
             item.class_section.code,
@@ -406,17 +419,53 @@ def _validate_monthly_evaluations(job, rows):
             status=Enrollment.Status.ACTIVE,
         )
     }
+    enrollments_by_id = {
+        str(item.id): item
+        for item in Enrollment.objects.select_related(
+            "academic_year", "class_section", "student"
+        ).filter(
+            id__in=enrollment_ids,
+            school=job.school,
+            status=Enrollment.Status.ACTIVE,
+        )
+    }
 
     notes = {}
-    for number, row, year_code, class_code, student_number, national_id in normalized_rows:
+    for (
+        number,
+        row,
+        year_code,
+        class_code,
+        student_number,
+        national_id,
+        enrollment_id,
+    ) in normalized_rows:
         try:
-            if str(row["template_version"] or "").strip() != FRAMEWORK_VERSION:
-                raise ValueError(f"نسخه قالب باید {FRAMEWORK_VERSION} باشد.")
+            template_version = str(row["template_version"] or "").strip()
+            if template_version not in {FRAMEWORK_VERSION, SMART_TEMPLATE_VERSION}:
+                raise ValueError(
+                    f"نسخه قالب باید {FRAMEWORK_VERSION} یا {SMART_TEMPLATE_VERSION} باشد."
+                )
+            if str(row.get("framework_version") or "").strip() != FRAMEWORK_VERSION:
+                raise ValueError(f"نسخه چارچوب شاخص‌ها باید {FRAMEWORK_VERSION} باشد.")
             if str(row["school_code"] or "").strip() != job.school.code:
                 raise ValueError("کد مدرسه با شعبه انتخاب‌شده در سایت یکسان نیست.")
-            enrollment = enrollments.get((year_code, class_code, student_number, national_id))
+            identity = (year_code, class_code, student_number, national_id)
+            enrollment = (
+                enrollments_by_id.get(enrollment_id)
+                if enrollment_id
+                else enrollments_by_identity.get(identity)
+            )
             if enrollment is None:
                 raise ValueError("ثبت‌نام متناظر با سال، کلاس، شماره دانش‌آموزی و کد ملی پیدا نشد.")
+            actual_identity = (
+                enrollment.academic_year.code,
+                enrollment.class_section.code,
+                enrollment.student_number,
+                enrollment.student.national_id,
+            )
+            if actual_identity != identity:
+                raise ValueError("شناسه ثبت‌نام با مشخصات امن دانش‌آموز در قالب یکسان نیست.")
             try:
                 month_no = int(row["month_no"])
             except (TypeError, ValueError) as exc:
@@ -520,6 +569,7 @@ def process_import_job(job_id):
         job.successful_rows = 0
         job.error_count = 0
         job.errors = []
+        job.result_summary = {}
         job.save(
             update_fields=[
                 "status",
@@ -528,28 +578,32 @@ def process_import_job(job_id):
                 "successful_rows",
                 "error_count",
                 "errors",
+                "result_summary",
                 "updated_at",
             ]
         )
     try:
-        rows = _load_rows(job)
+        loaded = _load_rows(job)
+        rows = loaded.rows
         validators = {
             ImportJob.ImportType.STUDENTS: _validate_students,
             ImportJob.ImportType.ENROLLMENTS: _validate_enrollments,
             ImportJob.ImportType.SCORES: _validate_scores,
             ImportJob.ImportType.MONTHLY_EVALUATIONS: _validate_monthly_evaluations,
+            ImportJob.ImportType.COMPREHENSIVE_SCHOOL: validate_comprehensive_workbook,
         }
         prepared, errors = validators[job.import_type](job, rows)
-        job.total_rows = len(rows)
+        job.total_rows = loaded.source_row_count
         if errors:
             with transaction.atomic():
                 locked_job = ImportJob.objects.select_for_update().get(pk=job_id)
                 if locked_job.status == ImportJob.Status.CANCELLED:
                     return locked_job
                 locked_job.status = ImportJob.Status.FAILED
-                locked_job.total_rows = len(rows)
+                locked_job.total_rows = loaded.source_row_count
                 locked_job.error_count = len(errors)
                 locked_job.errors = errors[:1000]
+                locked_job.result_summary = {}
                 locked_job.finished_at = timezone.now()
                 locked_job.save()
                 return locked_job
@@ -557,7 +611,14 @@ def process_import_job(job_id):
             locked_job = ImportJob.objects.select_for_update().get(pk=job_id)
             if locked_job.status == ImportJob.Status.CANCELLED:
                 return locked_job
-            if job.import_type in [ImportJob.ImportType.STUDENTS, ImportJob.ImportType.ENROLLMENTS]:
+            if job.import_type == ImportJob.ImportType.COMPREHENSIVE_SCHOOL:
+                summary = apply_comprehensive_workbook(locked_job, prepared)
+                successful = loaded.source_row_count
+                locked_job.result_summary = summary
+            elif job.import_type in [
+                ImportJob.ImportType.STUDENTS,
+                ImportJob.ImportType.ENROLLMENTS,
+            ]:
                 if job.import_type == ImportJob.ImportType.ENROLLMENTS:
                     class_ids = sorted({item.class_section_id for item in prepared}, key=str)
                     locked_classes = {
@@ -589,9 +650,10 @@ def process_import_job(job_id):
                         )
                     )
             else:
-                successful = _upsert_monthly_evaluations(locked_job, prepared)
+                _upsert_monthly_evaluations(locked_job, prepared)
+                successful = loaded.source_row_count
             locked_job.status = ImportJob.Status.COMPLETED
-            locked_job.total_rows = len(rows)
+            locked_job.total_rows = loaded.source_row_count
             locked_job.successful_rows = successful
             locked_job.error_count = 0
             locked_job.finished_at = timezone.now()
@@ -611,6 +673,7 @@ def process_import_job(job_id):
             locked.status = ImportJob.Status.FAILED
             locked.error_count = 1
             locked.errors = [{"row": None, "message": str(exc)[:2000]}]
+            locked.result_summary = {}
             locked.finished_at = timezone.now()
             locked.save()
             return locked

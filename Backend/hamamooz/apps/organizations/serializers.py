@@ -144,6 +144,8 @@ class ClassSectionSerializer(CleanModelSerializer):
     enrolled_count = serializers.IntegerField(read_only=True)
     school_name = serializers.CharField(source="school.name", read_only=True)
     organization_name = serializers.CharField(source="school.organization.name", read_only=True)
+    academic_year_title = serializers.CharField(source="academic_year.title", read_only=True)
+    grade_title = serializers.CharField(source="grade_level.title", read_only=True)
 
     class Meta:
         model = ClassSection
@@ -153,7 +155,9 @@ class ClassSectionSerializer(CleanModelSerializer):
             "school_name",
             "organization_name",
             "academic_year",
+            "academic_year_title",
             "grade_level",
+            "grade_title",
             "code",
             "title",
             "capacity",
@@ -166,6 +170,8 @@ class ClassSectionSerializer(CleanModelSerializer):
             "id",
             "school_name",
             "organization_name",
+            "academic_year_title",
+            "grade_title",
             "enrolled_count",
             "created_at",
             "updated_at",

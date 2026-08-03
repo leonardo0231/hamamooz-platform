@@ -15,23 +15,31 @@ try {
 }
 if (result.error || result.status !== 0) process.exit(result.status ?? 1);
 await mkdir(resolve(root, 'dist'), { recursive: true });
-await build({
-  entryPoints: {
-    main: resolve(root, 'src/main.ts'),
-    'api/action-schemas': resolve(root, 'src/api/action-schemas.ts'),
-    'api/errors': resolve(root, 'src/api/errors.ts'),
-  },
-  outdir: resolve(root, 'dist/assets'),
-  bundle: true,
-  splitting: true,
-  format: 'esm',
-  platform: 'browser',
-  target: 'es2022',
-  sourcemap: true,
-  minify: true,
-  legalComments: 'none',
-  chunkNames: 'chunks/[name]-[hash]',
-});
+try {
+  await build({
+    entryPoints: {
+      main: resolve(root, 'src/main.ts'),
+      'api/action-schemas': resolve(root, 'src/api/action-schemas.ts'),
+      'api/errors': resolve(root, 'src/api/errors.ts'),
+    },
+    outdir: resolve(root, 'dist/assets'),
+    bundle: true,
+    splitting: true,
+    format: 'esm',
+    platform: 'browser',
+    target: 'es2022',
+    sourcemap: true,
+    minify: true,
+    legalComments: 'none',
+    chunkNames: 'chunks/[name]-[hash]',
+  });
+} catch (error) {
+  console.warn('esbuild binary is unavailable for this platform; using the portable TypeScript module build.');
+  const emitResult = spawnSync(process.execPath, [localTsc, '-p', resolve(root, 'tsconfig.json')], { stdio: 'inherit', cwd: root });
+  if (emitResult.error || emitResult.status !== 0) throw error;
+  await mkdir(resolve(root, 'dist/assets/vendor'), { recursive: true });
+  await cp(resolve(root, 'src/vendor/xlsx.js'), resolve(root, 'dist/assets/vendor/xlsx.js'));
+}
 const parseEnv = text => Object.fromEntries(text.split(/\r?\n/).filter(line => line && !line.trim().startsWith('#') && line.includes('=')).map(line => { const index = line.indexOf('='); return [line.slice(0, index).trim(), line.slice(index + 1).trim()]; }));
 let env = {};
 try { env = parseEnv(await readFile(resolve(root, '.env'), 'utf8')); } catch {}

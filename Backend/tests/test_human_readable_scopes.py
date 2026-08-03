@@ -30,6 +30,8 @@ def test_scope_resources_expose_human_names_without_replacing_writable_reference
     assert students.data["results"][0]["organization_name"] == base_data["organization"].name
     assert classes.data["results"][0]["school_name"] == base_data["school1"].name
     assert classes.data["results"][0]["organization_name"] == base_data["organization"].name
+    assert classes.data["results"][0]["academic_year_title"] == base_data["year"].title
+    assert classes.data["results"][0]["grade_title"] == base_data["grade"].title
 
 
 @pytest.mark.django_db

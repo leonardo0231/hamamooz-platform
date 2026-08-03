@@ -6,8 +6,13 @@ const catalog = JSON.parse(await readFile(new URL('../src/api/generated/catalog.
 const keys = new Set(catalog.operations.map(operation => `${operation.method} ${operation.path}`));
 
 test('generated API catalog has the expected contract size', () => {
-  assert.equal(catalog.operations.length, 167);
-  assert.equal(Object.keys(catalog.schemas).length, 142);
+  assert.equal(catalog.operations.length, 170);
+  assert.equal(Object.keys(catalog.schemas).length, 160);
+});
+
+test('import contract exposes the comprehensive school workbook type', () => {
+  assert.ok(catalog.schemas.ImportTypeEnum);
+  assert.equal(catalog.schemas.ImportTypeEnum.enum.includes('comprehensive_school'), true);
 });
 
 test('critical authentication and dashboard endpoints exist', () => {

@@ -59,9 +59,24 @@ function metricCard(label: string, value: number, cardIcon: string, tone: string
   return h('article', { className: 'metric-card' }, h('span', { className: `metric-card__icon metric-card__icon--${tone}` }, icon(cardIcon)), h('div', {}, h('small', { text: label }), h('strong', { text: formatNumber(value) }), h('span', { text: detail })));
 }
 
-function activityLabel(action: string): string {
-  const known: Record<string, string> = { 'auth.login': 'ورود به سامانه', 'score.updated': 'ویرایش نمره', 'assessment.created': 'ایجاد ارزیابی', 'attendance.finalized': 'نهایی‌سازی حضور و غیاب', 'report.created': 'ایجاد گزارش' };
-  return known[action] ?? action.replaceAll('.', ' / ').replaceAll('_', ' ');
+const entityLabels: Record<string, string> = {
+  score: 'نمره', scores: 'نمره', assessment: 'ارزیابی', assessments: 'ارزیابی', attendance: 'حضور و غیاب', attendance_record: 'رکورد حضور', attendance_session: 'جلسه حضور',
+  report: 'گزارش', reports: 'گزارش', student: 'دانش‌آموز', students: 'دانش‌آموز', enrollment: 'ثبت‌نام', class_section: 'کلاس', user: 'کاربر', role_assignment: 'نقش و دسترسی', import: 'ورود اطلاعات',
+};
+
+const actionVerbs: Record<string, string> = {
+  created: 'ایجاد', updated: 'ویرایش', deleted: 'حذف', submitted: 'ارسال', approved: 'تأیید', rejected: 'رد', locked: 'قفل', finalized: 'نهایی‌سازی', cancelled: 'لغو', corrected: 'اصلاح', downloaded: 'دریافت', login: 'ورود به سامانه', logout: 'خروج از سامانه',
+};
+
+function activityLabel(action: string, entityType: string): string {
+  const known: Record<string, string> = { 'auth.login': 'ورود به سامانه', 'auth.logout': 'خروج از سامانه', 'score.updated': 'ویرایش نمره', 'assessment.created': 'ایجاد ارزیابی', 'attendance.finalized': 'نهایی‌سازی حضور و غیاب', 'report.created': 'ایجاد گزارش' };
+  if (known[action]) return known[action] ?? '';
+  const parts = action.split('.');
+  const verbKey = parts.at(-1) ?? action;
+  const entityKey = parts.length > 1 ? parts[0] ?? entityType : entityType;
+  const verb = actionVerbs[verbKey] ?? 'ثبت تغییر در';
+  const entity = entityLabels[entityKey] ?? entityLabels[entityType] ?? 'اطلاعات سامانه';
+  return `${verb} ${entity}`;
 }
 
 const workflowLabels: Record<string, { label: string; tone: string }> = {
@@ -137,7 +152,7 @@ export async function renderDashboardPage(): Promise<HTMLElement> {
       );
       const activityContent = summary.latest_activities.length
         ? h('ol', { className: 'timeline' }, ...summary.latest_activities.map(item =>
-            h('li', {}, h('span', { className: 'timeline__dot' }), h('div', {}, h('strong', { text: activityLabel(item.action) }), h('small', { text: `${item.entity_type} · ${formatDate(item.created_at, true)}` }))),
+            h('li', {}, h('span', { className: 'timeline__dot' }), h('div', {}, h('strong', { text: activityLabel(item.action, item.entity_type) }), h('small', { text: `${entityLabels[item.entity_type] ?? 'رویداد سامانه'} · ${formatDate(item.created_at, true)}` }))),
           ))
         : emptyState('رویدادی ثبت نشده است', 'فعالیت‌های مجاز پس از انجام عملیات در این بخش نمایش داده می‌شوند.');
       const activities = h('article', { className: 'card activities-card' },
