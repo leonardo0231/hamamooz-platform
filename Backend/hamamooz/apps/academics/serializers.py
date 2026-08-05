@@ -41,10 +41,19 @@ class ScopedCleanSerializer(serializers.ModelSerializer):
 
 
 class SubjectSerializer(ScopedCleanSerializer):
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
+
     class Meta:
         model = Subject
         fields = "__all__"
-        read_only_fields = ["id", "created_at", "updated_at", "is_deleted", "deleted_at"]
+        read_only_fields = [
+            "id",
+            "organization_name",
+            "created_at",
+            "updated_at",
+            "is_deleted",
+            "deleted_at",
+        ]
 
     def validate_organization(self, value):
         if value.id not in set(accessible_organization_ids(self.context["request"].user)):
@@ -87,6 +96,10 @@ class CourseOfferingSerializer(ScopedCleanSerializer):
     class_title = serializers.CharField(source="class_section.title", read_only=True)
     teacher_name = serializers.CharField(source="teacher.get_full_name", read_only=True)
     term_title = serializers.CharField(source="term.title", read_only=True)
+    school_name = serializers.CharField(source="class_section.school.name", read_only=True)
+    organization_name = serializers.CharField(
+        source="class_section.school.organization.name", read_only=True
+    )
 
     class Meta:
         model = CourseOffering
@@ -94,6 +107,8 @@ class CourseOfferingSerializer(ScopedCleanSerializer):
             "id",
             "class_section",
             "class_title",
+            "school_name",
+            "organization_name",
             "grade_subject",
             "subject_title",
             "term",
@@ -107,6 +122,8 @@ class CourseOfferingSerializer(ScopedCleanSerializer):
         read_only_fields = [
             "id",
             "class_title",
+            "school_name",
+            "organization_name",
             "subject_title",
             "term_title",
             "teacher_name",
@@ -151,10 +168,19 @@ class CourseOfferingSerializer(ScopedCleanSerializer):
 
 
 class AssessmentTypeSerializer(ScopedCleanSerializer):
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
+
     class Meta:
         model = AssessmentType
         fields = "__all__"
-        read_only_fields = ["id", "created_at", "updated_at", "is_deleted", "deleted_at"]
+        read_only_fields = [
+            "id",
+            "organization_name",
+            "created_at",
+            "updated_at",
+            "is_deleted",
+            "deleted_at",
+        ]
 
     def validate_organization(self, value):
         if value.id not in set(accessible_organization_ids(self.context["request"].user)):
@@ -207,6 +233,12 @@ class AssessmentSerializer(ScopedCleanSerializer):
         source="course_offering.teacher.get_full_name", read_only=True
     )
     score_count = serializers.IntegerField(read_only=True)
+    school_name = serializers.CharField(
+        source="course_offering.class_section.school.name", read_only=True
+    )
+    organization_name = serializers.CharField(
+        source="course_offering.class_section.school.organization.name", read_only=True
+    )
 
     class Meta:
         model = Assessment
@@ -217,6 +249,8 @@ class AssessmentSerializer(ScopedCleanSerializer):
             "assessment_type_title",
             "subject_title",
             "class_title",
+            "school_name",
+            "organization_name",
             "teacher_name",
             "title",
             "assessment_date",
@@ -231,6 +265,8 @@ class AssessmentSerializer(ScopedCleanSerializer):
             "rejection_reason",
             "workflow_version",
             "score_count",
+            "school_name",
+            "organization_name",
             "created_at",
             "updated_at",
         ]
@@ -320,6 +356,8 @@ class CorrectLockedScoreSerializer(serializers.Serializer):
 
 
 class CalculationPolicySerializer(ScopedCleanSerializer):
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
+
     def validate(self, attrs):
         attrs = super().validate(attrs)
         if self.instance:
@@ -338,7 +376,14 @@ class CalculationPolicySerializer(ScopedCleanSerializer):
     class Meta:
         model = CalculationPolicy
         fields = "__all__"
-        read_only_fields = ["id", "created_at", "updated_at", "is_deleted", "deleted_at"]
+        read_only_fields = [
+            "id",
+            "organization_name",
+            "created_at",
+            "updated_at",
+            "is_deleted",
+            "deleted_at",
+        ]
 
     def validate_organization(self, value):
         if value.id not in set(accessible_organization_ids(self.context["request"].user)):

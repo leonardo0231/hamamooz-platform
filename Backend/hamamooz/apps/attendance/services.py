@@ -96,7 +96,7 @@ def _validate_session_writer(*, session, actor):
 @transaction.atomic
 def bulk_record_attendance(*, session, items, actor, request=None):
     session = (
-        AttendanceSession.all_objects.select_for_update()
+        AttendanceSession.all_objects.select_for_update(of=("self",))
         .select_related("school", "academic_year", "class_section", "course_offering")
         .get(pk=session.pk)
     )
@@ -196,7 +196,7 @@ def bulk_record_attendance(*, session, items, actor, request=None):
 @transaction.atomic
 def correct_attendance_record(*, record, data, reason, actor, request=None):
     record = (
-        AttendanceRecord.all_objects.select_for_update()
+        AttendanceRecord.all_objects.select_for_update(of=("self", "session"))
         .select_related(
             "session__school",
             "session__academic_year",
@@ -274,7 +274,7 @@ def correct_attendance_record(*, record, data, reason, actor, request=None):
 @transaction.atomic
 def finalize_attendance_session(*, session, actor, request=None):
     session = (
-        AttendanceSession.all_objects.select_for_update()
+        AttendanceSession.all_objects.select_for_update(of=("self",))
         .select_related("school", "academic_year", "class_section", "course_offering")
         .get(pk=session.pk)
     )
@@ -314,7 +314,7 @@ def finalize_attendance_session(*, session, actor, request=None):
 @transaction.atomic
 def cancel_attendance_session(*, session, actor, reason, request=None):
     session = (
-        AttendanceSession.all_objects.select_for_update()
+        AttendanceSession.all_objects.select_for_update(of=("self",))
         .select_related("school", "academic_year", "class_section", "course_offering")
         .get(pk=session.pk)
     )
@@ -339,7 +339,7 @@ def cancel_attendance_session(*, session, actor, reason, request=None):
 @transaction.atomic
 def submit_absence_excuse(*, record, reason, evidence_files, actor, request=None):
     record = (
-        AttendanceRecord.all_objects.select_for_update()
+        AttendanceRecord.all_objects.select_for_update(of=("self",))
         .select_related("session__school", "session__academic_year", "enrollment__student")
         .get(pk=record.pk)
     )
@@ -397,7 +397,7 @@ def submit_absence_excuse(*, record, reason, evidence_files, actor, request=None
 @transaction.atomic
 def review_absence_excuse(*, record, approved, note, actor, request=None):
     record = (
-        AttendanceRecord.all_objects.select_for_update()
+        AttendanceRecord.all_objects.select_for_update(of=("self",))
         .select_related("session__school", "session__academic_year", "enrollment__student")
         .prefetch_related("evidence_files")
         .get(pk=record.pk)
@@ -620,7 +620,7 @@ def queue_summary_parent_notifications(
 @transaction.atomic
 def evaluate_policy_alerts(*, policy, actor=None, request=None):
     policy = (
-        AttendancePolicy.objects.select_for_update()
+        AttendancePolicy.objects.select_for_update(of=("self",))
         .select_related("school", "academic_year")
         .get(pk=policy.pk)
     )

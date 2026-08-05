@@ -6,7 +6,8 @@
 
 - TypeScript 5 با تنظیمات Strict
 - Browser ES Modules و Dynamic Import برای Route-level Code Splitting
-- Router، Store و API Client ماژولار بدون وابستگی Runtime
+- Router، Store و API Client ماژولار بدون Framework یا UI Library در Runtime
+- SheetJS داخلی برای پیش‌نمایش فایل‌های Excel بدون وابستگی به CDN
 - CSS Design System اختصاصی، RTL و Responsive
 - Node.js Build/Preview scripts
 - تست‌های داخلی Node Test Runner
@@ -62,7 +63,7 @@ npm test
 npm run build
 ```
 
-خروجی در `Frontend/dist/` ساخته می‌شود.
+خروجی در `Frontend/dist/` ساخته می‌شود. Build در حالت عادی از esbuild استفاده می‌کند و در محیطی که Binary سازگار آن موجود نباشد، به‌صورت خودکار از خروجی ES Modules کامپایلر TypeScript استفاده می‌کند.
 
 ## اجرای Production Build
 
@@ -129,3 +130,4 @@ Route Guard و Role Guard در Client وجود دارد؛ کنترل نهایی 
 
 - [گزارش پیاده‌سازی](docs/IMPLEMENTATION_REPORT_FA.md)
 - [پوشش API و صفحات](docs/API_COVERAGE_FA.md)
+- [گزارش اصلاح UI/UX](docs/UI_UX_REMEDIATION_FA.md)

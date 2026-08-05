@@ -26,25 +26,23 @@ docs/          Shared integration documents
 - Python 3.12 or 3.13, PostgreSQL, and Redis only for non-Docker backend development
 - Node.js 20+ and npm for non-Docker frontend development
 
-## Environment
+## Docker: full local stack
 
-Create a local configuration file from the committed template:
+The root `docker-compose.yml` is the supported local stack. It starts PostgreSQL,
+Redis, Django/Gunicorn, migrations, demo bootstrap, Celery worker/beat, and the
+Nginx frontend together. No `.env` file is required for the local defaults.
+
+From the repository root run:
 
 ```powershell
-Copy-Item .env.example .env
+docker compose up --build -d
 ```
 
-Set a unique `DJANGO_SECRET_KEY` and a matching value for `POSTGRES_PASSWORD` and the password portion of `DATABASE_URL`. Do not commit `.env`.
-
-Important variables include `DJANGO_ALLOWED_HOSTS`, `DJANGO_CORS_ALLOWED_ORIGINS`, `DATABASE_URL`, `REDIS_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `USE_S3`, `HAMAMOOZ_API_PORT`, and `HAMAMOOZ_FRONTEND_PORT`. The complete backend templates are in `Backend/.env.example` and `Backend/.env.production.example`.
-
-## Docker setup
+Then verify the stack:
 
 ```powershell
-docker compose config
-docker compose build
-docker compose up -d
 docker compose ps
+docker compose logs -f web frontend db
 ```
 
 Default URLs:
@@ -52,31 +50,70 @@ Default URLs:
 | Service | URL |
 |---|---|
 | Frontend | http://localhost:5173 |
-| API | http://localhost:8000/api/v1/ |
-| API readiness | http://localhost:8000/api/v1/health/ready/ |
-| Swagger | http://localhost:8000/api/v1/docs/ |
-| ReDoc | http://localhost:8000/api/v1/redoc/ |
-| Admin | http://localhost:8000/admin/ |
+| API through frontend | http://localhost:5173/api/v1/ |
+| API direct | http://localhost:8000/api/v1/ |
+| API readiness | http://localhost:5173/api/v1/health/ready/ |
+| Swagger | http://localhost:5173/api/v1/docs/ |
+| ReDoc | http://localhost:5173/api/v1/redoc/ |
+| Django admin | http://localhost:5173/admin/ |
 
-The frontend uses `/api/v1/` at runtime; Nginx proxies that route to the internal `web:8000` service. PostgreSQL, both Redis services, and persistent media/static data use named Docker volumes.
+The local demo bootstrap is enabled by default and creates this account:
 
-For a local port conflict, override a port for that invocation, for example:
-
-```powershell
-$env:HAMAMOOZ_FRONTEND_PORT='8181'; docker compose up -d frontend
+```text
+username: admin
+password: Admin123!ChangeMe
 ```
 
-Stop services without removing persistent volumes:
+Change those values before sharing the environment. Set `SEED_DEMO=false` to
+disable demo data creation. The seed is idempotent and does not reset an
+existing administrator password.
+
+### Optional environment overrides
+
+The stack works without `.env`. To override defaults, copy the template:
 
 ```powershell
+Copy-Item .env.example .env
+```
+
+On Linux/macOS:
+
+```bash
+cp .env.example .env
+```
+
+When `DATABASE_URL` is empty, the Backend entrypoint builds it from `POSTGRES_*`.
+Set an explicit URL only when needed, especially for URL-encoded passwords. Do
+not commit `.env`. Important overrides include `HAMAMOOZ_API_PORT`,
+`HAMAMOOZ_FRONTEND_PORT`, `SEED_DEMO`, `SEED_ADMIN_PASSWORD`, and
+`CELERY_WORKER_CONCURRENCY`.
+
+For a port conflict in PowerShell:
+
+```powershell
+$env:HAMAMOOZ_FRONTEND_PORT='8181'
+docker compose up --build -d
+```
+
+### Lifecycle commands
+
+```powershell
+# Stop containers and keep data
 docker compose down
-```
 
-To remove the local volumes as well (this deletes local database and media data):
+# Rebuild after source or dependency changes
+docker compose up --build -d
 
-```powershell
+# Delete the local database, Redis data, media, and static volumes
 docker compose down --volumes
+
+# Open PostgreSQL inside the stack
+docker compose exec db psql -U hamamooz -d hamamooz
 ```
+
+The browser uses the frontend origin for `/api/`, `/media/`, `/static/`, and
+`/admin/`. Nginx proxies dynamic requests to the internal `web:8000` service and
+serves static/media files from shared named volumes.
 
 ## Local development
 

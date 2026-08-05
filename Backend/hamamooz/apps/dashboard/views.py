@@ -1,8 +1,7 @@
 from collections import defaultdict
 
-from django.db.models import Avg, Count, Q
+from django.db.models import Avg, Count, F, Q
 from django.utils import timezone
-from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -18,9 +17,11 @@ from hamamooz.apps.core.models import AuditEvent
 from hamamooz.apps.organizations.models import ClassSection, Term
 from hamamooz.apps.students.models import Enrollment
 
+from .serializers import DashboardSummarySerializer
+
 
 class DashboardSummaryView(APIView):
-    @extend_schema(responses={200: OpenApiTypes.OBJECT})
+    @extend_schema(responses={200: DashboardSummarySerializer})
     def get(self, request):
         school_ids = selected_school_ids(request)
         term_id = request.query_params.get("term")
@@ -95,6 +96,7 @@ class DashboardSummaryView(APIView):
             TermResult.objects.filter(
                 enrollment__class_section_id__in=class_ids,
                 term=term,
+                average__isnull=False,
             )
             .values("enrollment__class_section_id", "enrollment__class_section__title")
             .annotate(average=Avg("average"), students=Count("enrollment", distinct=True))
@@ -110,9 +112,12 @@ class DashboardSummaryView(APIView):
             ).values("id", "action", "entity_type", "entity_id", "actor_id", "created_at")[:10]
         )
         by_school = list(
-            enrollments.values("school_id", "school__name")
+            enrollments.values(
+                school_name=F("school__name"),
+                organization_name=F("school__organization__name"),
+            )
             .annotate(students=Count("student_id", distinct=True))
-            .order_by("school__name")
+            .order_by("organization_name", "school_name")
         )
         return Response(
             {

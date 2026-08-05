@@ -11,7 +11,7 @@ from .models import Enrollment, EnrollmentEvent, Student
 
 def _locked_enrollment(enrollment):
     return (
-        Enrollment.objects.select_for_update()
+        Enrollment.objects.select_for_update(of=("self",))
         .select_related("student", "school", "academic_year", "grade_level", "class_section")
         .get(pk=enrollment.pk)
     )
@@ -19,7 +19,7 @@ def _locked_enrollment(enrollment):
 
 def _locked_class(class_section):
     return (
-        ClassSection.objects.select_for_update()
+        ClassSection.objects.select_for_update(of=("self",))
         .select_related("school", "academic_year", "grade_level")
         .get(pk=class_section.pk)
     )

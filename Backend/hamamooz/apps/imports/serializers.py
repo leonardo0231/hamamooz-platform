@@ -20,13 +20,17 @@ def uploaded_file_checksum(uploaded_file):
 class ImportJobSerializer(serializers.ModelSerializer):
     requested_by_name = serializers.CharField(source="requested_by.get_full_name", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
+    school_name = serializers.CharField(source="school.name", read_only=True)
 
     class Meta:
         model = ImportJob
         fields = [
             "id",
             "organization",
+            "organization_name",
             "school",
+            "school_name",
             "import_type",
             "status",
             "status_display",
@@ -38,6 +42,7 @@ class ImportJobSerializer(serializers.ModelSerializer):
             "successful_rows",
             "error_count",
             "errors",
+            "result_summary",
             "started_at",
             "finished_at",
             "created_at",
@@ -46,6 +51,8 @@ class ImportJobSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "organization",
+            "organization_name",
+            "school_name",
             "status",
             "status_display",
             "checksum",
@@ -55,6 +62,7 @@ class ImportJobSerializer(serializers.ModelSerializer):
             "successful_rows",
             "error_count",
             "errors",
+            "result_summary",
             "started_at",
             "finished_at",
             "created_at",
@@ -71,6 +79,13 @@ class ImportJobSerializer(serializers.ModelSerializer):
         if extension not in {".xlsx", ".xls"}:
             raise serializers.ValidationError(
                 {"source_file": "فقط فایل‌های XLSX و XLS پذیرفته می‌شوند."}
+            )
+        if (
+            attrs.get("import_type") == ImportJob.ImportType.COMPREHENSIVE_SCHOOL
+            and extension != ".xlsx"
+        ):
+            raise serializers.ValidationError(
+                {"source_file": "فایل جامع مدرسه فقط با قالب XLSX پذیرفته می‌شود."}
             )
         if source.size > 10 * 1024 * 1024:
             raise serializers.ValidationError(

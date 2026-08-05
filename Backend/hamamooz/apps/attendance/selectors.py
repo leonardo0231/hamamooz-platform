@@ -22,7 +22,7 @@ def scoped_session_queryset(request):
         school_id__in=school_ids,
         class_section_id__in=class_ids,
     ).select_related(
-        "school",
+        "school__organization",
         "academic_year",
         "class_section__grade_level",
         "term",

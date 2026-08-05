@@ -79,6 +79,8 @@ def validate_official_report_readiness(attrs):
 class ReportArchiveSerializer(serializers.ModelSerializer):
     requested_by_name = serializers.CharField(source="requested_by.get_full_name", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
+    school_name = serializers.CharField(source="school.name", read_only=True)
     download_url = serializers.SerializerMethodField()
 
     class Meta:
@@ -86,7 +88,9 @@ class ReportArchiveSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "organization",
+            "organization_name",
             "school",
+            "school_name",
             "academic_year",
             "term",
             "report_type",
@@ -108,7 +112,9 @@ class ReportArchiveSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "organization",
+            "organization_name",
             "school",
+            "school_name",
             "academic_year",
             "status",
             "status_display",

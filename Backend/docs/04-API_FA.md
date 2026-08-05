@@ -172,11 +172,19 @@ POST /api/v1/imports/
 Content-Type: multipart/form-data
 
 school=<uuid>
-import_type=students|enrollments|scores
+import_type=comprehensive_school|students|enrollments|scores|monthly_evaluations
 source_file=<xlsx>
 ```
 
-نام و ترتیب ستون‌ها ثابت است. کل فایل قبل از Write اعتبارسنجی می‌شود. Job با `GET /imports/{id}/` Poll می‌شود و فقط Job ناموفق یا processing منقضی‌شده با `POST /imports/{id}/retry/` قابل تکرار است.
+گزینه پیشنهادی `comprehensive_school` است و شیت‌های `کلاس‌بندی`، `دانش‌آموزان` و `ثبت اطلاعات` را از یک فایل XLSX می‌خواند. سال تحصیلی و پایه باید از قبل در سازمان وجود داشته باشند؛ کلاس، دانش‌آموز، ثبت‌نام، ارزیابی ماهانه و `MetricScore` به‌صورت upsert ثبت می‌شوند. کل فایل پیش از Write اعتبارسنجی و تمام Writeها در یک تراکنش انجام می‌شوند. در صورت خطا، `errors` شامل `sheet`، `row`، `column`، `code` و `message` است و هیچ داده دامنه‌ای Commit نمی‌شود. نتیجه موفق در `result_summary` شمارنده ایجاد/به‌روزرسانی هر بخش را برمی‌گرداند.
+
+قالب رسمی یکپارچه:
+
+```text
+GET /api/v1/imports/templates/comprehensive_school/
+```
+
+Job با `GET /imports/{id}/` Poll می‌شود و فقط Job ناموفق یا processing منقضی‌شده با `POST /imports/{id}/retry/` قابل تکرار است. قالب‌های قدیمی برای سازگاری قبلی حفظ شده‌اند.
 
 ## گزارش کارنامه
 

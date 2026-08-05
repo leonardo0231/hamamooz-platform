@@ -24,6 +24,12 @@ REPORTERS = [
 ]
 
 
+def _safe_filename_part(value):
+    return (
+        str(value).replace("/", "-").replace("\\", "-").replace("\r", "").replace("\n", "").strip()
+    )
+
+
 class ReportArchiveViewSet(AuditedModelViewSet):
     queryset = ReportArchive.objects.none()
     serializer_class = ReportArchiveSerializer
@@ -92,6 +98,11 @@ class ReportArchiveViewSet(AuditedModelViewSet):
         return FileResponse(
             report.output_file,
             as_attachment=True,
-            filename=f"hamamooz-report-{report.id}.pdf",
+            filename=(
+                f"{_safe_filename_part(report.organization.name)}-"
+                f"{_safe_filename_part(report.school.name)}-"
+                f"{_safe_filename_part(report.get_report_type_display())}-"
+                f"{report.created_at:%Y-%m-%d}.pdf"
+            ),
             content_type="application/pdf",
         )

@@ -3,6 +3,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 ALLOWED_EVIDENCE_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".webp"}
 ALLOWED_IMAGE_SIGNATURES = {
@@ -14,12 +15,8 @@ ALLOWED_IMAGE_SIGNATURES = {
 
 def attendance_evidence_upload_to(instance, filename):
     suffix = Path(filename).suffix.lower()
-    record = instance.attendance_record
-    return (
-        "attendance/evidence/"
-        f"{record.session.school_id}/{record.session.academic_year_id}/"
-        f"{record.enrollment.student_id}/{uuid.uuid4().hex}{suffix}"
-    )
+    dated_path = timezone.localdate().strftime("%Y/%m")
+    return f"attendance/evidence/{dated_path}/{uuid.uuid4().hex}{suffix}"
 
 
 def _read_prefix(value, length=16):

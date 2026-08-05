@@ -10,6 +10,7 @@ class ImportJob(SoftDeleteModel):
         ENROLLMENTS = "enrollments", "ثبت‌نام و کلاس‌بندی"
         SCORES = "scores", "نمرات اولیه"
         MONTHLY_EVALUATIONS = "monthly_evaluations", "ارزیابی جامع ماهانه"
+        COMPREHENSIVE_SCHOOL = "comprehensive_school", "فایل جامع مدرسه"
 
     class Status(models.TextChoices):
         QUEUED = "queued", "در صف"
@@ -37,6 +38,7 @@ class ImportJob(SoftDeleteModel):
     successful_rows = models.PositiveIntegerField(default=0)
     error_count = models.PositiveIntegerField(default=0)
     errors = models.JSONField(default=list, blank=True)
+    result_summary = models.JSONField(default=dict, blank=True)
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
 

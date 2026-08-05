@@ -77,7 +77,7 @@ class SubjectViewSet(AuditedModelViewSet):
     def get_queryset(self):
         return Subject.objects.filter(
             organization_id__in=accessible_organization_ids(self.request.user)
-        )
+        ).select_related("organization")
 
 
 class GradeSubjectViewSet(AuditedModelViewSet):
@@ -109,7 +109,12 @@ class CourseOfferingViewSet(AuditedModelViewSet):
         schools = selected_school_ids(self.request)
         return CourseOffering.objects.filter(
             offering_scope_q(self.request.user, schools)
-        ).select_related("class_section__school", "grade_subject__subject", "term", "teacher")
+        ).select_related(
+            "class_section__school__organization",
+            "grade_subject__subject",
+            "term",
+            "teacher",
+        )
 
     @action(detail=True, methods=["get"])
     def results(self, request, pk=None):
@@ -132,7 +137,7 @@ class AssessmentTypeViewSet(AuditedModelViewSet):
     def get_queryset(self):
         return AssessmentType.objects.filter(
             organization_id__in=accessible_organization_ids(self.request.user)
-        )
+        ).select_related("organization")
 
 
 class AssessmentViewSet(AuditedModelViewSet):
@@ -160,6 +165,7 @@ class AssessmentViewSet(AuditedModelViewSet):
             )
             .select_related(
                 "course_offering__class_section__school",
+                "course_offering__class_section__school__organization",
                 "course_offering__grade_subject__subject",
                 "course_offering__teacher",
                 "assessment_type",
