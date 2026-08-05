@@ -30,10 +30,7 @@ def comprehensive_workbook_bytes(
     academic_year_code=None,
 ):
     template = (
-        Path(settings.BASE_DIR)
-        / "docs"
-        / "import_templates"
-        / "comprehensive_school_template.xlsx"
+        Path(settings.BASE_DIR) / "docs" / "import_templates" / "comprehensive_school_template.xlsx"
     )
     workbook = load_workbook(template)
     classes = workbook["کلاس‌بندی"]
@@ -91,9 +88,7 @@ def test_comprehensive_import_creates_class_student_enrollment_and_all_metrics(b
     section = ClassSection.objects.get(
         school=base_data["school1"], academic_year=base_data["year"], code="7-c"
     )
-    student = Student.objects.get(
-        organization=base_data["organization"], national_id="0012345680"
-    )
+    student = Student.objects.get(organization=base_data["organization"], national_id="0012345680")
     enrollment = Enrollment.objects.get(student=student, academic_year=base_data["year"])
     assert enrollment.class_section == section
     assert enrollment.student_number == "103"
@@ -208,9 +203,7 @@ def test_comprehensive_template_and_upload_api_contract(api_client, base_data):
     api_client.force_authenticate(base_data["manager"])
     scope = {"HTTP_X_SCHOOL_ID": str(base_data["school1"].id)}
 
-    template_response = api_client.get(
-        "/api/v1/imports/templates/comprehensive_school/", **scope
-    )
+    template_response = api_client.get("/api/v1/imports/templates/comprehensive_school/", **scope)
     template_payload = b"".join(template_response.streaming_content)
     assert template_response.status_code == 200
     workbook = load_workbook(BytesIO(template_payload), read_only=True)
@@ -225,9 +218,7 @@ def test_comprehensive_template_and_upload_api_contract(api_client, base_data):
             "source_file": SimpleUploadedFile(
                 "comprehensive_school.xlsx",
                 payload,
-                content_type=(
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                ),
+                content_type=("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
             ),
         },
         format="multipart",

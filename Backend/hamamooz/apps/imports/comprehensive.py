@@ -114,17 +114,13 @@ def _validate_headers(sheet, expected, *, start_column=1):
     actual = [_label(value) for value in values]
     normalized_expected = [_label(value) for value in expected]
     if actual != normalized_expected:
-        raise ValueError(
-            f"عنوان ستون‌های شیت «{sheet.title}» در ردیف ۴ با قالب رسمی یکسان نیست."
-        )
+        raise ValueError(f"عنوان ستون‌های شیت «{sheet.title}» در ردیف ۴ با قالب رسمی یکسان نیست.")
 
 
 def _metric_columns(sheet):
     result = {}
     expected_codes = list(METRIC_CATALOG)
-    headers = next(
-        sheet.iter_rows(min_row=4, max_row=4, min_col=7, max_col=80, values_only=True)
-    )
+    headers = next(sheet.iter_rows(min_row=4, max_row=4, min_col=7, max_col=80, values_only=True))
     for offset, (expected_code, header_value) in enumerate(
         zip(expected_codes, headers, strict=True), start=7
     ):
@@ -268,8 +264,7 @@ def _as_positive_int(value, field, *, maximum=1000):
 def _model_error(exc):
     if hasattr(exc, "message_dict"):
         return "; ".join(
-            f"{key}: {', '.join(map(str, messages))}"
-            for key, messages in exc.message_dict.items()
+            f"{key}: {', '.join(map(str, messages))}" for key, messages in exc.message_dict.items()
         )
     return "; ".join(exc.messages)
 

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - backend/mvp-bootstrap
+      - agent/sync-backend-snapshot
     paths:
       - "Backend/**"
       - "contracts/**"
