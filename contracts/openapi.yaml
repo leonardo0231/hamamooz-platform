@@ -6081,14 +6081,12 @@ components:
           readOnly: true
         warning_absence_count:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         critical_absence_count:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         warning_absence_percent:
           type: string
           format: decimal
@@ -6099,9 +6097,8 @@ components:
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
         lookback_days:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         include_excused_absences:
           type: boolean
         require_evidence_for_excuse:
@@ -6142,14 +6139,12 @@ components:
           format: uuid
         warning_absence_count:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         critical_absence_count:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         warning_absence_percent:
           type: string
           format: decimal
@@ -6160,9 +6155,8 @@ components:
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
         lookback_days:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         include_excused_absences:
           type: boolean
         require_evidence_for_excuse:
@@ -6418,9 +6412,8 @@ components:
           $ref: '#/components/schemas/ScopeEnum'
         period_number:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
           nullable: true
         title:
           type: string
@@ -6512,9 +6505,8 @@ components:
           $ref: '#/components/schemas/ScopeEnum'
         period_number:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
           nullable: true
         title:
           type: string
@@ -6584,9 +6576,8 @@ components:
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
         decimal_places:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         rounding_mode:
           $ref: '#/components/schemas/RoundingModeEnum'
         unexcused_absence_as_zero:
@@ -6632,9 +6623,8 @@ components:
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
         decimal_places:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         rounding_mode:
           $ref: '#/components/schemas/RoundingModeEnum'
         unexcused_absence_as_zero:
@@ -6783,9 +6773,8 @@ components:
           maxLength: 100
         capacity:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         is_active:
           type: boolean
         enrolled_count:
@@ -6836,9 +6825,8 @@ components:
           maxLength: 100
         capacity:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         is_active:
           type: boolean
       required:
@@ -7524,9 +7512,8 @@ components:
           maxLength: 100
         order:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         is_active:
           type: boolean
         organization:
@@ -7557,9 +7544,8 @@ components:
           maxLength: 100
         order:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         is_active:
           type: boolean
         organization:
@@ -8985,14 +8971,12 @@ components:
           format: uuid
         warning_absence_count:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         critical_absence_count:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         warning_absence_percent:
           type: string
           format: decimal
@@ -9003,9 +8987,8 @@ components:
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
         lookback_days:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         include_excused_absences:
           type: boolean
         require_evidence_for_excuse:
@@ -9045,9 +9028,8 @@ components:
           $ref: '#/components/schemas/ScopeEnum'
         period_number:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
           nullable: true
         title:
           type: string
@@ -9085,9 +9067,8 @@ components:
           maxLength: 100
         capacity:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         is_active:
           type: boolean
     PatchedCourseOfferingRequest:
@@ -9120,9 +9101,8 @@ components:
           maxLength: 100
         order:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         is_active:
           type: boolean
         organization:
@@ -9315,9 +9295,8 @@ components:
           format: date
         order:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         is_active:
           type: boolean
         academic_year:
@@ -10473,9 +10452,8 @@ components:
           format: date
         order:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         is_active:
           type: boolean
         academic_year:
@@ -10511,9 +10489,8 @@ components:
           format: date
         order:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         is_active:
           type: boolean
         academic_year:
