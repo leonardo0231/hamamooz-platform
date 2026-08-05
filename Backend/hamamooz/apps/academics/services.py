@@ -191,9 +191,7 @@ def bulk_upsert_scores(*, assessment, entries, actor):
 def correct_locked_score(*, score, value, status, note, reason, actor):
     assessment = _lock_assessment(score.assessment)
     score = (
-        Score.objects.select_for_update(of=("self",))
-        .select_related("enrollment")
-        .get(pk=score.pk)
+        Score.objects.select_for_update(of=("self",)).select_related("enrollment").get(pk=score.pk)
     )
     if assessment.status != Assessment.Status.LOCKED:
         raise ValidationError("این عملیات فقط برای نمره قفل‌شده است.")
