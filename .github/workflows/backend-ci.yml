@@ -3,6 +3,7 @@ name: Backend CI
 on:
   push:
     branches:
+      - main
       - backend/mvp-bootstrap
       - agent/sync-backend-snapshot
     paths:
