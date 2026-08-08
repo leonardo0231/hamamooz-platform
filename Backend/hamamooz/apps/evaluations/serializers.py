@@ -28,6 +28,44 @@ class MetricScoreSerializer(serializers.ModelSerializer):
         return self._definition(obj)["domain_title"]
 
 
+class ManualMetricScoreInputSerializer(serializers.Serializer):
+    metric_code = serializers.ChoiceField(choices=list(METRIC_CATALOG))
+    value = serializers.IntegerField(min_value=0, max_value=5)
+
+
+class ManualMonthlyEvaluationInputSerializer(serializers.Serializer):
+    enrollment = serializers.UUIDField(
+        help_text="ثبت‌نام فعال دانش‌آموز در مدرسه و کلاس موردنظر"
+    )
+    month_no = serializers.IntegerField(min_value=1, max_value=12, help_text="شماره ماه ۱ تا ۱۲")
+    note = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        max_length=5000,
+        help_text="توضیح اختیاری برای ارزیابی این ماه",
+    )
+    metrics = ManualMetricScoreInputSerializer(
+        many=True,
+        allow_empty=False,
+        help_text="شاخص‌های ثبت‌شده؛ شاخص‌های ارسال‌نشده بدون تغییر باقی می‌مانند.",
+    )
+
+    def validate_metrics(self, value):
+        codes = [item["metric_code"] for item in value]
+        if len(codes) != len(set(codes)):
+            raise serializers.ValidationError("هر شاخص در یک درخواست فقط یک‌بار قابل ثبت است.")
+        return value
+
+
+class ManualEvaluationDeleteSerializer(serializers.Serializer):
+    reason = serializers.CharField(
+        min_length=3,
+        max_length=1000,
+        help_text="دلیل حذف منطقی ارزیابی از نمای جاری",
+    )
+
+
 class DomainScoreSerializer(serializers.Serializer):
     code = serializers.CharField()
     title = serializers.CharField()
