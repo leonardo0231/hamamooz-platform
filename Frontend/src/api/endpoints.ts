@@ -17,6 +17,8 @@ const paths = {
   authMe: operationPath('auth_me_retrieve'),
   organizations: operationPath('organizations_list'),
   schools: operationPath('schools_list'),
+  academicYears: operationPath('academic_years_list'),
+  classes: operationPath('classes_list'),
   dashboardSummary: operationPath('dashboard_summary_retrieve'),
   students: operationPath('students_list'),
   student: operationPath('students_retrieve'),
@@ -37,6 +39,7 @@ const paths = {
   importTemplate: operationPath('imports_templates_retrieve'),
   monthlyEvaluations: operationPath('monthly_evaluations_list'),
   monthlyEvaluationAnalytics: operationPath('monthly_evaluations_analytics_retrieve'),
+  monthlyEvaluationDashboard: operationPath('monthly_evaluations_dashboard_retrieve'),
   monthlyEvaluationCatalog: operationPath('monthly_evaluations_catalog_retrieve'),
   monthlyEvaluationManual: operationPath('monthly_evaluations_manual_create'),
   monthlyEvaluationManualDelete: operationPath('monthly_evaluations_manual_destroy'),
@@ -52,6 +55,8 @@ export const endpoints = {
   },
   organizations: paths.organizations,
   schools: paths.schools,
+  academicYears: paths.academicYears,
+  classes: paths.classes,
   dashboard: { summary: paths.dashboardSummary },
   students: {
     list: paths.students,
@@ -81,6 +86,7 @@ export const endpoints = {
   monthlyEvaluations: {
     list: paths.monthlyEvaluations,
     analytics: paths.monthlyEvaluationAnalytics,
+    dashboard: paths.monthlyEvaluationDashboard,
     catalog: paths.monthlyEvaluationCatalog,
     manual: paths.monthlyEvaluationManual,
     manualDelete: (id: string | number): string => bind(paths.monthlyEvaluationManualDelete, { id }),
