@@ -1,6 +1,7 @@
 from celery import shared_task
 
-from .services import mark_import_job_failed, process_import_job
+from .pipeline import process_import_job
+from .services import mark_import_job_failed
 
 
 @shared_task(bind=True, max_retries=3)
