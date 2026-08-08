@@ -10,6 +10,7 @@ from hamamooz.apps.evaluations.models import MetricScore, MonthlyEvaluation
 from hamamooz.apps.imports.models import ImportJob
 from hamamooz.apps.imports.serializers import uploaded_file_checksum
 from hamamooz.apps.imports.services import process_import_job
+from hamamooz.apps.imports.templates import build_smart_evaluation_template
 
 
 def evaluation_row(base_data, metric_code, score, *, month_no=4, school_code=None):
@@ -363,17 +364,10 @@ def test_student_analytics_returns_trend_strengths_and_real_rank_count(api_clien
 
 
 @pytest.mark.django_db
-def test_smart_template_endpoint_embeds_stable_metadata(api_client, base_data):
-    api_client.force_authenticate(base_data["manager"])
-
-    response = api_client.get(
-        "/api/v1/imports/templates/monthly_evaluations/",
-        {"layout": "smart", "class_section": str(base_data["class1"].id)},
-        HTTP_X_SCHOOL_ID=str(base_data["school1"].id),
-    )
-
-    assert response.status_code == 200
-    workbook = load_workbook(BytesIO(b"".join(response.streaming_content)), data_only=False)
+def test_internal_smart_template_builder_embeds_stable_metadata(base_data):
+    template = build_smart_evaluation_template(base_data["class1"])
+    template.seek(0)
+    workbook = load_workbook(template, data_only=False)
     assert workbook["__hamamooz_meta"].sheet_state == "veryHidden"
     assert workbook["__hamamooz_meta"]["B1"].value == "2.0"
     assert workbook["__hamamooz_meta"]["B3"].value == base_data["school1"].code
@@ -382,14 +376,10 @@ def test_smart_template_endpoint_embeds_stable_metadata(api_client, base_data):
 
 
 @pytest.mark.django_db
-def test_generated_smart_template_round_trips_through_import(api_client, base_data):
-    api_client.force_authenticate(base_data["manager"])
-    response = api_client.get(
-        "/api/v1/imports/templates/monthly_evaluations/",
-        {"layout": "smart", "class_section": str(base_data["class1"].id)},
-        HTTP_X_SCHOOL_ID=str(base_data["school1"].id),
-    )
-    workbook = load_workbook(BytesIO(b"".join(response.streaming_content)))
+def test_internal_generated_smart_template_round_trips_for_historical_jobs(base_data):
+    template = build_smart_evaluation_template(base_data["class1"])
+    template.seek(0)
+    workbook = load_workbook(template)
     workbook["ثبت اطلاعات"]["F3"] = 5
     workbook["ثبت اطلاعات"]["CN3"] = "رفت و برگشت قالب"
     payload = BytesIO()
