@@ -132,3 +132,14 @@ class ImportJobSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "این فایل قبلاً برای همین شعبه پردازش یا در صف پردازش ثبت شده است."
             ) from exc
+
+
+class ImportJobCreateSerializer(ImportJobSerializer):
+    import_type = serializers.ChoiceField(
+        choices=[
+            (
+                ImportJob.ImportType.COMPREHENSIVE_SCHOOL,
+                "فایل جامع مدرسه",
+            )
+        ]
+    )
