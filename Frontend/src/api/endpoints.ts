@@ -37,6 +37,9 @@ const paths = {
   importTemplate: operationPath('imports_templates_retrieve'),
   monthlyEvaluations: operationPath('monthly_evaluations_list'),
   monthlyEvaluationAnalytics: operationPath('monthly_evaluations_analytics_retrieve'),
+  monthlyEvaluationCatalog: operationPath('monthly_evaluations_catalog_retrieve'),
+  monthlyEvaluationManual: operationPath('monthly_evaluations_manual_create'),
+  monthlyEvaluationManualDelete: operationPath('monthly_evaluations_manual_destroy'),
   userChangePassword: operationPath('users_change_password_create'),
 } as const;
 
@@ -78,6 +81,9 @@ export const endpoints = {
   monthlyEvaluations: {
     list: paths.monthlyEvaluations,
     analytics: paths.monthlyEvaluationAnalytics,
+    catalog: paths.monthlyEvaluationCatalog,
+    manual: paths.monthlyEvaluationManual,
+    manualDelete: (id: string | number): string => bind(paths.monthlyEvaluationManualDelete, { id }),
   },
   users: {
     changePassword: (id: string | number): string => bind(paths.userChangePassword, { id }),
