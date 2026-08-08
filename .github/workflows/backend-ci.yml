@@ -94,7 +94,7 @@ jobs:
         run: ruff check .
 
       - name: Ruff format check
-        run: ruff format --check hamamooz config tests
+        run: ruff format --check --diff hamamooz config tests
 
       - name: Django system check
         run: python manage.py check
