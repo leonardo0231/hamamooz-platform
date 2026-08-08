@@ -10,7 +10,7 @@ export interface RouteDefinition {
 
 export const routeFactories = {
   login: async (): Promise<HTMLElement> => (await import('../pages/login.js')).renderLoginPage(),
-  dashboard: async (): Promise<HTMLElement> => (await import('../pages/dashboard.js')).renderDashboardPage(),
+  dashboard: async (): Promise<HTMLElement> => (await import('../pages/dashboard-v2.js')).renderDashboardPage(),
   students: async (): Promise<HTMLElement> => (await import('../pages/resource.js')).renderResourcePage('students'),
   student: async (params: Record<string, string>): Promise<HTMLElement> => (await import('../pages/student.js')).renderStudentPage(params.id ?? ''),
   alerts: async (): Promise<HTMLElement> => (await import('../pages/alerts.js')).renderAlertsPage(),
