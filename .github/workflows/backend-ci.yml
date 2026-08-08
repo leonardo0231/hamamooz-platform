@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - backend/mvp-bootstrap
+      - "backend/**"
       - agent/sync-backend-snapshot
     paths:
       - "Backend/**"
@@ -14,6 +14,7 @@ on:
   pull_request:
     branches:
       - main
+      - backend/hardening
     paths:
       - "Backend/**"
       - "contracts/**"
@@ -111,6 +112,14 @@ jobs:
             --file ../contracts/openapi.generated.yaml \
             --validate
 
+      - name: Upload generated OpenAPI schema
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-generated
+          path: contracts/openapi.generated.yaml
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Verify committed OpenAPI contract
         run: |
           diff -u \
@@ -173,7 +182,16 @@ jobs:
           PY
 
       - name: Run backend tests
-        run: pytest --cov=hamamooz --cov-report=xml
+        run: pytest --cov=hamamooz --cov-report=term-missing --cov-report=xml
+
+      - name: Upload backend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: Backend/coverage.xml
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: PostgreSQL backup and restore drill
         env:
