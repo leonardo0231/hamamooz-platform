@@ -106,9 +106,10 @@ def test_manual_evaluation_and_comprehensive_import_openapi_contracts_are_explic
     }
 
     manual_delete = paths["/api/v1/monthly-evaluations/{id}/manual/"]["delete"]
-    assert manual_delete["requestBody"]["content"]["application/json"]["schema"] == {
-        "$ref": "#/components/schemas/ManualEvaluationDeleteRequest"
-    }
+    reason = next(item for item in manual_delete["parameters"] if item["name"] == "reason")
+    assert reason["in"] == "query"
+    assert reason["required"] is True
+    assert reason["schema"]["type"] == "string"
     assert "204" in manual_delete["responses"]
 
     import_create = paths["/api/v1/imports/"]["post"]
