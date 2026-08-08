@@ -19,7 +19,7 @@ from hamamooz.apps.accounts.models import Role
 from hamamooz.apps.core.viewsets import AuditedModelViewSet
 
 from .models import ImportJob
-from .serializers import ImportJobSerializer
+from .serializers import ImportJobCreateSerializer, ImportJobSerializer
 from .tasks import process_import_job_task
 
 IMPORTERS = [
@@ -43,6 +43,11 @@ class ImportJobViewSet(AuditedModelViewSet):
         "template": IMPORTERS,
         "errors": IMPORTERS,
     }
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return ImportJobCreateSerializer
+        return ImportJobSerializer
 
     def get_queryset(self):
         return ImportJob.objects.filter(
