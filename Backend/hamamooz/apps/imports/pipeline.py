@@ -4,13 +4,13 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from . import services
 from .comprehensive_hardening import (
     apply_hardened_comprehensive_workbook,
     enrich_comprehensive_rows,
     validate_hardened_comprehensive_workbook,
 )
 from .models import ImportJob
-from .services import _load_rows, process_import_job as process_legacy_import_job
 
 
 def process_import_job(job_id):
@@ -22,7 +22,7 @@ def process_import_job(job_id):
 
     probe = ImportJob.all_objects.get(pk=job_id)
     if probe.import_type != ImportJob.ImportType.COMPREHENSIVE_SCHOOL:
-        return process_legacy_import_job(job_id)
+        return services.process_import_job(job_id)
 
     with transaction.atomic():
         job = ImportJob.objects.select_for_update().get(pk=job_id)
@@ -56,7 +56,7 @@ def process_import_job(job_id):
         )
 
     try:
-        loaded = enrich_comprehensive_rows(job, _load_rows(job))
+        loaded = enrich_comprehensive_rows(job, services._load_rows(job))
         prepared, errors = validate_hardened_comprehensive_workbook(job, loaded.rows)
         if errors:
             with transaction.atomic():
