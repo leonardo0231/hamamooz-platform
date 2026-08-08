@@ -141,5 +141,8 @@ class ImportJobCreateSerializer(ImportJobSerializer):
                 ImportJob.ImportType.COMPREHENSIVE_SCHOOL,
                 "فایل جامع مدرسه",
             )
-        ]
+        ],
+        error_messages={
+            "invalid_choice": "ورود اطلاعات جدید فقط از «فایل جامع مدرسه» انجام می‌شود."
+        },
     )
