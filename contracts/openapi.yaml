@@ -3596,6 +3596,12 @@ paths:
           format: uuid
         description: A UUID string identifying this monthly evaluation.
         required: true
+      - in: query
+        name: reason
+        schema:
+          type: string
+        description: دلیل حذف منطقی ارزیابی از نمای جاری.
+        required: true
       tags:
       - monthly-evaluations
       security:

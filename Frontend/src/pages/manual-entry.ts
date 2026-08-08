@@ -236,7 +236,7 @@ async function requestEvaluationDelete(id: string, onDeleted: () => Promise<void
     if (!form.reportValidity()) return;
     void apiRequest(endpoints.monthlyEvaluations.manualDelete(id), {
       method: 'DELETE',
-      body: { reason: reason.value.trim() },
+      query: { reason: reason.value.trim() },
       responseType: 'void',
     }).then(async () => {
       toast('ارزیابی از نمای جاری حذف شد و سابقه آن حفظ شد.', 'success');
