@@ -28,10 +28,7 @@ def comprehensive_payload(
     marker=None,
 ):
     template = (
-        Path(settings.BASE_DIR)
-        / "docs"
-        / "import_templates"
-        / "comprehensive_school_template.xlsx"
+        Path(settings.BASE_DIR) / "docs" / "import_templates" / "comprehensive_school_template.xlsx"
     )
     workbook = load_workbook(template)
     classes = workbook["کلاس‌بندی"]
@@ -159,17 +156,13 @@ def test_hardened_pipeline_cross_checks_visible_evaluation_identity(
 
 @pytest.mark.django_db
 def test_comprehensive_result_tracks_unchanged_without_deleting_omitted_records(base_data):
-    first = create_comprehensive_job(
-        base_data, comprehensive_payload(base_data, marker="first")
-    )
+    first = create_comprehensive_job(base_data, comprehensive_payload(base_data, marker="first"))
     process_import_job(first.id)
     first.refresh_from_db()
     assert first.status == ImportJob.Status.COMPLETED, first.errors
 
     existing_student = base_data["students"][0]
-    second = create_comprehensive_job(
-        base_data, comprehensive_payload(base_data, marker="second")
-    )
+    second = create_comprehensive_job(base_data, comprehensive_payload(base_data, marker="second"))
     process_import_job(second.id)
     second.refresh_from_db()
     existing_student.refresh_from_db()
@@ -316,9 +309,7 @@ def test_manual_evaluation_delete_is_audited_and_restorable(api_client, base_dat
     soft_deleted = MonthlyEvaluation.all_objects.get(pk=evaluation_id)
     assert soft_deleted.is_deleted
 
-    audit = AuditEvent.objects.get(
-        action="evaluation.manual_deleted", entity_id=str(evaluation_id)
-    )
+    audit = AuditEvent.objects.get(action="evaluation.manual_deleted", entity_id=str(evaluation_id))
     assert audit.school_id == base_data["school1"].id
     assert audit.metadata["reason"] == "[REDACTED]"
 
