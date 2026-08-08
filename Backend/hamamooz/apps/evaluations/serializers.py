@@ -73,6 +73,31 @@ class ManualEvaluationDeleteSerializer(serializers.Serializer):
     )
 
 
+class ManualEvaluationResultSerializer(serializers.Serializer):
+    created = serializers.BooleanField()
+    restored = serializers.BooleanField()
+    metrics_created = serializers.IntegerField(min_value=0)
+    metrics_updated = serializers.IntegerField(min_value=0)
+    metrics_unchanged = serializers.IntegerField(min_value=0)
+
+
+class EvaluationCatalogMetricSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    title = serializers.CharField()
+    domain_code = serializers.CharField()
+    domain_title = serializers.CharField()
+    domain_weight = serializers.IntegerField(min_value=0)
+    order = serializers.IntegerField(min_value=1)
+
+
+class EvaluationCatalogSerializer(serializers.Serializer):
+    framework_version = serializers.CharField()
+    score_min = serializers.IntegerField()
+    score_max = serializers.IntegerField()
+    metric_count = serializers.IntegerField(min_value=0)
+    metrics = EvaluationCatalogMetricSerializer(many=True)
+
+
 class DomainScoreSerializer(serializers.Serializer):
     code = serializers.CharField()
     title = serializers.CharField()
@@ -239,3 +264,8 @@ class MonthlyEvaluationSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_completion_warning(self, obj) -> str | None:
         return self._summary(obj)["completion_warning"]
+
+
+class ManualMonthlyEvaluationResponseSerializer(serializers.Serializer):
+    evaluation = MonthlyEvaluationSerializer()
+    result = ManualEvaluationResultSerializer()
