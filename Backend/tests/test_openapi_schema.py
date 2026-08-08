@@ -92,9 +92,7 @@ def test_manual_evaluation_and_comprehensive_import_openapi_contracts_are_explic
     paths = schema["paths"]
 
     catalog = paths["/api/v1/monthly-evaluations/catalog/"]["get"]
-    assert _json_response_schema(catalog, 200) == {
-        "$ref": "#/components/schemas/EvaluationCatalog"
-    }
+    assert _json_response_schema(catalog, 200) == {"$ref": "#/components/schemas/EvaluationCatalog"}
 
     manual = paths["/api/v1/monthly-evaluations/manual/"]["post"]
     assert manual["requestBody"]["content"]["application/json"]["schema"] == {
