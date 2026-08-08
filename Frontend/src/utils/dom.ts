@@ -63,7 +63,13 @@ export function safeText(value: unknown): string {
   if (value === null || value === undefined || value === '') return '—';
   if (typeof value === 'boolean') return value ? 'بله' : 'خیر';
   if (Array.isArray(value)) return value.map(item => safeText(item)).join('، ');
-  if (typeof value === 'object') return JSON.stringify(value);
+  if (typeof value === 'object') {
+    const object = value as Record<string, unknown>;
+    const label = object.full_name ?? object.student_name ?? object.title ?? object.name ?? object.username ?? object.code;
+    if (label !== null && label !== undefined && label !== '') return String(label);
+    const primitive = Object.values(object).find(item => item !== null && item !== undefined && ['string', 'number', 'boolean'].includes(typeof item));
+    return primitive === undefined ? 'اطلاعات ثبت‌شده' : safeText(primitive);
+  }
   return String(value);
 }
 

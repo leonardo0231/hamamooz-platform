@@ -23,6 +23,7 @@ interface GuardianRelation {
 interface Student {
   id: string;
   organization: string;
+  organization_name: string;
   national_id: string;
   first_name: string;
   last_name: string;
@@ -47,6 +48,7 @@ interface DomainScore {
 
 interface MonthlyEvaluation {
   id: string;
+  enrollment: string;
   month_no: number;
   academic_year_title: string;
   class_title: string;
@@ -55,6 +57,29 @@ interface MonthlyEvaluation {
   domain_scores: DomainScore[];
   note: string;
   updated_at: string;
+}
+
+interface AnalyticsDomain {
+  code: string;
+  title: string;
+  score: number | null;
+}
+
+interface StudentEvaluationAnalytics {
+  completion_status: 'provisional' | 'final';
+  completion_percent: number;
+  overall_score: number | null;
+  performance_level: string | null;
+  first_month: number | null;
+  last_month: number | null;
+  change: number | null;
+  trend_label: string;
+  strongest_domain: AnalyticsDomain | null;
+  weakest_domain: AnalyticsDomain | null;
+  recommendation: string | null;
+  completion_warning: string | null;
+  rank: number | null;
+  ranked_count: number;
 }
 
 export async function renderStudentPage(id: string): Promise<HTMLElement> {
@@ -71,6 +96,11 @@ export async function renderStudentPage(id: string): Promise<HTMLElement> {
           query: { enrollment__student: id, page_size: 24, ordering: '-month_no' },
         }),
       ]);
+      const analytics = evaluations.results[0]
+        ? await apiRequest<StudentEvaluationAnalytics>(endpoints.monthlyEvaluations.analytics, {
+          query: { enrollment: evaluations.results[0].enrollment, rank_scope: 'class' },
+        })
+        : null;
       clear(content);
       const editOperation = operationById('students_partial_update');
       const guardianOperation = operationById('students_guardians_create');
@@ -104,7 +134,7 @@ export async function renderStudentPage(id: string): Promise<HTMLElement> {
         h('dl', { className: 'detail-grid' },
           h('div', {}, h('dt', { text: 'نام' }), h('dd', { text: student.first_name })), h('div', {}, h('dt', { text: 'نام خانوادگی' }), h('dd', { text: student.last_name })),
           h('div', {}, h('dt', { text: 'تاریخ تولد' }), h('dd', { text: formatDate(student.birth_date) })), h('div', {}, h('dt', { text: 'جنسیت' }), h('dd', { text: student.gender === 'female' ? 'دختر' : 'پسر' })),
-          h('div', {}, h('dt', { text: 'شناسه مجموعه' }), h('dd', { className: 'ltr', text: student.organization })), h('div', {}, h('dt', { text: 'آخرین تغییر' }), h('dd', { text: formatDate(student.updated_at, true) })),
+          h('div', {}, h('dt', { text: 'مجموعه' }), h('dd', { text: student.organization_name })), h('div', {}, h('dt', { text: 'آخرین تغییر' }), h('dd', { text: formatDate(student.updated_at, true) })),
         ), student.notes ? h('div', { className: 'student-notes' }, h('h3', { text: 'یادداشت پرونده' }), h('p', { text: student.notes })) : null);
       const guardians = h('article', { className: 'card guardians-card' }, h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'اولیا و ارتباط‌ها' }), h('p', { text: `${student.guardians.length.toLocaleString('fa-IR')} ارتباط ثبت‌شده` })), h('span', { className: 'card-icon' }, icon('users'))),
         student.guardians.length ? h('div', { className: 'guardian-list' }, ...student.guardians.map(item => h('div', { className: 'guardian-item' }, h('span', { className: 'avatar avatar--soft', text: initials(String(item.guardian_name ?? 'ولی')) }), h('div', {}, h('strong', { text: safeText(item.guardian_name ?? item.guardian) }), h('small', { text: safeText(item.relationship) })), h('div', { className: 'guardian-flags' }, item.is_primary ? h('span', { className: 'badge badge--success', text: 'ولی اصلی' }) : null, item.can_pick_up ? h('span', { className: 'badge badge--neutral', text: 'مجاز به تحویل' }) : null))))
@@ -125,8 +155,24 @@ export async function renderStudentPage(id: string): Promise<HTMLElement> {
           ))
           : h('div', { className: 'inline-empty' }, icon('chart'), h('p', { text: 'هنوز ارزیابی ماهانه‌ای برای این دانش‌آموز ثبت نشده است.' })),
       );
+      const analyticsSection = analytics ? h('article', { className: 'card evaluation-analytics-card' },
+        h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'روند پیشرفت' }), h('p', { text: 'تحلیل محاسبه‌شده از ارزیابی‌های نهایی' })), h('span', { className: 'card-icon' }, icon('chart'))),
+        h('div', { className: 'metric-grid' },
+          h('div', { className: 'metric-card metric-card--border-purple' }, h('span', { className: 'metric-card__icon metric-card__icon--purple' }, icon('chart')), h('div', {}, h('small', { text: 'میانگین نهایی' }), h('strong', { text: analytics.overall_score == null ? '—' : `${formatNumber(analytics.overall_score)} از ۲۰` }), h('span', { text: analytics.performance_level ?? 'اطلاعات ناقص' }))),
+          h('div', { className: 'metric-card metric-card--border-green' }, h('span', { className: 'metric-card__icon metric-card__icon--green' }, icon('check')), h('div', {}, h('small', { text: 'درصد تکمیل' }), h('strong', { text: `${formatNumber(analytics.completion_percent)}٪` }), h('span', { text: analytics.completion_status === 'final' ? 'نهایی' : 'موقت' }))),
+          h('div', { className: 'metric-card metric-card--border-orange' }, h('span', { className: 'metric-card__icon metric-card__icon--orange' }, icon('chart')), h('div', {}, h('small', { text: 'روند' }), h('strong', { text: analytics.trend_label }), h('span', { text: analytics.change == null ? 'داده ناکافی' : `${analytics.change >= 0 ? '+' : ''}${formatNumber(analytics.change)} امتیاز` }))),
+          h('div', { className: 'metric-card metric-card--border-purple' }, h('span', { className: 'metric-card__icon metric-card__icon--blue' }, icon('users')), h('div', {}, h('small', { text: 'رتبه در کلاس' }), h('strong', { text: analytics.rank == null ? '—' : `${formatNumber(analytics.rank)} از ${formatNumber(analytics.ranked_count)}` }), h('span', { text: analytics.rank == null ? 'فقط نتایج نهایی رتبه‌بندی می‌شوند' : 'براساس نتایج نهایی' }))),
+        ),
+        h('dl', { className: 'detail-grid' },
+          h('div', {}, h('dt', { text: 'اولین تا آخرین ماه' }), h('dd', { text: analytics.first_month == null ? '—' : `${formatNumber(analytics.first_month)} تا ${formatNumber(analytics.last_month)}` })),
+          h('div', {}, h('dt', { text: 'قوی‌ترین حیطه' }), h('dd', { text: analytics.strongest_domain ? `${analytics.strongest_domain.title}: ${formatNumber(analytics.strongest_domain.score)}` : '—' })),
+          h('div', {}, h('dt', { text: 'ضعیف‌ترین حیطه' }), h('dd', { text: analytics.weakest_domain ? `${analytics.weakest_domain.title}: ${formatNumber(analytics.weakest_domain.score)}` : '—' })),
+          h('div', {}, h('dt', { text: 'وضعیت نتیجه' }), h('dd', { text: analytics.completion_warning ?? 'اطلاعات کامل است.' })),
+        ),
+        analytics.recommendation ? h('div', { className: 'student-notes' }, h('h3', { text: 'پیشنهاد مداخله' }), h('p', { text: analytics.recommendation })) : null,
+      ) : null;
       const contractNotice = h('article', { className: 'contract-notice' }, icon('check'), h('div', {}, h('strong', { text: 'داده مستقیم و قابل ردیابی' }), h('p', { text: 'ارزیابی‌های ماهانه از فایل معتبر ذخیره می‌شوند و امتیاز حیطه‌ها و نمره نهایی توسط Backend محاسبه می‌شود.' })));
-      content.append(hero, h('div', { className: 'student-content-grid' }, info, guardians), evaluationSection, contractNotice);
+      content.append(hero, h('div', { className: 'student-content-grid' }, info, guardians), ...(analyticsSection ? [analyticsSection] : []), evaluationSection, contractNotice);
     } catch (error) { clear(content); content.append(errorState(error, () => void load())); }
   }
   await load();

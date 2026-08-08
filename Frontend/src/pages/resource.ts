@@ -4,10 +4,12 @@ import { contract, operationsForTag, resolveSchema, type ContractOperation, type
 import type { Pagination } from '../api/types.js';
 import { navigate } from '../app/router.js';
 import { hasAnyRole, hasWriteScope, administrativeRoles, broadEducationRoles, curriculumManagementRoles, organizationManagementRoles, policyManagementRoles, teacherWriteRoles } from '../app/permissions.js';
-import { onWindowEventWhileConnected, h, clear, debounce, formatDate, safeText } from '../utils/dom.js';
+import { onWindowEventWhileConnected, h, clear, debounce } from '../utils/dom.js';
 import { confirmDialog, emptyState, errorState, loadingState, toast } from '../components/feedback.js';
 import { icon } from '../components/icons.js';
 import { openSchemaDialog, schemaHasBinary } from '../components/schema-form.js';
+import { openDataDialog } from '../components/data-view.js';
+import { badgeTone, formatFieldValue, labelForField, labelForValue } from '../ui/presentation.js';
 
 interface ResourceMeta {
   title: string;
@@ -29,7 +31,7 @@ const resourceMeta: Record<string, ResourceMeta> = {
   'attendance-records': { title: 'رکوردهای حضور و غیاب', singular: 'رکورد حضور', icon: 'calendar', columns: ['session_date', 'student_name', 'status', 'late_minutes', 'excuse_status'], createRoles: teacherWriteRoles, updateRoles: teacherWriteRoles, deleteRoles: teacherWriteRoles },
   'attendance-sessions': { title: 'جلسات حضور و غیاب', singular: 'جلسه حضور', icon: 'calendar', columns: ['session_date', 'class_section', 'course_offering', 'scope', 'status'], createRoles: teacherWriteRoles, updateRoles: teacherWriteRoles, deleteRoles: teacherWriteRoles },
   'calculation-policies': { title: 'سیاست‌های محاسبه نمره', singular: 'سیاست محاسبه', icon: 'settings', columns: ['title', 'organization', 'academic_year', 'version', 'is_active'], createRoles: curriculumManagementRoles, updateRoles: curriculumManagementRoles, deleteRoles: curriculumManagementRoles },
-  classes: { title: 'کلاس‌ها', singular: 'کلاس', icon: 'building', columns: ['title', 'school', 'academic_year', 'grade_level', 'capacity', 'is_active'], createRoles: broadEducationRoles, updateRoles: broadEducationRoles, deleteRoles: broadEducationRoles },
+  classes: { title: 'کلاس‌ها', singular: 'کلاس', icon: 'building', columns: ['title', 'school_name', 'academic_year_title', 'grade_title', 'capacity', 'is_active'], createRoles: broadEducationRoles, updateRoles: broadEducationRoles, deleteRoles: broadEducationRoles },
   'course-offerings': { title: 'ارائه درس‌ها', singular: 'ارائه درس', icon: 'book', columns: ['class_section', 'grade_subject', 'teacher', 'term', 'is_active'], createRoles: broadEducationRoles, updateRoles: broadEducationRoles, deleteRoles: broadEducationRoles },
   enrollments: { title: 'ثبت‌نام‌ها', singular: 'ثبت‌نام', icon: 'users', columns: ['student', 'school', 'academic_year', 'class_section', 'student_number', 'status'], createRoles: broadEducationRoles, updateRoles: broadEducationRoles, deleteRoles: broadEducationRoles },
   'grade-levels': { title: 'پایه‌های تحصیلی', singular: 'پایه', icon: 'book', columns: ['title', 'code', 'organization', 'order', 'is_active'], createRoles: organizationManagementRoles, updateRoles: organizationManagementRoles, deleteRoles: organizationManagementRoles },
@@ -48,20 +50,10 @@ const resourceMeta: Record<string, ResourceMeta> = {
   users: { title: 'کاربران', singular: 'کاربر', icon: 'user', columns: ['username', 'first_name', 'last_name', 'email', 'phone', 'is_active'], readRoles: administrativeRoles, createRoles: administrativeRoles },
 };
 
-const fieldLabels: Record<string, string> = {
-  id: 'شناسه', title: 'عنوان', name: 'نام', code: 'کد', first_name: 'نام', last_name: 'نام خانوادگی', username: 'نام کاربری', email: 'ایمیل', phone: 'تلفن', national_id: 'کد ملی', status: 'وضعیت', gender: 'جنسیت',
-  organization: 'مجموعه', school: 'مدرسه', academic_year: 'سال تحصیلی', term: 'نوبت', grade_level: 'پایه', class_section: 'کلاس', student: 'دانش‌آموز', enrollment: 'ثبت‌نام', teacher: 'دبیر', assessment: 'ارزیابی', assessment_type: 'نوع ارزیابی', course_offering: 'ارائه درس', grade_subject: 'درس پایه', subject: 'درس',
-  school_name: 'مدرسه', academic_year_title: 'سال تحصیلی', student_name: 'دانش‌آموز', class_title: 'کلاس', assessment_type_title: 'نوع ارزیابی',
-  is_active: 'فعال', is_current: 'جاری', capacity: 'ظرفیت', order: 'ترتیب', coefficient: 'ضریب', value: 'مقدار', weight: 'وزن', default_weight: 'وزن پیش‌فرض', scope: 'نوع', severity: 'شدت', role_display: 'نقش', role: 'نقش',
-  starts_on: 'شروع', ends_on: 'پایان', assessment_date: 'تاریخ برگزاری', birth_date: 'تاریخ تولد', session_date: 'تاریخ جلسه', created_at: 'ایجاد', updated_at: 'آخرین تغییر',
-  student_number: 'شماره دانش‌آموزی', late_minutes: 'دقایق تأخیر', excuse_status: 'وضعیت عذر', import_type: 'نوع ورود', report_type: 'نوع گزارش', total_rows: 'کل ردیف‌ها', successful_rows: 'موفق', error_count: 'خطا', phone_primary: 'تلفن اصلی', warning_absence_percent: 'هشدار غیبت', critical_absence_percent: 'غیبت بحرانی', channel: 'کانال', attempts: 'تلاش‌ها', version: 'نسخه',
-};
-
 const actionLabels: Record<string, string> = {
   approve: 'تأیید', lock: 'قفل', reject: 'رد', submit: 'ارسال', acknowledge: 'مشاهده شد', resolve: 'رفع هشدار', evaluate: 'ارزیابی هشدارها', 'approve-excuse': 'تأیید عذر', correct: 'اصلاح', 'notify-guardians': 'اعلان به اولیا', 'reject-excuse': 'رد عذر', 'submit-excuse': 'ثبت عذر', 'bulk-mark': 'ثبت گروهی', cancel: 'لغو جلسه', finalize: 'نهایی‌سازی', retry: 'تلاش مجدد', 'change-class': 'تغییر کلاس', 'change-status': 'تغییر وضعیت', transfer: 'انتقال', guardians: 'اتصال ولی', 'change_password': 'تغییر رمز', deactivate: 'غیرفعال‌سازی', 'correct-locked': 'اصلاح نمره قفل‌شده', roster: 'فهرست حضور', scores: 'نمرات', results: 'نتایج', download: 'دریافت فایل',
 };
 
-function labelForField(field: string): string { return fieldLabels[field] ?? field.replaceAll('_', ' '); }
 function metaFor(tag: string): ResourceMeta { return resourceMeta[tag] ?? { title: tag.replaceAll('-', ' '), singular: tag.replaceAll('-', ' '), icon: 'file' }; }
 function pathWithId(path: string, id: string | number): string { return path.replace('{id}', encodeURIComponent(String(id))); }
 
@@ -81,21 +73,13 @@ function visibleColumns(meta: ResourceMeta, schema: ContractSchema, rows: Record
 }
 
 function badgeValue(value: unknown): HTMLElement {
-  const text = safeText(value);
-  const tone = ['critical', 'rejected', 'failed', 'unexcused_absent', 'inactive'].includes(String(value)) ? 'danger'
-    : ['warning', 'submitted', 'queued', 'processing', 'draft'].includes(String(value)) ? 'warning'
-      : ['active', 'approved', 'completed', 'resolved', 'finalized', 'present'].includes(String(value)) || value === true ? 'success' : 'neutral';
-  return h('span', { className: `badge badge--${tone}`, text });
+  return h('span', { className: `badge badge--${badgeTone(value)}`, text: labelForValue(value) });
 }
 
-function cellContent(field: string, value: unknown): Node {
-  if (field.endsWith('_at') || field.endsWith('_on') || field.includes('date') || field === 'last_login') return document.createTextNode(formatDate(value, field.endsWith('_at')));
+function cellContent(field: string, value: unknown): HTMLElement {
   if (typeof value === 'boolean' || ['status', 'severity', 'scope', 'gender', 'role_display', 'role', 'import_type', 'report_type', 'excuse_status'].includes(field)) return badgeValue(value);
-  if (value && typeof value === 'object') {
-    const object = value as Record<string, unknown>;
-    return document.createTextNode(safeText(object.full_name ?? object.title ?? object.name ?? object.username ?? object.id ?? value));
-  }
-  return document.createTextNode(safeText(value));
+  const text = formatFieldValue(field, value);
+  return h('span', { className: 'cell-value', text, title: text, tabindex: text.length > 35 ? '0' : undefined });
 }
 
 function createFilterControl(parameter: ContractParameter, params: URLSearchParams, onChange: () => void): HTMLElement {
@@ -103,7 +87,7 @@ function createFilterControl(parameter: ContractParameter, params: URLSearchPara
   const label = h('span', { text: labelForField(parameter.name) });
   let input: HTMLInputElement | HTMLSelectElement;
   if (schema.enum) {
-    input = h('select', {}, h('option', { value: '', text: 'همه' }), ...schema.enum.map(value => h('option', { value: String(value), text: String(value) }))) as HTMLSelectElement;
+    input = h('select', {}, h('option', { value: '', text: 'همه' }), ...schema.enum.map(value => h('option', { value: String(value), text: labelForValue(value) }))) as HTMLSelectElement;
   } else if (schema.type === 'boolean') {
     input = h('select', {}, h('option', { value: '', text: 'همه' }), h('option', { value: 'true', text: 'بله' }), h('option', { value: 'false', text: 'خیر' })) as HTMLSelectElement;
   } else {
@@ -112,18 +96,6 @@ function createFilterControl(parameter: ContractParameter, params: URLSearchPara
   input.value = params.get(parameter.name) ?? '';
   input.addEventListener('change', onChange);
   return h('label', { className: 'filter-control' }, label, input);
-}
-
-
-function openResultDialog(title: string, data: unknown): void {
-  const titleId = `result-dialog-title-${Math.random().toString(36).slice(2)}`;
-  const dialog = h('dialog', { className: 'dialog dialog--wide', 'aria-labelledby': titleId }) as HTMLDialogElement;
-  const close = h('button', { className: 'icon-button', type: 'button', 'aria-label': 'بستن', onClick: () => dialog.close() }, icon('close'));
-  const content = h('pre', { className: 'result-viewer', dir: 'ltr', text: JSON.stringify(data, null, 2) });
-  dialog.append(h('div', { className: 'dialog__body dialog__body--wide' }, h('div', { className: 'dialog__header' }, h('h2', { id: titleId, text: title }), close), content));
-  dialog.addEventListener('close', () => dialog.remove(), { once: true });
-  document.body.append(dialog);
-  dialog.showModal();
 }
 
 function rolesForAction(operation: ContractOperation): Parameters<typeof hasAnyRole>[0] {
@@ -148,7 +120,7 @@ async function invokeAction(operation: ContractOperation, id: string | number, r
   const hasFields = Object.keys(schema.properties ?? {}).length > 0;
   const execute = async (payload?: Record<string, unknown> | FormData): Promise<void> => {
     const result = await apiRequest<unknown>(pathWithId(operation.path, id), { method: operation.method, body: payload ?? (operation.method === 'POST' ? {} : undefined), responseType: operation.statuses.includes('204') ? 'void' : 'json' });
-    if (operation.method === 'GET') openResultDialog(title, result);
+    if (operation.method === 'GET') openDataDialog(title, result, 'اطلاعات این عملیات به‌صورت ساختاریافته و قابل خواندن نمایش داده می‌شود.');
     else {
       toast(`${title} با موفقیت انجام شد.`, 'success');
       await refresh();
@@ -159,6 +131,51 @@ async function invokeAction(operation: ContractOperation, id: string | number, r
   } else if (await confirmDialog({ title, message: `عملیات «${title}» برای این رکورد اجرا شود؟`, confirmLabel: title, dangerous: ['reject', 'cancel', 'deactivate'].includes(action) })) {
     await execute();
   }
+}
+
+function actionIcon(action: string): string {
+  if (['approve', 'finalize', 'resolve', 'acknowledge', 'lock', 'submit'].includes(action)) return 'check';
+  if (['reject', 'cancel', 'deactivate'].includes(action)) return 'close';
+  if (['correct', 'correct-locked', 'change-class', 'change-status', 'transfer'].includes(action)) return 'edit';
+  if (['roster', 'guardians'].includes(action)) return 'users';
+  if (['scores', 'results'].includes(action)) return 'chart';
+  if (action === 'retry') return 'refresh';
+  if (action === 'download') return 'download';
+  if (action === 'notify-guardians') return 'bell';
+  return 'sparkles';
+}
+
+function actionMenu(
+  operations: ContractOperation[],
+  id: string | number,
+  refresh: () => Promise<void>,
+  recordLabel: string,
+): HTMLElement | null {
+  const allowed = operations.filter(canInvokeAction);
+  if (!allowed.length) return null;
+  const open = (): void => {
+    const titleId = `action-dialog-title-${Math.random().toString(36).slice(2)}`;
+    const dialog = h('dialog', { className: 'dialog action-dialog', 'aria-labelledby': titleId }) as HTMLDialogElement;
+    const close = h('button', { className: 'icon-button', type: 'button', title: 'بستن', 'aria-label': 'بستن', onClick: () => dialog.close() }, icon('close'));
+    const actions = h('div', { className: 'action-dialog__list' });
+    for (const operation of allowed) {
+      const action = operation.path.split('/').filter(Boolean).at(-1) ?? operation.id;
+      const label = actionLabels[action] ?? operation.summary ?? action.replaceAll('-', ' ');
+      actions.append(h('button', {
+        className: 'action-dialog__item',
+        type: 'button',
+        onClick: () => {
+          dialog.close();
+          void invokeAction(operation, id, refresh).catch(error => toast('اجرای عملیات ناموفق بود', 'error', error instanceof Error ? error.message : undefined));
+        },
+      }, h('span', { className: 'action-dialog__icon' }, icon(actionIcon(action))), h('span', {}, h('strong', { text: label }), h('small', { text: operation.method === 'GET' ? 'مشاهده اطلاعات' : 'اجرای عملیات روی این رکورد' })), icon('chevron')));
+    }
+    dialog.append(h('div', { className: 'dialog__body dialog__body--wide' }, h('div', { className: 'dialog__header' }, h('div', {}, h('h2', { id: titleId, text: 'عملیات رکورد' }), h('p', { text: recordLabel })), close), actions));
+    dialog.addEventListener('close', () => dialog.remove(), { once: true });
+    document.body.append(dialog);
+    dialog.showModal();
+  };
+  return h('button', { className: 'button button--ghost action-menu-trigger', type: 'button', title: `عملیات ${recordLabel}`, 'aria-label': `عملیات ${recordLabel}`, onClick: open }, icon('sparkles'), 'عملیات');
 }
 
 export async function renderResourcePage(tag: string): Promise<HTMLElement> {
@@ -273,7 +290,7 @@ export async function renderResourcePage(tag: string): Promise<HTMLElement> {
         else if (retrieveOperation && id !== undefined) actionCell.append(h('button', { className: 'icon-button', type: 'button', title: 'مشاهده', 'aria-label': 'مشاهده', onClick: async () => {
           try {
             const detail = await apiRequest<Record<string, unknown>>(pathWithId(retrieveOperation.path, id));
-            openResultDialog(`مشاهده ${meta.singular}`, detail);
+            openDataDialog(`مشاهده ${meta.singular}`, detail);
           } catch (error) { toast('دریافت جزئیات ناموفق بود', 'error', error instanceof Error ? error.message : undefined); }
         } }, icon('eye')));
         if (updateOperation && id !== undefined && hasAnyRole(meta.updateRoles ?? meta.createRoles ?? broadEducationRoles)) actionCell.append(h('button', { className: 'icon-button', type: 'button', disabled: !hasWriteScope(), title: hasWriteScope() ? 'ویرایش' : 'ابتدا حوزه فعال را انتخاب کنید', 'aria-label': 'ویرایش', onClick: async () => {
@@ -282,9 +299,10 @@ export async function renderResourcePage(tag: string): Promise<HTMLElement> {
             openSchemaDialog({ title: `ویرایش ${meta.singular}`, schema: updateOperation.requestSchema, initial: detail, multipart: updateOperation.requestMime === 'multipart/form-data' || schemaHasBinary(updateOperation.requestSchema), submitLabel: 'ذخیره تغییرات', onSubmit: async payload => { await apiRequest(pathWithId(updateOperation.path, id), { method: 'PATCH', body: payload }); toast('تغییرات ذخیره شد.', 'success'); await load(); } });
           } catch (error) { toast('آماده‌سازی فرم ویرایش ناموفق بود', 'error', error instanceof Error ? error.message : undefined); }
         } }, icon('edit')));
-        for (const action of itemActions.filter(canInvokeAction).slice(0, 4)) {
-          const actionName = action.path.split('/').filter(Boolean).at(-1) ?? '';
-          actionCell.append(h('button', { className: 'icon-button', type: 'button', title: actionLabels[actionName] ?? actionName, 'aria-label': actionLabels[actionName] ?? actionName, onClick: () => void invokeAction(action, id ?? '', load).catch(error => toast('اجرای عملیات ناموفق بود', 'error', error instanceof Error ? error.message : undefined)) }, icon(actionName === 'retry' ? 'refresh' : 'more')));
+        if (id !== undefined) {
+          const recordLabel = formatFieldValue('title', row.full_name ?? row.title ?? row.name ?? row.username ?? id);
+          const menu = actionMenu(itemActions, id, load, recordLabel);
+          if (menu) actionCell.append(menu);
         }
         if (deleteOperation && id !== undefined && hasAnyRole(meta.deleteRoles ?? meta.createRoles ?? broadEducationRoles)) actionCell.append(h('button', { className: 'icon-button icon-button--danger', type: 'button', disabled: !hasWriteScope(), title: hasWriteScope() ? 'حذف' : 'ابتدا حوزه فعال را انتخاب کنید', 'aria-label': 'حذف', onClick: async () => {
           if (!await confirmDialog({ title: `حذف ${meta.singular}`, message: 'این عملیات قابل بازگشت نیست. از حذف این رکورد مطمئن هستید؟', confirmLabel: 'حذف', dangerous: true })) return;

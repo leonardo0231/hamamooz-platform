@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: HamAmoz School Platform API
-  version: 1.0.0
+  version: 1.0.0 (v1)
   description: API نسخه MVP سامانه چندشعبه‌ای هم‌آموز
 paths:
   /api/v1/academic-years/:
@@ -2467,8 +2467,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: {}
+                $ref: '#/components/schemas/DashboardSummary'
           description: ''
   /api/v1/enrollments/:
     get:
@@ -3270,6 +3269,7 @@ paths:
         schema:
           type: string
           enum:
+          - comprehensive_school
           - enrollments
           - monthly_evaluations
           - scores
@@ -3279,6 +3279,7 @@ paths:
           * `enrollments` - ثبت‌نام و کلاس‌بندی
           * `scores` - نمرات اولیه
           * `monthly_evaluations` - ارزیابی جامع ماهانه
+          * `comprehensive_school` - فایل جامع مدرسه
       - name: ordering
         required: false
         in: query
@@ -3343,13 +3344,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ImportJobRequest'
+              $ref: '#/components/schemas/ImportJobCreateRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/ImportJobRequest'
+              $ref: '#/components/schemas/ImportJobCreateRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ImportJobRequest'
+              $ref: '#/components/schemas/ImportJobCreateRequest'
         required: true
       security:
       - jwtAuth: []
@@ -3358,7 +3359,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImportJob'
+                $ref: '#/components/schemas/ImportJobCreate'
           description: ''
   /api/v1/imports/{id}/:
     get:
@@ -3481,10 +3482,7 @@ paths:
         schema:
           type: string
           enum:
-          - enrollments
-          - monthly_evaluations
-          - scores
-          - students
+          - comprehensive_school
         required: true
       tags:
       - imports
@@ -3586,6 +3584,157 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MonthlyEvaluation'
+          description: ''
+  /api/v1/monthly-evaluations/{id}/manual/:
+    delete:
+      operationId: monthly_evaluations_manual_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this monthly evaluation.
+        required: true
+      - in: query
+        name: reason
+        schema:
+          type: string
+        description: دلیل حذف منطقی ارزیابی از نمای جاری.
+        required: true
+      tags:
+      - monthly-evaluations
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/monthly-evaluations/analytics/:
+    get:
+      operationId: monthly_evaluations_analytics_retrieve
+      parameters:
+      - in: query
+        name: enrollment
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: rank_scope
+        schema:
+          type: string
+          enum:
+          - class
+          - school
+      tags:
+      - monthly-evaluations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentEvaluationAnalytics'
+          description: ''
+  /api/v1/monthly-evaluations/catalog/:
+    get:
+      operationId: monthly_evaluations_catalog_retrieve
+      tags:
+      - monthly-evaluations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationCatalog'
+          description: ''
+  /api/v1/monthly-evaluations/dashboard/:
+    get:
+      operationId: monthly_evaluations_dashboard_retrieve
+      parameters:
+      - in: query
+        name: academic_year
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: class_section
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - monthly-evaluations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationDashboard'
+          description: ''
+  /api/v1/monthly-evaluations/export/:
+    get:
+      operationId: monthly_evaluations_export_retrieve
+      parameters:
+      - in: query
+        name: academic_year
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: class_section
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - monthly-evaluations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/monthly-evaluations/manual/:
+    post:
+      operationId: monthly_evaluations_manual_create
+      tags:
+      - monthly-evaluations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManualMonthlyEvaluationInputRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ManualMonthlyEvaluationInputRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ManualMonthlyEvaluationInputRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualMonthlyEvaluationResponse'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualMonthlyEvaluationResponse'
           description: ''
   /api/v1/organizations/:
     get:
@@ -5441,6 +5590,9 @@ components:
           type: string
           format: uuid
           readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -5485,6 +5637,7 @@ components:
       - id
       - is_deleted
       - organization
+      - organization_name
       - starts_on
       - title
       - updated_at
@@ -5532,6 +5685,21 @@ components:
       - organization
       - starts_on
       - title
+    AnalyticsDomain:
+      type: object
+      properties:
+        code:
+          type: string
+        title:
+          type: string
+        score:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - code
+      - score
+      - title
     Assessment:
       type: object
       properties:
@@ -5552,6 +5720,12 @@ components:
           type: string
           readOnly: true
         class_title:
+          type: string
+          readOnly: true
+        school_name:
+          type: string
+          readOnly: true
+        organization_name:
           type: string
           readOnly: true
         teacher_name:
@@ -5624,9 +5798,11 @@ components:
       - created_by
       - id
       - locked_at
+      - organization_name
       - rejection_reason
       - reviewed_at
       - reviewed_by
+      - school_name
       - score_count
       - status
       - subject_title
@@ -5685,6 +5861,9 @@ components:
           type: string
           format: uuid
           readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -5727,6 +5906,7 @@ components:
       - id
       - is_deleted
       - organization
+      - organization_name
       - title
       - updated_at
     AssessmentTypeRequest:
@@ -5773,6 +5953,9 @@ components:
           format: uuid
           readOnly: true
         school_name:
+          type: string
+          readOnly: true
+        organization_name:
           type: string
           readOnly: true
         academic_year:
@@ -5860,6 +6043,7 @@ components:
       - created_at
       - enrollment
       - id
+      - organization_name
       - period_end
       - period_start
       - policy
@@ -5940,6 +6124,9 @@ components:
         school_name:
           type: string
           readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
         academic_year:
           type: string
           format: uuid
@@ -5948,14 +6135,12 @@ components:
           readOnly: true
         warning_absence_count:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         critical_absence_count:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         warning_absence_percent:
           type: string
           format: decimal
@@ -5966,16 +6151,18 @@ components:
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
         lookback_days:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         include_excused_absences:
           type: boolean
         require_evidence_for_excuse:
           type: boolean
         notify_guardians:
           type: boolean
-        notification_channels: {}
+        notification_channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationChannelsEnum'
         is_active:
           type: boolean
         created_at:
@@ -5991,6 +6178,7 @@ components:
       - academic_year_title
       - created_at
       - id
+      - organization_name
       - school
       - school_name
       - updated_at
@@ -6005,14 +6193,12 @@ components:
           format: uuid
         warning_absence_count:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         critical_absence_count:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         warning_absence_percent:
           type: string
           format: decimal
@@ -6023,16 +6209,18 @@ components:
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
         lookback_days:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         include_excused_absences:
           type: boolean
         require_evidence_for_excuse:
           type: boolean
         notify_guardians:
           type: boolean
-        notification_channels: {}
+        notification_channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationChannelsEnum'
         is_active:
           type: boolean
       required:
@@ -6245,6 +6433,9 @@ components:
         school_name:
           type: string
           readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
         academic_year:
           type: string
           format: uuid
@@ -6275,9 +6466,8 @@ components:
           $ref: '#/components/schemas/ScopeEnum'
         period_number:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
           nullable: true
         title:
           type: string
@@ -6330,6 +6520,7 @@ components:
       - finalized_at
       - finalized_by
       - id
+      - organization_name
       - record_count
       - school
       - school_name
@@ -6368,9 +6559,8 @@ components:
           $ref: '#/components/schemas/ScopeEnum'
         period_number:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
           nullable: true
         title:
           type: string
@@ -6408,6 +6598,9 @@ components:
           type: string
           format: uuid
           readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -6437,9 +6630,8 @@ components:
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
         decimal_places:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         rounding_mode:
           $ref: '#/components/schemas/RoundingModeEnum'
         unexcused_absence_as_zero:
@@ -6464,6 +6656,7 @@ components:
       - id
       - is_deleted
       - organization
+      - organization_name
       - title
       - updated_at
       - version
@@ -6484,9 +6677,8 @@ components:
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
         decimal_places:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         rounding_mode:
           $ref: '#/components/schemas/RoundingModeEnum'
         unexcused_absence_as_zero:
@@ -6529,16 +6721,15 @@ components:
         title:
           type: string
           readOnly: true
-        school:
-          type: string
-          format: uuid
-          readOnly: true
         school_name:
+          type: string
+          readOnly: true
+        organization_name:
           type: string
           readOnly: true
       required:
       - id
-      - school
+      - organization_name
       - school_name
       - title
     ClassAttendanceReportResponse:
@@ -6609,12 +6800,24 @@ components:
         school:
           type: string
           format: uuid
+        school_name:
+          type: string
+          readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
         academic_year:
           type: string
           format: uuid
+        academic_year_title:
+          type: string
+          readOnly: true
         grade_level:
           type: string
           format: uuid
+        grade_title:
+          type: string
+          readOnly: true
         code:
           type: string
           maxLength: 30
@@ -6624,9 +6827,8 @@ components:
           maxLength: 100
         capacity:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         is_active:
           type: boolean
         enrolled_count:
@@ -6642,12 +6844,16 @@ components:
           readOnly: true
       required:
       - academic_year
+      - academic_year_title
       - code
       - created_at
       - enrolled_count
       - grade_level
+      - grade_title
       - id
+      - organization_name
       - school
+      - school_name
       - title
       - updated_at
     ClassSectionRequest:
@@ -6673,9 +6879,8 @@ components:
           maxLength: 100
         capacity:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         is_active:
           type: boolean
       required:
@@ -6743,6 +6948,70 @@ components:
       description: |-
         * `first` - نوبت اول
         * `second` - نوبت دوم
+    CohortCounts:
+      type: object
+      properties:
+        students:
+          type: integer
+          minimum: 0
+        evaluated:
+          type: integer
+          minimum: 0
+        final:
+          type: integer
+          minimum: 0
+        provisional:
+          type: integer
+          minimum: 0
+        ranked:
+          type: integer
+          minimum: 0
+      required:
+      - evaluated
+      - final
+      - provisional
+      - ranked
+      - students
+    CohortDomain:
+      type: object
+      properties:
+        code:
+          type: string
+        title:
+          type: string
+        average:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - average
+      - code
+      - title
+    CohortMonthlyPoint:
+      type: object
+      properties:
+        month_no:
+          type: integer
+          maximum: 12
+          minimum: 1
+        average:
+          type: number
+          format: double
+        students:
+          type: integer
+          minimum: 0
+      required:
+      - average
+      - month_no
+      - students
+    CompletionStatusEnum:
+      enum:
+      - provisional
+      - final
+      type: string
+      description: |-
+        * `provisional` - provisional
+        * `final` - final
     CourseOffering:
       type: object
       properties:
@@ -6754,6 +7023,12 @@ components:
           type: string
           format: uuid
         class_title:
+          type: string
+          readOnly: true
+        school_name:
+          type: string
+          readOnly: true
+        organization_name:
           type: string
           readOnly: true
         grade_subject:
@@ -6789,6 +7064,8 @@ components:
       - created_at
       - grade_subject
       - id
+      - organization_name
+      - school_name
       - subject_title
       - teacher
       - teacher_name
@@ -6816,6 +7093,144 @@ components:
       - grade_subject
       - teacher
       - term
+    DashboardActivity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        action:
+          type: string
+        entity_type:
+          type: string
+        entity_id:
+          type: string
+        actor_id:
+          type: integer
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - action
+      - actor_id
+      - created_at
+      - entity_id
+      - entity_type
+      - id
+    DashboardClassAverage:
+      type: object
+      properties:
+        enrollment__class_section_id:
+          type: string
+          format: uuid
+        enrollment__class_section__title:
+          type: string
+        average:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        students:
+          type: integer
+          minimum: 0
+      required:
+      - average
+      - enrollment__class_section__title
+      - enrollment__class_section_id
+      - students
+    DashboardCounts:
+      type: object
+      properties:
+        students:
+          type: integer
+          minimum: 0
+        classes:
+          type: integer
+          minimum: 0
+        teachers:
+          type: integer
+          minimum: 0
+        missing_scores:
+          type: integer
+          minimum: 0
+      required:
+      - classes
+      - missing_scores
+      - students
+      - teachers
+    DashboardQuickLinks:
+      type: object
+      properties:
+        score_entry:
+          type: string
+        report_cards:
+          type: string
+        imports:
+          type: string
+      required:
+      - imports
+      - report_cards
+      - score_entry
+    DashboardSchoolStudents:
+      type: object
+      properties:
+        school_name:
+          type: string
+        organization_name:
+          type: string
+        students:
+          type: integer
+          minimum: 0
+      required:
+      - organization_name
+      - school_name
+      - students
+    DashboardSummary:
+      type: object
+      properties:
+        selected_term:
+          $ref: '#/components/schemas/DashboardTerm'
+        counts:
+          $ref: '#/components/schemas/DashboardCounts'
+        students_by_school:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardSchoolStudents'
+        class_averages:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardClassAverage'
+        assessment_workflow:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+        latest_activities:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardActivity'
+        quick_links:
+          $ref: '#/components/schemas/DashboardQuickLinks'
+      required:
+      - assessment_workflow
+      - class_averages
+      - counts
+      - latest_activities
+      - quick_links
+      - selected_term
+      - students_by_school
+    DashboardTerm:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+      required:
+      - id
+      - title
     DomainScore:
       type: object
       properties:
@@ -6832,11 +7247,14 @@ components:
           nullable: true
         completed_metrics:
           type: integer
+        total_metrics:
+          type: integer
       required:
       - code
       - completed_metrics
       - score
       - title
+      - total_metrics
       - weight
     Enrollment:
       type: object
@@ -6855,6 +7273,9 @@ components:
           type: string
           format: uuid
         school_name:
+          type: string
+          readOnly: true
+        organization_name:
           type: string
           readOnly: true
         academic_year:
@@ -6907,6 +7328,7 @@ components:
       - grade_level
       - grade_title
       - id
+      - organization_name
       - school
       - school_name
       - student
@@ -7046,6 +7468,83 @@ components:
         * `transferred` - انتقال‌یافته
         * `withdrawn` - ترک‌تحصیل
         * `graduated` - فارغ‌التحصیل
+    EvaluationCatalog:
+      type: object
+      properties:
+        framework_version:
+          type: string
+        score_min:
+          type: integer
+        score_max:
+          type: integer
+        metric_count:
+          type: integer
+          minimum: 0
+        metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvaluationCatalogMetric'
+      required:
+      - framework_version
+      - metric_count
+      - metrics
+      - score_max
+      - score_min
+    EvaluationCatalogMetric:
+      type: object
+      properties:
+        code:
+          type: string
+        title:
+          type: string
+        domain_code:
+          type: string
+        domain_title:
+          type: string
+        domain_weight:
+          type: integer
+          minimum: 0
+        order:
+          type: integer
+          minimum: 1
+      required:
+      - code
+      - domain_code
+      - domain_title
+      - domain_weight
+      - order
+      - title
+    EvaluationDashboard:
+      type: object
+      properties:
+        rank_scope:
+          $ref: '#/components/schemas/RankScopeEnum'
+        counts:
+          $ref: '#/components/schemas/CohortCounts'
+        monthly_trend:
+          type: array
+          items:
+            $ref: '#/components/schemas/CohortMonthlyPoint'
+        domain_scores:
+          type: array
+          items:
+            $ref: '#/components/schemas/CohortDomain'
+        performance_distribution:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+        students:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentEvaluationAnalytics'
+      required:
+      - counts
+      - domain_scores
+      - monthly_trend
+      - performance_distribution
+      - rank_scope
+      - students
     EventTypeEnum:
       enum:
       - class_changed
@@ -7085,6 +7584,9 @@ components:
           type: string
           format: uuid
           readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -7110,9 +7612,8 @@ components:
           maxLength: 100
         order:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         is_active:
           type: boolean
         organization:
@@ -7126,6 +7627,7 @@ components:
       - is_deleted
       - order
       - organization
+      - organization_name
       - title
       - updated_at
     GradeLevelRequest:
@@ -7142,9 +7644,8 @@ components:
           maxLength: 100
         order:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         is_active:
           type: boolean
         organization:
@@ -7232,6 +7733,9 @@ components:
         organization:
           type: string
           format: uuid
+        organization_name:
+          type: string
+          readOnly: true
         national_id:
           type: string
           nullable: true
@@ -7278,6 +7782,7 @@ components:
       - id
       - last_name
       - organization
+      - organization_name
       - phone_primary
       - students
       - updated_at
@@ -7329,14 +7834,20 @@ components:
           type: string
           format: uuid
           readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
         school:
           type: string
           format: uuid
+        school_name:
+          type: string
+          readOnly: true
         import_type:
-          $ref: '#/components/schemas/ImportTypeEnum'
+          $ref: '#/components/schemas/ImportJobImportTypeEnum'
         status:
           allOf:
-          - $ref: '#/components/schemas/ImportJobStatusEnum'
+          - $ref: '#/components/schemas/Status6f2Enum'
           readOnly: true
         status_display:
           type: string
@@ -7363,6 +7874,8 @@ components:
           type: integer
           readOnly: true
         errors:
+          readOnly: true
+        result_summary:
           readOnly: true
         started_at:
           type: string
@@ -7391,9 +7904,12 @@ components:
       - id
       - import_type
       - organization
+      - organization_name
       - requested_by
       - requested_by_name
+      - result_summary
       - school
+      - school_name
       - source_file
       - started_at
       - status
@@ -7401,14 +7917,113 @@ components:
       - successful_rows
       - total_rows
       - updated_at
-    ImportJobRequest:
+    ImportJobCreate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        organization:
+          type: string
+          format: uuid
+          readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
+        school:
+          type: string
+          format: uuid
+        school_name:
+          type: string
+          readOnly: true
+        import_type:
+          $ref: '#/components/schemas/ImportJobCreateImportTypeEnum'
+        status:
+          allOf:
+          - $ref: '#/components/schemas/Status6f2Enum'
+          readOnly: true
+        status_display:
+          type: string
+          readOnly: true
+        source_file:
+          type: string
+          format: uri
+        checksum:
+          type: string
+          readOnly: true
+        requested_by:
+          type: integer
+          readOnly: true
+        requested_by_name:
+          type: string
+          readOnly: true
+        total_rows:
+          type: integer
+          readOnly: true
+        successful_rows:
+          type: integer
+          readOnly: true
+        error_count:
+          type: integer
+          readOnly: true
+        errors:
+          readOnly: true
+        result_summary:
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - checksum
+      - created_at
+      - error_count
+      - errors
+      - finished_at
+      - id
+      - import_type
+      - organization
+      - organization_name
+      - requested_by
+      - requested_by_name
+      - result_summary
+      - school
+      - school_name
+      - source_file
+      - started_at
+      - status
+      - status_display
+      - successful_rows
+      - total_rows
+      - updated_at
+    ImportJobCreateImportTypeEnum:
+      enum:
+      - comprehensive_school
+      type: string
+      description: '* `comprehensive_school` - فایل جامع مدرسه'
+    ImportJobCreateRequest:
       type: object
       properties:
         school:
           type: string
           format: uuid
         import_type:
-          $ref: '#/components/schemas/ImportTypeEnum'
+          $ref: '#/components/schemas/ImportJobCreateImportTypeEnum'
         source_file:
           type: string
           format: binary
@@ -7416,32 +8031,35 @@ components:
       - import_type
       - school
       - source_file
-    ImportJobStatusEnum:
-      enum:
-      - queued
-      - processing
-      - completed
-      - failed
-      - cancelled
-      type: string
-      description: |-
-        * `queued` - در صف
-        * `processing` - در حال پردازش
-        * `completed` - تکمیل‌شده
-        * `failed` - ناموفق
-        * `cancelled` - لغوشده
-    ImportTypeEnum:
+    ImportJobImportTypeEnum:
       enum:
       - students
       - enrollments
       - scores
       - monthly_evaluations
+      - comprehensive_school
       type: string
       description: |-
         * `students` - دانش‌آموزان
         * `enrollments` - ثبت‌نام و کلاس‌بندی
         * `scores` - نمرات اولیه
         * `monthly_evaluations` - ارزیابی جامع ماهانه
+        * `comprehensive_school` - فایل جامع مدرسه
+    ImportJobRequest:
+      type: object
+      properties:
+        school:
+          type: string
+          format: uuid
+        import_type:
+          $ref: '#/components/schemas/ImportJobImportTypeEnum'
+        source_file:
+          type: string
+          format: binary
+      required:
+      - import_type
+      - school
+      - source_file
     KindEnum:
       enum:
       - absence
@@ -7474,6 +8092,227 @@ components:
           minLength: 1
       required:
       - refresh
+    ManualEvaluationResult:
+      type: object
+      properties:
+        created:
+          type: boolean
+        restored:
+          type: boolean
+        metrics_created:
+          type: integer
+          minimum: 0
+        metrics_updated:
+          type: integer
+          minimum: 0
+        metrics_unchanged:
+          type: integer
+          minimum: 0
+      required:
+      - created
+      - metrics_created
+      - metrics_unchanged
+      - metrics_updated
+      - restored
+    ManualMetricScoreInputRequest:
+      type: object
+      properties:
+        metric_code:
+          $ref: '#/components/schemas/MetricCodeEnum'
+        value:
+          type: integer
+          maximum: 5
+          minimum: 0
+      required:
+      - metric_code
+      - value
+    ManualMonthlyEvaluationInputRequest:
+      type: object
+      properties:
+        enrollment:
+          type: string
+          format: uuid
+          description: ثبت‌نام فعال دانش‌آموز در مدرسه و کلاس موردنظر
+        month_no:
+          type: integer
+          maximum: 12
+          minimum: 1
+          description: شماره ماه ۱ تا ۱۲
+        note:
+          type: string
+          default: ''
+          description: توضیح اختیاری برای ارزیابی این ماه
+          maxLength: 5000
+        metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManualMetricScoreInputRequest'
+          description: شاخص‌های ثبت‌شده؛ شاخص‌های ارسال‌نشده بدون تغییر باقی می‌مانند.
+      required:
+      - enrollment
+      - month_no
+    ManualMonthlyEvaluationResponse:
+      type: object
+      properties:
+        evaluation:
+          $ref: '#/components/schemas/MonthlyEvaluation'
+        result:
+          $ref: '#/components/schemas/ManualEvaluationResult'
+      required:
+      - evaluation
+      - result
+    MetricCodeEnum:
+      enum:
+      - EDU_01
+      - EDU_02
+      - EDU_03
+      - EDU_04
+      - EDU_05
+      - EDU_06
+      - EDU_07
+      - EDU_08
+      - EDU_09
+      - EDU_10
+      - DEV_01
+      - DEV_02
+      - DEV_03
+      - DEV_04
+      - DEV_05
+      - DEV_06
+      - DEV_07
+      - DEV_08
+      - DEV_09
+      - DEV_10
+      - CHR_01
+      - CHR_02
+      - CHR_03
+      - CHR_04
+      - CHR_05
+      - CHR_06
+      - CHR_07
+      - CHR_08
+      - CHR_09
+      - CHR_10
+      - DIS_01
+      - DIS_02
+      - DIS_03
+      - DIS_04
+      - DIS_05
+      - DIS_06
+      - DIS_07
+      - DIS_08
+      - CUL_01
+      - CUL_02
+      - CUL_03
+      - CUL_04
+      - CUL_05
+      - CUL_06
+      - CUL_07
+      - RES_01
+      - RES_02
+      - RES_03
+      - RES_04
+      - RES_05
+      - RES_06
+      - RES_07
+      - RES_08
+      - SPT_01
+      - SPT_02
+      - SPT_03
+      - SPT_04
+      - SPT_05
+      - SPT_06
+      - SPT_07
+      - ART_01
+      - ART_02
+      - ART_03
+      - ART_04
+      - ART_05
+      - ART_06
+      - ART_07
+      - PER_01
+      - PER_02
+      - PER_03
+      - PER_04
+      - PER_05
+      - PER_06
+      - PER_07
+      type: string
+      description: |-
+        * `EDU_01` - EDU_01
+        * `EDU_02` - EDU_02
+        * `EDU_03` - EDU_03
+        * `EDU_04` - EDU_04
+        * `EDU_05` - EDU_05
+        * `EDU_06` - EDU_06
+        * `EDU_07` - EDU_07
+        * `EDU_08` - EDU_08
+        * `EDU_09` - EDU_09
+        * `EDU_10` - EDU_10
+        * `DEV_01` - DEV_01
+        * `DEV_02` - DEV_02
+        * `DEV_03` - DEV_03
+        * `DEV_04` - DEV_04
+        * `DEV_05` - DEV_05
+        * `DEV_06` - DEV_06
+        * `DEV_07` - DEV_07
+        * `DEV_08` - DEV_08
+        * `DEV_09` - DEV_09
+        * `DEV_10` - DEV_10
+        * `CHR_01` - CHR_01
+        * `CHR_02` - CHR_02
+        * `CHR_03` - CHR_03
+        * `CHR_04` - CHR_04
+        * `CHR_05` - CHR_05
+        * `CHR_06` - CHR_06
+        * `CHR_07` - CHR_07
+        * `CHR_08` - CHR_08
+        * `CHR_09` - CHR_09
+        * `CHR_10` - CHR_10
+        * `DIS_01` - DIS_01
+        * `DIS_02` - DIS_02
+        * `DIS_03` - DIS_03
+        * `DIS_04` - DIS_04
+        * `DIS_05` - DIS_05
+        * `DIS_06` - DIS_06
+        * `DIS_07` - DIS_07
+        * `DIS_08` - DIS_08
+        * `CUL_01` - CUL_01
+        * `CUL_02` - CUL_02
+        * `CUL_03` - CUL_03
+        * `CUL_04` - CUL_04
+        * `CUL_05` - CUL_05
+        * `CUL_06` - CUL_06
+        * `CUL_07` - CUL_07
+        * `RES_01` - RES_01
+        * `RES_02` - RES_02
+        * `RES_03` - RES_03
+        * `RES_04` - RES_04
+        * `RES_05` - RES_05
+        * `RES_06` - RES_06
+        * `RES_07` - RES_07
+        * `RES_08` - RES_08
+        * `SPT_01` - SPT_01
+        * `SPT_02` - SPT_02
+        * `SPT_03` - SPT_03
+        * `SPT_04` - SPT_04
+        * `SPT_05` - SPT_05
+        * `SPT_06` - SPT_06
+        * `SPT_07` - SPT_07
+        * `ART_01` - ART_01
+        * `ART_02` - ART_02
+        * `ART_03` - ART_03
+        * `ART_04` - ART_04
+        * `ART_05` - ART_05
+        * `ART_06` - ART_06
+        * `ART_07` - ART_07
+        * `PER_01` - PER_01
+        * `PER_02` - PER_02
+        * `PER_03` - PER_03
+        * `PER_04` - PER_04
+        * `PER_05` - PER_05
+        * `PER_06` - PER_06
+        * `PER_07` - PER_07
     MetricScore:
       type: object
       properties:
@@ -7499,6 +8338,27 @@ components:
       - metric_code
       - title
       - value
+    MonthlyAnalyticsPoint:
+      type: object
+      properties:
+        month_no:
+          type: integer
+          maximum: 12
+          minimum: 1
+        overall_score:
+          type: number
+          format: double
+          nullable: true
+        completion_percent:
+          type: number
+          format: double
+        completion_status:
+          $ref: '#/components/schemas/CompletionStatusEnum'
+      required:
+      - completion_percent
+      - completion_status
+      - month_no
+      - overall_score
     MonthlyEvaluation:
       type: object
       properties:
@@ -7525,6 +8385,9 @@ components:
           format: uuid
           readOnly: true
         school_name:
+          type: string
+          readOnly: true
+        organization_name:
           type: string
           readOnly: true
         academic_year:
@@ -7578,6 +8441,18 @@ components:
           format: decimal
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
           readOnly: true
+        completion_status:
+          allOf:
+          - $ref: '#/components/schemas/CompletionStatusEnum'
+          readOnly: true
+        performance_level:
+          type: string
+          nullable: true
+          readOnly: true
+        completion_warning:
+          type: string
+          nullable: true
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -7591,6 +8466,8 @@ components:
       - academic_year_title
       - class_title
       - completion_percent
+      - completion_status
+      - completion_warning
       - created_at
       - domain_scores
       - enrollment
@@ -7599,7 +8476,9 @@ components:
       - metric_scores
       - month_no
       - note
+      - organization_name
       - overall_score
+      - performance_level
       - recorded_by
       - recorded_by_name
       - school
@@ -7609,6 +8488,16 @@ components:
       - student_name
       - student_number
       - updated_at
+    NotificationChannelsEnum:
+      enum:
+      - in_app
+      - email
+      - sms
+      type: string
+      description: |-
+        * `in_app` - in_app
+        * `email` - email
+        * `sms` - sms
     NotifyGuardiansRequest:
       type: object
       properties:
@@ -7642,6 +8531,9 @@ components:
         name:
           type: string
           maxLength: 200
+        display_name:
+          type: string
+          readOnly: true
         code:
           type: string
           maxLength: 50
@@ -7662,6 +8554,7 @@ components:
       required:
       - code
       - created_at
+      - display_name
       - id
       - name
       - updated_at
@@ -8297,6 +9190,9 @@ components:
         school_name:
           type: string
           readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
         student:
           type: string
           format: uuid
@@ -8387,6 +9283,7 @@ components:
       - message
       - metadata
       - next_attempt_at
+      - organization_name
       - recipient
       - school
       - school_name
@@ -8495,14 +9392,12 @@ components:
           format: uuid
         warning_absence_count:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         critical_absence_count:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         warning_absence_percent:
           type: string
           format: decimal
@@ -8513,16 +9408,18 @@ components:
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
         lookback_days:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         include_excused_absences:
           type: boolean
         require_evidence_for_excuse:
           type: boolean
         notify_guardians:
           type: boolean
-        notification_channels: {}
+        notification_channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationChannelsEnum'
         is_active:
           type: boolean
     PatchedAttendanceSessionRequest:
@@ -8552,9 +9449,8 @@ components:
           $ref: '#/components/schemas/ScopeEnum'
         period_number:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
           nullable: true
         title:
           type: string
@@ -8592,9 +9488,8 @@ components:
           maxLength: 100
         capacity:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         is_active:
           type: boolean
     PatchedCourseOfferingRequest:
@@ -8627,9 +9522,8 @@ components:
           maxLength: 100
         order:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         is_active:
           type: boolean
         organization:
@@ -8822,9 +9716,8 @@ components:
           format: date
         order:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         is_active:
           type: boolean
         academic_year:
@@ -8870,6 +9763,14 @@ components:
           title: فعال
           description: نشان می‌دهد که آیا این کاربر اجازهٔ فعالیت دارد یا خیر. به
             جای حذف کاربر این تیک را بردارید.
+    RankScopeEnum:
+      enum:
+      - school
+      - class
+      type: string
+      description: |-
+        * `school` - school
+        * `class` - class
     RelationshipEnum:
       enum:
       - father
@@ -8893,9 +9794,15 @@ components:
           type: string
           format: uuid
           readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
         school:
           type: string
           format: uuid
+          readOnly: true
+        school_name:
+          type: string
           readOnly: true
         academic_year:
           type: string
@@ -8966,10 +9873,12 @@ components:
       - formula_version
       - id
       - organization
+      - organization_name
       - report_type
       - requested_by
       - requested_by_name
       - school
+      - school_name
       - snapshot
       - started_at
       - status
@@ -9028,9 +9937,17 @@ components:
           type: string
           format: uuid
           nullable: true
+        organization_name:
+          type: string
+          readOnly: true
+          nullable: true
         school:
           type: string
           format: uuid
+          nullable: true
+        school_name:
+          type: string
+          readOnly: true
           nullable: true
         role:
           $ref: '#/components/schemas/RoleEnum'
@@ -9050,8 +9967,10 @@ components:
       required:
       - created_at
       - id
+      - organization_name
       - role
       - role_display
+      - school_name
       - updated_at
       - user
     RoleAssignmentRequest:
@@ -9110,6 +10029,9 @@ components:
         organization:
           type: string
           format: uuid
+        organization_name:
+          type: string
+          readOnly: true
         code:
           type: string
           maxLength: 50
@@ -9117,6 +10039,9 @@ components:
         name:
           type: string
           maxLength: 200
+        display_name:
+          type: string
+          readOnly: true
         official_name:
           type: string
           maxLength: 250
@@ -9148,23 +10073,24 @@ components:
       required:
       - code
       - created_at
+      - display_name
       - id
       - name
       - organization
+      - organization_name
       - updated_at
     SchoolAttendanceIdentity:
       type: object
       properties:
-        id:
-          type: string
-          format: uuid
-          readOnly: true
         name:
           type: string
           readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
       required:
-      - id
       - name
+      - organization_name
     SchoolAttendanceReportResponse:
       type: object
       properties:
@@ -9497,6 +10423,20 @@ components:
       description: |-
         * `warning` - هشدار
         * `critical` - بحرانی
+    Status6f2Enum:
+      enum:
+      - queued
+      - processing
+      - completed
+      - failed
+      - cancelled
+      type: string
+      description: |-
+        * `queued` - در صف
+        * `processing` - در حال پردازش
+        * `completed` - تکمیل‌شده
+        * `failed` - ناموفق
+        * `cancelled` - لغوشده
     Student:
       type: object
       properties:
@@ -9507,6 +10447,9 @@ components:
         organization:
           type: string
           format: uuid
+        organization_name:
+          type: string
+          readOnly: true
         national_id:
           type: string
           pattern: ^\d{10}$
@@ -9558,6 +10501,7 @@ components:
       - last_name
       - national_id
       - organization
+      - organization_name
       - status
       - updated_at
     StudentAttendanceIdentity:
@@ -9628,6 +10572,115 @@ components:
       - records
       - scope
       - student
+    StudentEvaluationAnalytics:
+      type: object
+      properties:
+        enrollment:
+          type: string
+          format: uuid
+        student:
+          type: string
+          format: uuid
+        student_name:
+          type: string
+        student_number:
+          type: string
+        school:
+          type: string
+          format: uuid
+        academic_year:
+          type: string
+          format: uuid
+        class_section:
+          type: string
+          format: uuid
+        completion_status:
+          $ref: '#/components/schemas/CompletionStatusEnum'
+        completion_percent:
+          type: number
+          format: double
+        overall_score:
+          type: number
+          format: double
+          nullable: true
+        performance_level:
+          type: string
+          nullable: true
+        first_month:
+          type: integer
+          maximum: 12
+          minimum: 1
+          nullable: true
+        last_month:
+          type: integer
+          maximum: 12
+          minimum: 1
+          nullable: true
+        change:
+          type: number
+          format: double
+          nullable: true
+        trend:
+          $ref: '#/components/schemas/TrendEnum'
+        trend_label:
+          type: string
+        strongest_domain:
+          allOf:
+          - $ref: '#/components/schemas/AnalyticsDomain'
+          nullable: true
+        weakest_domain:
+          allOf:
+          - $ref: '#/components/schemas/AnalyticsDomain'
+          nullable: true
+        recommendation:
+          type: string
+          nullable: true
+        completion_warning:
+          type: string
+          nullable: true
+        monthly_scores:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthlyAnalyticsPoint'
+        domain_scores:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalyticsDomain'
+        rank_scope:
+          $ref: '#/components/schemas/RankScopeEnum'
+        rank:
+          type: integer
+          minimum: 1
+          nullable: true
+        ranked_count:
+          type: integer
+          minimum: 0
+      required:
+      - academic_year
+      - change
+      - class_section
+      - completion_percent
+      - completion_status
+      - completion_warning
+      - domain_scores
+      - enrollment
+      - first_month
+      - last_month
+      - monthly_scores
+      - overall_score
+      - performance_level
+      - rank
+      - rank_scope
+      - ranked_count
+      - recommendation
+      - school
+      - strongest_domain
+      - student
+      - student_name
+      - student_number
+      - trend
+      - trend_label
+      - weakest_domain
     StudentGuardian:
       type: object
       properties:
@@ -9722,6 +10775,9 @@ components:
           type: string
           format: uuid
           readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -9761,6 +10817,7 @@ components:
       - id
       - is_deleted
       - organization
+      - organization_name
       - title
       - updated_at
     SubjectRequest:
@@ -9795,6 +10852,12 @@ components:
           type: string
           format: uuid
           readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
+        academic_year_title:
+          type: string
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -9824,9 +10887,8 @@ components:
           format: date
         order:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         is_active:
           type: boolean
         academic_year:
@@ -9834,12 +10896,14 @@ components:
           format: uuid
       required:
       - academic_year
+      - academic_year_title
       - code
       - created_at
       - deleted_at
       - ends_on
       - id
       - is_deleted
+      - organization_name
       - starts_on
       - title
       - updated_at
@@ -9860,9 +10924,8 @@ components:
           format: date
         order:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 0
-          format: int64
         is_active:
           type: boolean
         academic_year:
@@ -9893,6 +10956,18 @@ components:
           minLength: 1
       required:
       - refresh
+    TrendEnum:
+      enum:
+      - improving
+      - stable
+      - declining
+      - insufficient_data
+      type: string
+      description: |-
+        * `improving` - improving
+        * `stable` - stable
+        * `declining` - declining
+        * `insufficient_data` - insufficient_data
     User:
       type: object
       properties:

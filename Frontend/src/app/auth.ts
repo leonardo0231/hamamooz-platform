@@ -18,11 +18,19 @@ export async function login(identifier: string, password: string, remember: bool
 }
 
 export async function restoreSession(): Promise<boolean> {
-  if (!store.state.refreshToken) {
+  const refresh = store.state.refreshToken;
+  if (!refresh) {
     store.patch({ bootstrapping: false });
     return false;
   }
   try {
+    const renewed = await apiRequest<RefreshResponse>(endpoints.auth.refresh, {
+      method: 'POST',
+      body: { refresh },
+      auth: false,
+      retryAuth: false,
+    });
+    store.updateAccess(renewed.access, renewed.refresh);
     const user = await apiRequest<User>(endpoints.auth.me);
     store.patch({ user, bootstrapping: false });
     return true;
@@ -37,6 +45,15 @@ export async function ensureUser(): Promise<boolean> {
   if (store.state.user) return true;
   if (!store.state.refreshToken && !store.state.accessToken) return false;
   try {
+    if (!store.state.accessToken && store.state.refreshToken) {
+      const renewed = await apiRequest<RefreshResponse>(endpoints.auth.refresh, {
+        method: 'POST',
+        body: { refresh: store.state.refreshToken },
+        auth: false,
+        retryAuth: false,
+      });
+      store.updateAccess(renewed.access, renewed.refresh);
+    }
     const user = await apiRequest<User>(endpoints.auth.me);
     store.patch({ user, bootstrapping: false });
     return true;

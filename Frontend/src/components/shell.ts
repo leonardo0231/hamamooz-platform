@@ -1,7 +1,7 @@
 import { apiRequest } from '../api/client.js';
 import { endpoints } from '../api/endpoints.js';
 import type { Pagination, Role } from '../api/types.js';
-import { activeRoles, administrativeRoles, broadEducationRoles, roleLabel } from '../app/permissions.js';
+import { activeRoles, administrativeRoles, broadEducationRoles, roleLabel, teacherWriteRoles } from '../app/permissions.js';
 import { store } from '../app/store.js';
 import { navigate } from '../app/router.js';
 import { h, initials, onWindowEventWhileConnected } from '../utils/dom.js';
@@ -12,14 +12,15 @@ interface NamedItem { id: string; name?: string; title?: string; organization?: 
 interface NavigationItem { href: string; label: string; icon: string; roles?: Role[]; }
 
 const navigation: NavigationItem[] = [
-  { href: '/students', label: 'دانش‌آموزان', icon: 'users' },
-  { href: '/resources/assessments', label: 'کلاس‌ها و تحلیل آموزشی', icon: 'chart' },
-  { href: '/attendance', label: 'تحلیل حضور و غیاب', icon: 'calendar' },
-  { href: '/resources/course-offerings', label: 'برنامه آموزشی', icon: 'book' },
   { href: '/', label: 'نمای کلی', icon: 'home' },
+  { href: '/students', label: 'دانش‌آموزان', icon: 'users' },
+  { href: '/resources/assessments', label: 'آموزش و ارزیابی', icon: 'chart' },
+  { href: '/attendance', label: 'حضور و غیاب', icon: 'calendar' },
+  { href: '/resources/course-offerings', label: 'کلاس‌ها و برنامه درسی', icon: 'book' },
   { href: '/alerts', label: 'مرکز هشدارها', icon: 'bell' },
-  { href: '/reports', label: 'گزارش‌ساز', icon: 'file' },
+  { href: '/reports', label: 'گزارش‌ها و کارنامه‌ها', icon: 'file' },
   { href: '/imports', label: 'ورود اطلاعات', icon: 'upload', roles: broadEducationRoles },
+  { href: '/manual-entry', label: 'ثبت و ویرایش دستی', icon: 'edit', roles: teacherWriteRoles },
   { href: '/users', label: 'کاربران', icon: 'user', roles: administrativeRoles },
   { href: '/roles', label: 'نقش‌ها و دسترسی', icon: 'settings', roles: administrativeRoles },
   { href: '/settings', label: 'تنظیمات سامانه', icon: 'settings' },

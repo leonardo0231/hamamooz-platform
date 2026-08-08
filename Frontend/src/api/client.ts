@@ -18,7 +18,8 @@ function requestId(): string {
 export function normalizeApiPath(path: string): string {
   if (/^https?:\/\//i.test(path)) return path;
   const clean = path.replace(/^\//, '').replace(/^api\/v1\//, '');
-  return new URL(clean, config.apiBaseUrl).toString();
+  const baseUrl = new URL(config.apiBaseUrl, globalThis.location.origin);
+  return new URL(clean, baseUrl).toString();
 }
 
 function withQuery(url: string, query: RequestOptions['query']): string {

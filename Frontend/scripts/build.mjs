@@ -15,30 +15,38 @@ try {
 }
 if (result.error || result.status !== 0) process.exit(result.status ?? 1);
 await mkdir(resolve(root, 'dist'), { recursive: true });
-await build({
-  entryPoints: {
-    main: resolve(root, 'src/main.ts'),
-    'api/action-schemas': resolve(root, 'src/api/action-schemas.ts'),
-    'api/errors': resolve(root, 'src/api/errors.ts'),
-  },
-  outdir: resolve(root, 'dist/assets'),
-  bundle: true,
-  splitting: true,
-  format: 'esm',
-  platform: 'browser',
-  target: 'es2022',
-  sourcemap: true,
-  minify: true,
-  legalComments: 'none',
-  chunkNames: 'chunks/[name]-[hash]',
-});
+try {
+  await build({
+    entryPoints: {
+      main: resolve(root, 'src/main.ts'),
+      'api/action-schemas': resolve(root, 'src/api/action-schemas.ts'),
+      'api/errors': resolve(root, 'src/api/errors.ts'),
+    },
+    outdir: resolve(root, 'dist/assets'),
+    bundle: true,
+    splitting: true,
+    format: 'esm',
+    platform: 'browser',
+    target: 'es2022',
+    sourcemap: true,
+    minify: true,
+    legalComments: 'none',
+    chunkNames: 'chunks/[name]-[hash]',
+  });
+} catch (error) {
+  console.warn('esbuild binary is unavailable for this platform; using the portable TypeScript module build.');
+  const emitResult = spawnSync(process.execPath, [localTsc, '-p', resolve(root, 'tsconfig.json')], { stdio: 'inherit', cwd: root });
+  if (emitResult.error || emitResult.status !== 0) throw error;
+  await mkdir(resolve(root, 'dist/assets/vendor'), { recursive: true });
+  await cp(resolve(root, 'src/vendor/xlsx.js'), resolve(root, 'dist/assets/vendor/xlsx.js'));
+}
 const parseEnv = text => Object.fromEntries(text.split(/\r?\n/).filter(line => line && !line.trim().startsWith('#') && line.includes('=')).map(line => { const index = line.indexOf('='); return [line.slice(0, index).trim(), line.slice(index + 1).trim()]; }));
 let env = {};
 try { env = parseEnv(await readFile(resolve(root, '.env'), 'utf8')); } catch {}
 const apiBaseUrl = process.env.VITE_API_BASE_URL || env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1/';
 const appName = process.env.VITE_APP_NAME || env.VITE_APP_NAME || 'هم‌آموز';
 const requestTimeoutMs = process.env.VITE_REQUEST_TIMEOUT_MS || env.VITE_REQUEST_TIMEOUT_MS || '20000';
-const apiOrigin = new URL(apiBaseUrl).origin;
+const apiOrigin = apiBaseUrl.startsWith('/') ? '' : new URL(apiBaseUrl).origin;
 const sourceHtml = await readFile(resolve(root, 'src/index.html'), 'utf8');
 await writeFile(resolve(root, 'dist/index.html'), sourceHtml.replaceAll('__API_BASE_URL__', apiBaseUrl).replaceAll('__API_ORIGIN__', apiOrigin).replaceAll('__APP_NAME__', appName).replaceAll('__REQUEST_TIMEOUT_MS__', requestTimeoutMs));
 await cp(resolve(root, 'src/styles/app.css'), resolve(root, 'dist/app.css'));
