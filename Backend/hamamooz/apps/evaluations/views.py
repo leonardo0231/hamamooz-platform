@@ -24,9 +24,11 @@ from .exports import build_evaluation_analytics_workbook
 from .manual import delete_manual_evaluation, upsert_manual_evaluation
 from .models import MonthlyEvaluation
 from .serializers import (
+    EvaluationCatalogSerializer,
     EvaluationDashboardSerializer,
     ManualEvaluationDeleteSerializer,
     ManualMonthlyEvaluationInputSerializer,
+    ManualMonthlyEvaluationResponseSerializer,
     MonthlyEvaluationSerializer,
     StudentEvaluationAnalyticsSerializer,
 )
@@ -85,6 +87,7 @@ class MonthlyEvaluationViewSet(ReadOnlyModelViewSet):
             .prefetch_related("metric_scores")
         )
 
+    @extend_schema(responses={200: EvaluationCatalogSerializer})
     @action(detail=False, methods=["get"], url_path="catalog")
     def catalog(self, request):
         metrics = [
@@ -108,6 +111,13 @@ class MonthlyEvaluationViewSet(ReadOnlyModelViewSet):
             }
         )
 
+    @extend_schema(
+        request=ManualMonthlyEvaluationInputSerializer,
+        responses={
+            200: ManualMonthlyEvaluationResponseSerializer,
+            201: ManualMonthlyEvaluationResponseSerializer,
+        },
+    )
     @action(detail=False, methods=["post"], url_path="manual")
     def manual(self, request):
         serializer = ManualMonthlyEvaluationInputSerializer(data=request.data)
@@ -161,6 +171,7 @@ class MonthlyEvaluationViewSet(ReadOnlyModelViewSet):
             status=status.HTTP_201_CREATED if result["created"] else status.HTTP_200_OK,
         )
 
+    @extend_schema(request=ManualEvaluationDeleteSerializer, responses={204: None})
     @action(detail=True, methods=["delete"], url_path="manual")
     def manual_delete(self, request, pk=None):
         evaluation = self.get_object()
