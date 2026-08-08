@@ -1,4 +1,5 @@
 import { apiRequest } from '../api/client.js';
+import { endpoints } from '../api/endpoints.js';
 import { operationsForTag, type ContractOperation } from '../api/contract.js';
 import type { Pagination, Role } from '../api/types.js';
 import { navigate } from '../app/router.js';
@@ -233,7 +234,7 @@ async function requestEvaluationDelete(id: string, onDeleted: () => Promise<void
   form.addEventListener('submit', event => {
     event.preventDefault();
     if (!form.reportValidity()) return;
-    void apiRequest(`/api/v1/monthly-evaluations/${encodeURIComponent(id)}/manual/`, {
+    void apiRequest(endpoints.monthlyEvaluations.manualDelete(id), {
       method: 'DELETE',
       body: { reason: reason.value.trim() },
       responseType: 'void',
@@ -262,7 +263,7 @@ async function openMonthlyEvaluationDialog(): Promise<void> {
 
   let catalog: MetricCatalogResponse;
   try {
-    catalog = await apiRequest<MetricCatalogResponse>('/api/v1/monthly-evaluations/catalog/');
+    catalog = await apiRequest<MetricCatalogResponse>(endpoints.monthlyEvaluations.catalog);
   } catch (error) {
     toast('دریافت فهرست شاخص‌های ارزیابی ناموفق بود', 'error', error instanceof Error ? error.message : undefined);
     return;
@@ -351,7 +352,7 @@ async function openMonthlyEvaluationDialog(): Promise<void> {
     }
     existingState.textContent = 'در حال بررسی ارزیابی قبلی…';
     try {
-      const response = await apiRequest<Pagination<MonthlyEvaluationRecord>>('/api/v1/monthly-evaluations/', {
+      const response = await apiRequest<Pagination<MonthlyEvaluationRecord>>(endpoints.monthlyEvaluations.list, {
         query: {
           page_size: 5,
           enrollment: enrollment.value,
@@ -432,7 +433,7 @@ async function openMonthlyEvaluationDialog(): Promise<void> {
       return;
     }
     save.disabled = true;
-    void apiRequest<ManualEvaluationSaveResponse>('/api/v1/monthly-evaluations/manual/', {
+    void apiRequest<ManualEvaluationSaveResponse>(endpoints.monthlyEvaluations.manual, {
       method: 'POST',
       body: {
         enrollment: enrollment.value,
