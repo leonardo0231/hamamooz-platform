@@ -86,11 +86,13 @@ def create_comprehensive_job(base_data, payload):
 
 
 def manual_payload(base_data, *, month=4, metrics=None, note="ثبت دستی"):
+    if metrics is None:
+        metrics = [{"metric_code": "EDU_01", "value": 4}]
     return {
         "enrollment": str(base_data["enrollments"][0].id),
         "month_no": month,
         "note": note,
-        "metrics": metrics if metrics is not None else [{"metric_code": "EDU_01", "value": 4}],
+        "metrics": metrics,
     }
 
 
@@ -121,7 +123,8 @@ def test_public_import_rejects_all_legacy_import_types(api_client, base_data):
 
 @pytest.mark.django_db
 def test_hardened_pipeline_rejects_short_national_id_without_padding(base_data):
-    job = create_comprehensive_job(base_data, comprehensive_payload(base_data, national_id="123456789"))
+    payload = comprehensive_payload(base_data, national_id="123456789")
+    job = create_comprehensive_job(base_data, payload)
 
     process_import_job(job.id)
     job.refresh_from_db()
@@ -155,14 +158,18 @@ def test_hardened_pipeline_cross_checks_visible_evaluation_identity(
 
 
 @pytest.mark.django_db
-def test_comprehensive_result_distinguishes_unchanged_and_never_deletes_omitted_records(base_data):
-    first = create_comprehensive_job(base_data, comprehensive_payload(base_data, marker="first"))
+def test_comprehensive_result_tracks_unchanged_without_deleting_omitted_records(base_data):
+    first = create_comprehensive_job(
+        base_data, comprehensive_payload(base_data, marker="first")
+    )
     process_import_job(first.id)
     first.refresh_from_db()
     assert first.status == ImportJob.Status.COMPLETED, first.errors
 
     existing_student = base_data["students"][0]
-    second = create_comprehensive_job(base_data, comprehensive_payload(base_data, marker="second"))
+    second = create_comprehensive_job(
+        base_data, comprehensive_payload(base_data, marker="second")
+    )
     process_import_job(second.id)
     second.refresh_from_db()
     existing_student.refresh_from_db()
@@ -180,7 +187,7 @@ def test_comprehensive_result_distinguishes_unchanged_and_never_deletes_omitted_
 
 
 @pytest.mark.django_db
-def test_manual_evaluation_create_update_preserves_omitted_metrics_and_source(api_client, base_data):
+def test_manual_evaluation_update_preserves_omitted_metrics_and_source(api_client, base_data):
     source = ImportJob.objects.create(
         organization=base_data["organization"],
         school=base_data["school1"],
@@ -278,9 +285,7 @@ def test_manual_evaluation_prevents_cross_school_write(api_client, base_data):
 
 
 @pytest.mark.django_db
-def test_manual_evaluation_soft_delete_requires_reason_is_audited_and_restorable(
-    api_client, base_data
-):
+def test_manual_evaluation_delete_is_audited_and_restorable(api_client, base_data):
     api_client.force_authenticate(base_data["manager"])
     scope = {"HTTP_X_SCHOOL_ID": str(base_data["school1"].id)}
     created = api_client.post(
@@ -311,7 +316,9 @@ def test_manual_evaluation_soft_delete_requires_reason_is_audited_and_restorable
     soft_deleted = MonthlyEvaluation.all_objects.get(pk=evaluation_id)
     assert soft_deleted.is_deleted
 
-    audit = AuditEvent.objects.get(action="evaluation.manual_deleted", entity_id=str(evaluation_id))
+    audit = AuditEvent.objects.get(
+        action="evaluation.manual_deleted", entity_id=str(evaluation_id)
+    )
     assert audit.school_id == base_data["school1"].id
     assert audit.metadata["reason"] == "[REDACTED]"
 
