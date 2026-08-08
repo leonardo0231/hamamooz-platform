@@ -34,9 +34,9 @@ test('imports route is browser-resolvable without CDN or bare module imports', a
 });
 
 test('imports upload uses the multipart field required by the API contract', async () => {
-  const source = await readFile(new URL('../src/pages/imports.ts', import.meta.url), 'utf8');
-  assert.match(source, /payload\.append\('source_file', file\)/);
-  assert.doesNotMatch(source, /payload\.append\('file', file\)/);
+  const source = await readFile(new URL('../src/pages/imports-simple.ts', import.meta.url), 'utf8');
+  assert.match(source, /payload\.append\('source_file',\s*selected\)/);
+  assert.doesNotMatch(source, /payload\.append\('file',/);
   assert.match(source, /comprehensive_school/);
   for (const sheet of ['کلاس‌بندی', 'دانش‌آموزان', 'ثبت اطلاعات']) {
     assert.match(source, new RegExp(sheet));
