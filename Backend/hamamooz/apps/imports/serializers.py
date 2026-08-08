@@ -72,18 +72,24 @@ class ImportJobSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         source = attrs.get("source_file")
         school = attrs.get("school")
+        import_type = attrs.get("import_type")
         request = self.context["request"]
+
         if school.id not in set(accessible_school_ids(request.user)):
             raise serializers.ValidationError({"school": "به این شعبه دسترسی ندارید."})
-        extension = Path(source.name).suffix.lower()
-        if extension not in {".xlsx", ".xls"}:
+
+        if import_type != ImportJob.ImportType.COMPREHENSIVE_SCHOOL:
             raise serializers.ValidationError(
-                {"source_file": "فقط فایل‌های XLSX و XLS پذیرفته می‌شوند."}
+                {
+                    "import_type": (
+                        "ورود اطلاعات جدید فقط از «فایل جامع مدرسه» انجام می‌شود. "
+                        "برای ثبت تکی از بخش «ثبت و ویرایش دستی» استفاده کنید."
+                    )
+                }
             )
-        if (
-            attrs.get("import_type") == ImportJob.ImportType.COMPREHENSIVE_SCHOOL
-            and extension != ".xlsx"
-        ):
+
+        extension = Path(source.name).suffix.lower()
+        if extension != ".xlsx":
             raise serializers.ValidationError(
                 {"source_file": "فایل جامع مدرسه فقط با قالب XLSX پذیرفته می‌شود."}
             )
@@ -91,12 +97,13 @@ class ImportJobSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"source_file": "حجم فایل نباید بیشتر از ۱۰ مگابایت باشد."}
             )
+
         checksum = uploaded_file_checksum(source)
         attrs["_checksum"] = checksum
         duplicate = ImportJob.objects.filter(
             organization=school.organization,
             school=school,
-            import_type=attrs["import_type"],
+            import_type=import_type,
             checksum=checksum,
             status__in=[
                 ImportJob.Status.QUEUED,
@@ -106,7 +113,7 @@ class ImportJobSerializer(serializers.ModelSerializer):
         ).exists()
         if duplicate:
             raise serializers.ValidationError(
-                "این فایل قبلاً برای همین شعبه و نوع Import ثبت شده است."
+                "این فایل قبلاً برای همین شعبه پردازش یا در صف پردازش ثبت شده است."
             )
         return attrs
 
@@ -123,5 +130,5 @@ class ImportJobSerializer(serializers.ModelSerializer):
                 )
         except IntegrityError as exc:
             raise serializers.ValidationError(
-                "این فایل قبلاً برای همین شعبه و نوع Import ثبت شده است."
+                "این فایل قبلاً برای همین شعبه پردازش یا در صف پردازش ثبت شده است."
             ) from exc
