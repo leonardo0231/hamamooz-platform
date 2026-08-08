@@ -38,33 +38,33 @@ jobs:
 
           if [ "${HEAD_REF}" = "backend/mvp-bootstrap" ]; then
             INVALID_FILES="$(
-              grep -Ev '^(Backend/|contracts/|docs/|\.github/|README\.md$|\.gitignore$)' changed-files.txt || true
+              grep -Ev '^(Backend/|contracts/|docs/|scripts/|\.github/|README\.md$|\.gitignore$|\.env\.example$|docker-compose\.yml$)' changed-files.txt || true
             )"
 
             if [ -n "${INVALID_FILES}" ]; then
-              echo "Backend branch contains changes outside allowed paths:"
+              echo "Backend branch contains changes outside allowed backend/integration paths:"
               echo "${INVALID_FILES}"
               exit 1
             fi
 
           elif [ "${HEAD_REF}" = "frontend/mvp-bootstrap" ]; then
             INVALID_FILES="$(
-              grep -Ev '^Frontend/' changed-files.txt || true
+              grep -Ev '^(Frontend/|contracts/|\.github/workflows/frontend-ci\.yml$)' changed-files.txt || true
             )"
 
             if [ -n "${INVALID_FILES}" ]; then
-              echo "Frontend branch contains changes outside Frontend/:"
+              echo "Frontend branch contains changes outside Frontend, API contract, or frontend CI paths:"
               echo "${INVALID_FILES}"
               exit 1
             fi
 
-          elif [ "${HEAD_REF}" = "agent/sync-backend-snapshot" ]; then
+          elif [ "${HEAD_REF}" = "docs/main-readme-api-contracts" ]; then
             INVALID_FILES="$(
-              grep -Ev '^(Backend/|Frontend/|contracts/|docs/|scripts/|outputs/|\.github/|README\.md$|\.gitignore$|\.env\.example$|docker-compose\.yml$)' changed-files.txt || true
+              grep -Ev '^(docs/|contracts/|README\.md$)' changed-files.txt || true
             )"
 
             if [ -n "${INVALID_FILES}" ]; then
-              echo "Integration branch contains changes outside allowed paths:"
+              echo "Docs branch contains changes outside documentation and contract paths:"
               echo "${INVALID_FILES}"
               exit 1
             fi
@@ -73,7 +73,7 @@ jobs:
             echo "Pull requests to main are only allowed from:"
             echo "- backend/mvp-bootstrap"
             echo "- frontend/mvp-bootstrap"
-            echo "- agent/sync-backend-snapshot"
+            echo "- docs/main-readme-api-contracts"
             exit 1
           fi
 
