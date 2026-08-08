@@ -171,11 +171,24 @@ class MonthlyEvaluationViewSet(ReadOnlyModelViewSet):
             status=status.HTTP_201_CREATED if result["created"] else status.HTTP_200_OK,
         )
 
-    @extend_schema(request=ManualEvaluationDeleteSerializer, responses={204: None})
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="reason",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                required=True,
+                description="دلیل حذف منطقی ارزیابی از نمای جاری.",
+            )
+        ],
+        request=None,
+        responses={204: None},
+    )
     @action(detail=True, methods=["delete"], url_path="manual")
     def manual_delete(self, request, pk=None):
         evaluation = self.get_object()
-        serializer = ManualEvaluationDeleteSerializer(data=request.data)
+        delete_data = request.data or {"reason": request.query_params.get("reason")}
+        serializer = ManualEvaluationDeleteSerializer(data=delete_data)
         serializer.is_valid(raise_exception=True)
         with transaction.atomic():
             deleted = delete_manual_evaluation(evaluation=evaluation)
