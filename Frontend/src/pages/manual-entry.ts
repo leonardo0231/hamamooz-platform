@@ -31,6 +31,46 @@ interface ManualGroup {
   resources: ManualResource[];
 }
 
+const fieldHints: Record<string, string> = {
+  organization: 'مجموعه را از فهرست انتخاب کنید؛ شناسه فنی لازم نیست وارد شود.',
+  school: 'مدرسه مقصد را با نام انتخاب کنید. اطلاعات در شعبه دیگری ذخیره نمی‌شود.',
+  academic_year: 'سال تحصیلی مرتبط را انتخاب کنید؛ تاریخ‌ها باید داخل همین سال باشند.',
+  term: 'نوبت تحصیلی را با عنوان انتخاب کنید.',
+  grade_level: 'پایه را با عنوان انتخاب کنید؛ نیازی به UUID نیست.',
+  class_section: 'کلاس را با نام یا کد پیدا کنید و انتخاب کنید.',
+  student: 'دانش‌آموز را با نام، کد ملی یا شماره دانش‌آموزی پیدا کنید.',
+  guardian: 'ولی را با نام یا شماره تماس پیدا کنید.',
+  enrollment: 'ثبت‌نام فعال دانش‌آموز را انتخاب کنید؛ این همان ارتباط دانش‌آموز با کلاس و سال است.',
+  teacher: 'دبیر را با نام کاربری یا نام و نام خانوادگی انتخاب کنید.',
+  user: 'کاربر را با نام یا نام کاربری انتخاب کنید.',
+  assessment: 'ارزیابی موردنظر را با عنوان انتخاب کنید.',
+  assessment_type: 'نوع ارزیابی مثل امتحان، فعالیت یا پروژه را انتخاب کنید.',
+  course_offering: 'ارائه درس یعنی ترکیب کلاس، درس، دبیر و نوبت؛ مورد مناسب را انتخاب کنید.',
+  grade_subject: 'درسِ مربوط به پایه را انتخاب کنید.',
+  subject: 'درس را از فهرست انتخاب کنید.',
+  code: 'یک کد کوتاه و ثابت بنویسید. بعداً تغییر کد می‌تواند ارتباط گزارش‌ها و فایل جامع را گیج‌کننده کند.',
+  national_id: 'دقیقاً ۱۰ رقم وارد کنید و صفر ابتدای کد ملی را حذف نکنید.',
+  student_number: 'شماره دانش‌آموزی باید در همان مدرسه و سال تحصیلی یکتا باشد.',
+  birth_date: 'تاریخ تولد را به فرم تاریخ انتخاب کنید.',
+  enrolled_on: 'تاریخ ثبت‌نام باید داخل بازه سال تحصیلی باشد.',
+  left_on: 'فقط برای ثبت‌نام خاتمه‌یافته وارد شود؛ ثبت‌نام فعال نباید تاریخ خروج داشته باشد.',
+  transfer_date: 'تاریخ انتقال باید با سابقه ثبت‌نام سازگار باشد.',
+  effective_date: 'تاریخی که تغییر کلاس از آن اعمال می‌شود.',
+  capacity: 'حداکثر تعداد دانش‌آموز فعال این کلاس.',
+  order: 'ترتیب نمایش؛ عدد کوچک‌تر زودتر نمایش داده می‌شود.',
+  status: 'اگر برای این رکورد عملیات اختصاصی تغییر وضعیت وجود دارد، همان عملیات را استفاده کنید.',
+  is_active: 'برای توقف استفاده از رکورد بدون حذف سابقه، آن را غیرفعال کنید.',
+  is_current: 'فقط سال تحصیلی جاری باید این گزینه را داشته باشد.',
+  reason: 'دلیل واقعی و قابل پیگیری بنویسید؛ این متن در تاریخچه عملیات استفاده می‌شود.',
+  phone: 'شماره تماس را بدون متن اضافه وارد کنید.',
+  phone_primary: 'شماره تماس اصلی ولی یا سرپرست.',
+  email: 'ایمیل معتبر وارد کنید؛ در صورت نداشتن ایمیل، اگر اختیاری است خالی بگذارید.',
+  weight: 'وزن این ارزیابی در محاسبه نتیجه.',
+  default_weight: 'وزن پیش‌فرض برای ارزیابی‌های این نوع.',
+  max_score: 'حداکثر نمره قابل ثبت برای این ارزیابی.',
+  value: 'مقدار نمره را داخل بازه مجاز ارزیابی وارد کنید.',
+};
+
 const groups: ManualGroup[] = [
   {
     title: '۱. ساختار مدرسه',
@@ -98,6 +138,18 @@ function managementPath(tag: string): string {
   return `/resources/${tag}`;
 }
 
+function enhanceManualDialog(dialog: HTMLDialogElement, resource: ManualResource): void {
+  const intro = dialog.querySelector<HTMLElement>('.dialog__header p');
+  if (intro) intro.textContent = `${resource.tip} فیلدهای ستاره‌دار الزامی هستند و گزینه‌های مرتبط با نام نمایش داده می‌شوند.`;
+
+  for (const [name, text] of Object.entries(fieldHints)) {
+    const control = dialog.querySelector<HTMLElement>(`[name="${CSS.escape(name)}"]`);
+    const wrapper = control?.closest<HTMLElement>('.form-field');
+    if (!control || !wrapper || wrapper.querySelector('.manual-field-hint')) continue;
+    wrapper.append(h('small', { className: 'manual-field-hint', text }));
+  }
+}
+
 function openCreate(resource: ManualResource): void {
   if (!hasWriteScope()) {
     toast('ابتدا مجموعه یا مدرسه فعال را از بالای صفحه انتخاب کنید.', 'info');
@@ -109,7 +161,7 @@ function openCreate(resource: ManualResource): void {
     navigate(managementPath(resource.tag));
     return;
   }
-  openSchemaDialog({
+  const dialog = openSchemaDialog({
     title: `ثبت دستی ${resource.title}`,
     schema: operation.requestSchema,
     multipart: operation.requestMime === 'multipart/form-data' || schemaHasBinary(operation.requestSchema),
@@ -119,6 +171,7 @@ function openCreate(resource: ManualResource): void {
       toast(`${resource.title} با موفقیت ثبت شد.`, 'success');
     },
   });
+  enhanceManualDialog(dialog, resource);
 }
 
 function resourceCard(resource: ManualResource): HTMLElement {
