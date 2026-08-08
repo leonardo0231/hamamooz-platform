@@ -19,7 +19,7 @@ from hamamooz.apps.accounts.models import Role
 from hamamooz.apps.core.viewsets import AuditedModelViewSet
 
 from .models import ImportJob
-from .serializers import ImportJobSerializer
+from .serializers import ImportJobCreateSerializer, ImportJobSerializer
 from .tasks import process_import_job_task
 
 IMPORTERS = [
@@ -43,6 +43,11 @@ class ImportJobViewSet(AuditedModelViewSet):
         "template": IMPORTERS,
         "errors": IMPORTERS,
     }
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return ImportJobCreateSerializer
+        return ImportJobSerializer
 
     def get_queryset(self):
         return ImportJob.objects.filter(
@@ -98,8 +103,8 @@ class ImportJobViewSet(AuditedModelViewSet):
                 name="template_type",
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
-                enum=[choice.value for choice in ImportJob.ImportType],
-            )
+                enum=[ImportJob.ImportType.COMPREHENSIVE_SCHOOL],
+            ),
         ],
         responses={
             (200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"): bytes
@@ -107,22 +112,31 @@ class ImportJobViewSet(AuditedModelViewSet):
     )
     @action(detail=False, methods=["get"], url_path=r"templates/(?P<template_type>[^/.]+)")
     def template(self, request, template_type=None):
-        valid_types = {choice.value for choice in ImportJob.ImportType}
-        if template_type not in valid_types:
+        if template_type != ImportJob.ImportType.COMPREHENSIVE_SCHOOL:
             return Response(
-                {"detail": "نوع Template معتبر نیست."}, status=status.HTTP_404_NOT_FOUND
+                {
+                    "detail": (
+                        "فقط قالب «فایل جامع مدرسه» برای ورود گروهی اطلاعات فعال است. "
+                        "برای ثبت تکی از بخش ثبت و ویرایش دستی استفاده کنید."
+                    )
+                },
+                status=status.HTTP_404_NOT_FOUND,
             )
         template_path = (
-            Path(settings.BASE_DIR) / "docs" / "import_templates" / f"{template_type}_template.xlsx"
+            Path(settings.BASE_DIR)
+            / "docs"
+            / "import_templates"
+            / "comprehensive_school_template.xlsx"
         )
         if not template_path.exists():
             return Response(
-                {"detail": "Template هنوز تولید نشده است."}, status=status.HTTP_404_NOT_FOUND
+                {"detail": "قالب جامع مدرسه هنوز تولید نشده است."},
+                status=status.HTTP_404_NOT_FOUND,
             )
         return FileResponse(
             template_path.open("rb"),
             as_attachment=True,
-            filename=f"{slugify(template_type)}_template.xlsx",
+            filename="comprehensive_school_template.xlsx",
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
 
@@ -132,15 +146,29 @@ class ImportJobViewSet(AuditedModelViewSet):
         workbook = Workbook()
         sheet = workbook.active
         sheet.title = "errors"
-        sheet.append(["row", "message"])
+        sheet.append(["sheet", "row", "column", "code", "message"])
         for item in job.errors or []:
-            sheet.append([item.get("row"), item.get("message", "")])
+            sheet.append(
+                [
+                    item.get("sheet", ""),
+                    item.get("row"),
+                    item.get("column", ""),
+                    item.get("code", ""),
+                    item.get("message", ""),
+                ]
+            )
+        scope_sheet = workbook.create_sheet("scope")
+        scope_sheet.append(["مجموعه", job.organization.name])
+        scope_sheet.append(["مدرسه", job.school.name])
         output = BytesIO()
         workbook.save(output)
         output.seek(0)
         return FileResponse(
             output,
             as_attachment=True,
-            filename=f"{slugify(str(job.id))}_errors.xlsx",
+            filename=(
+                f"{slugify(job.organization.name, allow_unicode=True)}-"
+                f"{slugify(job.school.name, allow_unicode=True)}-errors.xlsx"
+            ),
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )

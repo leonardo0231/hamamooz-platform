@@ -43,6 +43,7 @@
     <div>{% if report.school.logo_url %}<img class="logo" src="{{ report.school.logo_url }}" alt="لوگو">{% endif %}</div>
     <div>
       <h1>کارنامه تحصیلی</h1>
+      <div class="school-name">{{ report.organization.name }}</div>
       <div class="school-name">{{ report.school.name }}{% if report.school.branch %} - {{ report.school.branch }}{% endif %}</div>
     </div>
     <div></div>

@@ -6,6 +6,7 @@ from uuid import uuid4
 import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from openpyxl import load_workbook
 
 from hamamooz.apps.academics.models import Assessment, Score
 from hamamooz.apps.academics.services import bulk_upsert_scores
@@ -53,6 +54,25 @@ def test_seed_demo_is_idempotent_and_generates_all_import_templates(settings, tm
 def test_seed_demo_requires_explicit_admin_password():
     with pytest.raises(CommandError):
         call_command("seed_demo", admin_password=None, verbosity=0)
+
+
+@pytest.mark.django_db
+def test_generate_import_templates_cli_supports_smart_class_template(base_data, tmp_path):
+    output_path = tmp_path / "smart.xlsx"
+    stdout = StringIO()
+
+    call_command(
+        "generate_import_templates",
+        class_section=str(base_data["class1"].id),
+        output=str(output_path),
+        stdout=stdout,
+    )
+
+    assert str(output_path.resolve()) in stdout.getvalue()
+    workbook = load_workbook(output_path, read_only=False)
+    assert workbook["__hamamooz_meta"]["B1"].value == "2.0"
+    assert workbook["ثبت اطلاعات"].max_row == 2 + len(base_data["enrollments"]) * 12
+    workbook.close()
 
 
 @pytest.mark.django_db

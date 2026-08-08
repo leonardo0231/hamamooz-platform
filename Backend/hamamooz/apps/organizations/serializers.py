@@ -33,20 +33,39 @@ class CleanModelSerializer(serializers.ModelSerializer):
 
 
 class OrganizationSerializer(CleanModelSerializer):
+    display_name = serializers.SerializerMethodField()
+
     class Meta:
         model = Organization
-        fields = ["id", "name", "code", "logo", "is_active", "created_at", "updated_at"]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        fields = [
+            "id",
+            "name",
+            "display_name",
+            "code",
+            "logo",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "display_name", "created_at", "updated_at"]
+
+    def get_display_name(self, obj) -> str:
+        return f"{obj.name} · کد {obj.code}"
 
 
 class SchoolSerializer(CleanModelSerializer):
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
+    display_name = serializers.SerializerMethodField()
+
     class Meta:
         model = School
         fields = [
             "id",
             "organization",
+            "organization_name",
             "code",
             "name",
+            "display_name",
             "official_name",
             "phone",
             "email",
@@ -57,40 +76,88 @@ class SchoolSerializer(CleanModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "organization_name",
+            "display_name",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_display_name(self, obj) -> str:
+        return f"{obj.name} · {obj.organization.name} · کد {obj.code}"
 
 
 class AcademicYearSerializer(CleanModelSerializer):
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
+
     class Meta:
         model = AcademicYear
         fields = "__all__"
-        read_only_fields = ["id", "created_at", "updated_at", "is_deleted", "deleted_at"]
+        read_only_fields = [
+            "id",
+            "organization_name",
+            "created_at",
+            "updated_at",
+            "is_deleted",
+            "deleted_at",
+        ]
 
 
 class TermSerializer(CleanModelSerializer):
+    organization_name = serializers.CharField(
+        source="academic_year.organization.name", read_only=True
+    )
+    academic_year_title = serializers.CharField(source="academic_year.title", read_only=True)
+
     class Meta:
         model = Term
         fields = "__all__"
-        read_only_fields = ["id", "created_at", "updated_at", "is_deleted", "deleted_at"]
+        read_only_fields = [
+            "id",
+            "organization_name",
+            "academic_year_title",
+            "created_at",
+            "updated_at",
+            "is_deleted",
+            "deleted_at",
+        ]
 
 
 class GradeLevelSerializer(CleanModelSerializer):
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
+
     class Meta:
         model = GradeLevel
         fields = "__all__"
-        read_only_fields = ["id", "created_at", "updated_at", "is_deleted", "deleted_at"]
+        read_only_fields = [
+            "id",
+            "organization_name",
+            "created_at",
+            "updated_at",
+            "is_deleted",
+            "deleted_at",
+        ]
 
 
 class ClassSectionSerializer(CleanModelSerializer):
     enrolled_count = serializers.IntegerField(read_only=True)
+    school_name = serializers.CharField(source="school.name", read_only=True)
+    organization_name = serializers.CharField(source="school.organization.name", read_only=True)
+    academic_year_title = serializers.CharField(source="academic_year.title", read_only=True)
+    grade_title = serializers.CharField(source="grade_level.title", read_only=True)
 
     class Meta:
         model = ClassSection
         fields = [
             "id",
             "school",
+            "school_name",
+            "organization_name",
             "academic_year",
+            "academic_year_title",
             "grade_level",
+            "grade_title",
             "code",
             "title",
             "capacity",
@@ -99,7 +166,16 @@ class ClassSectionSerializer(CleanModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "enrolled_count", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "school_name",
+            "organization_name",
+            "academic_year_title",
+            "grade_title",
+            "enrolled_count",
+            "created_at",
+            "updated_at",
+        ]
 
     def validate(self, attrs):
         attrs = super().validate(attrs)

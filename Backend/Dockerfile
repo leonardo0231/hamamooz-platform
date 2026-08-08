@@ -1,8 +1,21 @@
-FROM python:3.12-slim-bookworm AS runtime
+FROM python:3.12-slim-bookworm AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
+
+RUN python -m venv /opt/venv
+
+COPY requirements/production.txt requirements/base.txt /tmp/requirements/
+RUN /opt/venv/bin/pip install --upgrade pip \
+    && /opt/venv/bin/pip install -r /tmp/requirements/production.txt
+
+FROM python:3.12-slim-bookworm AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PATH="/opt/venv/bin:$PATH"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
@@ -20,8 +33,7 @@ RUN groupadd --system --gid 10001 hamamooz \
 
 WORKDIR /app
 
-COPY requirements/production.txt requirements/base.txt /app/requirements/
-RUN pip install --upgrade pip && pip install -r requirements/production.txt
+COPY --from=builder /opt/venv /opt/venv
 
 COPY . /app
 RUN chmod +x /app/scripts/*.sh \

@@ -66,3 +66,58 @@ def test_openapi_security_requirements_are_not_duplicated():
             assert len(normalized) == len(set(normalized)), (
                 f"duplicate security for {method} {path}"
             )
+
+
+def test_dashboard_and_attendance_policy_openapi_contracts_are_typed():
+    schema = SchemaGenerator().get_schema(request=None, public=True)
+
+    dashboard = schema["paths"]["/api/v1/dashboard/summary/"]["get"]
+    assert _json_response_schema(dashboard, 200) == {
+        "$ref": "#/components/schemas/DashboardSummary"
+    }
+    dashboard_schema = schema["components"]["schemas"]["DashboardSummary"]
+    assert dashboard_schema["properties"]["counts"] == {
+        "$ref": "#/components/schemas/DashboardCounts"
+    }
+    assert dashboard_schema["properties"]["latest_activities"]["type"] == "array"
+
+    policy = schema["components"]["schemas"]["AttendancePolicyRequest"]
+    channels = policy["properties"]["notification_channels"]
+    assert channels["type"] == "array"
+    assert channels["items"] == {"$ref": "#/components/schemas/NotificationChannelsEnum"}
+
+
+def test_manual_evaluation_and_comprehensive_import_openapi_contracts_are_explicit():
+    schema = SchemaGenerator().get_schema(request=None, public=True)
+    paths = schema["paths"]
+
+    catalog = paths["/api/v1/monthly-evaluations/catalog/"]["get"]
+    assert _json_response_schema(catalog, 200) == {"$ref": "#/components/schemas/EvaluationCatalog"}
+
+    manual = paths["/api/v1/monthly-evaluations/manual/"]["post"]
+    assert manual["requestBody"]["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/ManualMonthlyEvaluationInputRequest"
+    }
+    assert _json_response_schema(manual, 200) == {
+        "$ref": "#/components/schemas/ManualMonthlyEvaluationResponse"
+    }
+    assert _json_response_schema(manual, 201) == {
+        "$ref": "#/components/schemas/ManualMonthlyEvaluationResponse"
+    }
+
+    manual_delete = paths["/api/v1/monthly-evaluations/{id}/manual/"]["delete"]
+    reason = next(item for item in manual_delete["parameters"] if item["name"] == "reason")
+    assert reason["in"] == "query"
+    assert reason["required"] is True
+    assert reason["schema"]["type"] == "string"
+    assert "204" in manual_delete["responses"]
+
+    import_create = paths["/api/v1/imports/"]["post"]
+    create_schema = import_create["requestBody"]["content"]["multipart/form-data"]["schema"]
+    assert create_schema == {"$ref": "#/components/schemas/ImportJobCreateRequest"}
+    import_request = schema["components"]["schemas"]["ImportJobCreateRequest"]
+    import_type = import_request["properties"]["import_type"]
+    if "$ref" in import_type:
+        enum_name = import_type["$ref"].rsplit("/", 1)[-1]
+        import_type = schema["components"]["schemas"][enum_name]
+    assert import_type["enum"] == ["comprehensive_school"]

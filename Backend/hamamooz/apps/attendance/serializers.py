@@ -22,7 +22,13 @@ from .permissions import can_manage_session
 
 class AttendancePolicySerializer(serializers.ModelSerializer):
     school_name = serializers.CharField(source="school.name", read_only=True)
+    organization_name = serializers.CharField(source="school.organization.name", read_only=True)
     academic_year_title = serializers.CharField(source="academic_year.title", read_only=True)
+    notification_channels = serializers.ListField(
+        child=serializers.ChoiceField(choices=["in_app", "email", "sms"]),
+        allow_empty=True,
+        required=False,
+    )
 
     class Meta:
         model = AttendancePolicy
@@ -30,6 +36,7 @@ class AttendancePolicySerializer(serializers.ModelSerializer):
             "id",
             "school",
             "school_name",
+            "organization_name",
             "academic_year",
             "academic_year_title",
             "warning_absence_count",
@@ -48,6 +55,7 @@ class AttendancePolicySerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "school_name",
+            "organization_name",
             "academic_year_title",
             "created_at",
             "updated_at",
@@ -78,6 +86,7 @@ class AttendancePolicySerializer(serializers.ModelSerializer):
 
 class AttendanceSessionSerializer(serializers.ModelSerializer):
     school_name = serializers.CharField(source="school.name", read_only=True)
+    organization_name = serializers.CharField(source="school.organization.name", read_only=True)
     class_title = serializers.CharField(source="class_section.title", read_only=True)
     subject_title = serializers.CharField(
         source="course_offering.grade_subject.subject.title", read_only=True
@@ -94,6 +103,7 @@ class AttendanceSessionSerializer(serializers.ModelSerializer):
             "id",
             "school",
             "school_name",
+            "organization_name",
             "academic_year",
             "class_section",
             "class_title",
@@ -119,6 +129,8 @@ class AttendanceSessionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "school_name",
+            "organization_name",
             "status",
             "taken_by",
             "taken_by_name",
@@ -348,6 +360,7 @@ class AttendanceAlertSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="enrollment.student.full_name", read_only=True)
     class_title = serializers.CharField(source="enrollment.class_section.title", read_only=True)
     school_name = serializers.CharField(source="school.name", read_only=True)
+    organization_name = serializers.CharField(source="school.organization.name", read_only=True)
 
     class Meta:
         model = AttendanceAlert
@@ -356,6 +369,7 @@ class AttendanceAlertSerializer(serializers.ModelSerializer):
             "policy",
             "school",
             "school_name",
+            "organization_name",
             "academic_year",
             "enrollment",
             "student",
@@ -383,6 +397,7 @@ class ParentNotificationSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="student.full_name", read_only=True)
     guardian_name = serializers.CharField(source="guardian.full_name", read_only=True)
     school_name = serializers.CharField(source="school.name", read_only=True)
+    organization_name = serializers.CharField(source="school.organization.name", read_only=True)
 
     class Meta:
         model = ParentNotification
@@ -390,6 +405,7 @@ class ParentNotificationSerializer(serializers.ModelSerializer):
             "id",
             "school",
             "school_name",
+            "organization_name",
             "student",
             "student_name",
             "enrollment",
@@ -478,8 +494,8 @@ class StudentAttendanceReportResponseSerializer(serializers.Serializer):
 class ClassAttendanceIdentitySerializer(serializers.Serializer):
     id = serializers.UUIDField(read_only=True)
     title = serializers.CharField(read_only=True)
-    school = serializers.UUIDField(read_only=True)
     school_name = serializers.CharField(read_only=True)
+    organization_name = serializers.CharField(read_only=True)
 
 
 class ClassAttendanceSummarySerializer(serializers.Serializer):
@@ -510,8 +526,8 @@ class ClassAttendanceReportResponseSerializer(serializers.Serializer):
 
 
 class SchoolAttendanceIdentitySerializer(serializers.Serializer):
-    id = serializers.UUIDField(read_only=True)
     name = serializers.CharField(read_only=True)
+    organization_name = serializers.CharField(read_only=True)
 
 
 class AcademicYearIdentitySerializer(serializers.Serializer):

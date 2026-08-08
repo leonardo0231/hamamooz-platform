@@ -1,33 +1,93 @@
 from io import BytesIO
+from pathlib import Path
 
 import pytest
+from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
-from openpyxl import Workbook
+from openpyxl import load_workbook
 
 from hamamooz.apps.academics.calculations import recalculate_class_term
 from hamamooz.apps.academics.models import Assessment, Score
 from hamamooz.apps.accounts.models import Role, RoleAssignment, User
 from hamamooz.apps.imports.models import ImportJob
-from hamamooz.apps.imports.services import EXPECTED_HEADERS
 from hamamooz.apps.organizations.models import ClassSection
 from hamamooz.apps.reports.models import ReportArchive
 from hamamooz.apps.reports.services import generate_report
 from hamamooz.apps.students.models import Enrollment, Guardian
 
 
-def xlsx_upload(rows):
-    workbook = Workbook()
-    sheet = workbook.active
-    sheet.append(EXPECTED_HEADERS[ImportJob.ImportType.STUDENTS])
-    for row in rows:
-        sheet.append(row)
+def comprehensive_upload(base_data):
+    template = (
+        Path(settings.BASE_DIR) / "docs" / "import_templates" / "comprehensive_school_template.xlsx"
+    )
+    workbook = load_workbook(template)
+    classes = workbook["کلاس‌بندی"]
+    students = workbook["دانش‌آموزان"]
+    evaluations = workbook["ثبت اطلاعات"]
+
+    class_code = "7-api-import"
+    classes["B5"] = base_data["school1"].code
+    classes["C5"] = base_data["year"].code
+    classes["D5"] = class_code
+    classes["E5"] = "هفتم API Import"
+    classes["F5"] = base_data["grade"].title
+    classes["G5"] = 30
+
+    students["B5"] = "1"
+    students["C5"] = "0012345689"
+    students["D5"] = "api-103"
+    students["E5"] = "ایمپورت"
+    students["F5"] = "API"
+    students["G5"] = "دختر"
+    students["H5"] = "2012-03-04"
+    students["I5"] = class_code
+
+    evaluations["C5"] = "1"
+    evaluations["D5"] = "0012345689"
+    evaluations["E5"] = "ایمپورت API"
+    evaluations["F5"] = class_code
+    evaluations["G5"] = 4
+
     output = BytesIO()
     workbook.save(output)
+    workbook.close()
     return SimpleUploadedFile(
-        "students.xlsx",
+        "comprehensive_school.xlsx",
         output.getvalue(),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+@pytest.mark.django_db
+def test_import_template_download_is_authorized_valid_xlsx(api_client, base_data):
+    url = "/api/v1/imports/templates/comprehensive_school/"
+
+    unauthenticated = api_client.get(url)
+    assert unauthenticated.status_code == 401
+
+    api_client.force_authenticate(base_data["teacher1"])
+    authenticated = api_client.get(url)
+    assert authenticated.status_code == 200
+    authenticated.close()
+
+    api_client.force_authenticate(base_data["manager"])
+    missing = api_client.get("/api/v1/imports/templates/not-a-template/")
+    assert missing.status_code == 404
+
+    response = api_client.get(url)
+    payload = b"".join(response.streaming_content)
+    assert response.status_code == 200
+    assert response["Content-Type"] == (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    assert response["Content-Disposition"] == (
+        'attachment; filename="comprehensive_school_template.xlsx"'
+    )
+    assert len(payload) > 100
+    assert payload.startswith(b"PK")
+    workbook = load_workbook(BytesIO(payload), read_only=True)
+    assert {"کلاس‌بندی", "دانش‌آموزان", "ثبت اطلاعات"}.issubset(workbook.sheetnames)
+    workbook.close()
 
 
 def create_assessment_via_api(api_client, base_data, title="ارزیابی API"):
@@ -220,8 +280,7 @@ def test_account_role_password_logout_and_deactivation_api(api_client, base_data
 
 @pytest.mark.django_db
 def test_import_create_duplicate_and_retry_api_paths(api_client, base_data):
-    rows = [["0012345689", "ایمپورت", "API", "2012-03-04", "female"]]
-    source = xlsx_upload(rows)
+    source = comprehensive_upload(base_data)
     source_bytes = source.read()
     source.seek(0)
     api_client.force_authenticate(base_data["manager"])
@@ -229,7 +288,7 @@ def test_import_create_duplicate_and_retry_api_paths(api_client, base_data):
         "/api/v1/imports/",
         {
             "school": str(base_data["school1"].id),
-            "import_type": ImportJob.ImportType.STUDENTS,
+            "import_type": ImportJob.ImportType.COMPREHENSIVE_SCHOOL,
             "source_file": source,
         },
         format="multipart",
@@ -242,9 +301,9 @@ def test_import_create_duplicate_and_retry_api_paths(api_client, base_data):
         "/api/v1/imports/",
         {
             "school": str(base_data["school1"].id),
-            "import_type": ImportJob.ImportType.STUDENTS,
+            "import_type": ImportJob.ImportType.COMPREHENSIVE_SCHOOL,
             "source_file": SimpleUploadedFile(
-                "students.xlsx",
+                "comprehensive_school.xlsx",
                 source_bytes,
                 content_type=("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
             ),

@@ -94,6 +94,9 @@ def build_student_snapshot(enrollment, term, *, recalculate=True):
     school = enrollment.school
     logo_url = school.logo.url if school.logo else ""
     return {
+        "organization": {
+            "name": school.organization.name,
+        },
         "school": {
             "name": school.official_name or school.name,
             "branch": school.name if school.official_name else "",
@@ -191,7 +194,7 @@ def generate_report(report_id):
     )
     with transaction.atomic():
         report = (
-            ReportArchive.objects.select_for_update()
+            ReportArchive.objects.select_for_update(of=("self",))
             .select_related("term", "enrollment", "class_section")
             .get(pk=report_id)
         )
@@ -228,7 +231,12 @@ def generate_report(report_id):
         pdf = render_report_pdf(snapshot)
         first = snapshot["reports"][0] if snapshot["reports"] else None
         formula_version = first["summary"]["formula_version"] if first else ""
-        filename = f"{report.report_type}_{report.id}.pdf"
+        filename = (
+            f"{report.report_type}_"
+            f"{report.organization.code}_"
+            f"{report.school.code}_"
+            f"{report.created_at:%Y-%m-%d}.pdf"
+        )
         report.output_file.save(filename, ContentFile(pdf), save=False)
         stored_name = report.output_file.name
         with transaction.atomic():

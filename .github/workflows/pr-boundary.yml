@@ -34,7 +34,7 @@ jobs:
           echo "Head branch: ${HEAD_REF}"
           echo "Changed files:"
 
-          git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" | tee changed-files.txt
+          git -c core.quotePath=false diff --name-only "${BASE_SHA}" "${HEAD_SHA}" | tee changed-files.txt
 
           if [ "${HEAD_REF}" = "backend/mvp-bootstrap" ]; then
             INVALID_FILES="$(
@@ -58,10 +58,22 @@ jobs:
               exit 1
             fi
 
+          elif [ "${HEAD_REF}" = "agent/sync-backend-snapshot" ]; then
+            INVALID_FILES="$(
+              grep -Ev '^(Backend/|Frontend/|contracts/|docs/|scripts/|outputs/|\.github/|README\.md$|\.gitignore$|\.env\.example$|docker-compose\.yml$)' changed-files.txt || true
+            )"
+
+            if [ -n "${INVALID_FILES}" ]; then
+              echo "Integration branch contains changes outside allowed paths:"
+              echo "${INVALID_FILES}"
+              exit 1
+            fi
+
           else
             echo "Pull requests to main are only allowed from:"
             echo "- backend/mvp-bootstrap"
             echo "- frontend/mvp-bootstrap"
+            echo "- agent/sync-backend-snapshot"
             exit 1
           fi
 

@@ -20,13 +20,17 @@ def uploaded_file_checksum(uploaded_file):
 class ImportJobSerializer(serializers.ModelSerializer):
     requested_by_name = serializers.CharField(source="requested_by.get_full_name", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
+    school_name = serializers.CharField(source="school.name", read_only=True)
 
     class Meta:
         model = ImportJob
         fields = [
             "id",
             "organization",
+            "organization_name",
             "school",
+            "school_name",
             "import_type",
             "status",
             "status_display",
@@ -38,6 +42,7 @@ class ImportJobSerializer(serializers.ModelSerializer):
             "successful_rows",
             "error_count",
             "errors",
+            "result_summary",
             "started_at",
             "finished_at",
             "created_at",
@@ -46,6 +51,8 @@ class ImportJobSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "organization",
+            "organization_name",
+            "school_name",
             "status",
             "status_display",
             "checksum",
@@ -55,6 +62,7 @@ class ImportJobSerializer(serializers.ModelSerializer):
             "successful_rows",
             "error_count",
             "errors",
+            "result_summary",
             "started_at",
             "finished_at",
             "created_at",
@@ -64,24 +72,38 @@ class ImportJobSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         source = attrs.get("source_file")
         school = attrs.get("school")
+        import_type = attrs.get("import_type")
         request = self.context["request"]
+
         if school.id not in set(accessible_school_ids(request.user)):
             raise serializers.ValidationError({"school": "به این شعبه دسترسی ندارید."})
-        extension = Path(source.name).suffix.lower()
-        if extension not in {".xlsx", ".xls"}:
+
+        if import_type != ImportJob.ImportType.COMPREHENSIVE_SCHOOL:
             raise serializers.ValidationError(
-                {"source_file": "فقط فایل‌های XLSX و XLS پذیرفته می‌شوند."}
+                {
+                    "import_type": (
+                        "ورود اطلاعات جدید فقط از «فایل جامع مدرسه» انجام می‌شود. "
+                        "برای ثبت تکی از بخش «ثبت و ویرایش دستی» استفاده کنید."
+                    )
+                }
+            )
+
+        extension = Path(source.name).suffix.lower()
+        if extension != ".xlsx":
+            raise serializers.ValidationError(
+                {"source_file": "فایل جامع مدرسه فقط با قالب XLSX پذیرفته می‌شود."}
             )
         if source.size > 10 * 1024 * 1024:
             raise serializers.ValidationError(
                 {"source_file": "حجم فایل نباید بیشتر از ۱۰ مگابایت باشد."}
             )
+
         checksum = uploaded_file_checksum(source)
         attrs["_checksum"] = checksum
         duplicate = ImportJob.objects.filter(
             organization=school.organization,
             school=school,
-            import_type=attrs["import_type"],
+            import_type=import_type,
             checksum=checksum,
             status__in=[
                 ImportJob.Status.QUEUED,
@@ -91,7 +113,7 @@ class ImportJobSerializer(serializers.ModelSerializer):
         ).exists()
         if duplicate:
             raise serializers.ValidationError(
-                "این فایل قبلاً برای همین شعبه و نوع Import ثبت شده است."
+                "این فایل قبلاً برای همین شعبه پردازش یا در صف پردازش ثبت شده است."
             )
         return attrs
 
@@ -108,5 +130,19 @@ class ImportJobSerializer(serializers.ModelSerializer):
                 )
         except IntegrityError as exc:
             raise serializers.ValidationError(
-                "این فایل قبلاً برای همین شعبه و نوع Import ثبت شده است."
+                "این فایل قبلاً برای همین شعبه پردازش یا در صف پردازش ثبت شده است."
             ) from exc
+
+
+class ImportJobCreateSerializer(ImportJobSerializer):
+    import_type = serializers.ChoiceField(
+        choices=[
+            (
+                ImportJob.ImportType.COMPREHENSIVE_SCHOOL,
+                "فایل جامع مدرسه",
+            )
+        ],
+        error_messages={
+            "invalid_choice": "ورود اطلاعات جدید فقط از «فایل جامع مدرسه» انجام می‌شود."
+        },
+    )

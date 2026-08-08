@@ -310,7 +310,7 @@ class AttendancePolicyViewSet(AuditedModelViewSet):
     def get_queryset(self):
         return AttendancePolicy.objects.filter(
             school_id__in=selected_school_ids(self.request)
-        ).select_related("school", "academic_year")
+        ).select_related("school__organization", "academic_year")
 
 
 class AttendanceAlertViewSet(viewsets.ReadOnlyModelViewSet):
@@ -340,7 +340,7 @@ class AttendanceAlertViewSet(viewsets.ReadOnlyModelViewSet):
             enrollment__class_section_id__in=class_ids,
         ).select_related(
             "policy",
-            "school",
+            "school__organization",
             "academic_year",
             "enrollment__student",
             "enrollment__class_section",
@@ -389,7 +389,7 @@ class ParentNotificationViewSet(viewsets.ReadOnlyModelViewSet):
             school_id__in=school_ids,
             enrollment__class_section_id__in=class_ids,
         ).select_related(
-            "school",
+            "school__organization",
             "student",
             "enrollment__class_section",
             "guardian",
@@ -499,7 +499,7 @@ class AttendanceReportViewSet(viewsets.GenericViewSet):
             ClassSection.objects.filter(
                 pk=serializer.validated_data["class_section"], id__in=class_ids
             )
-            .select_related("school", "academic_year", "grade_level")
+            .select_related("school__organization", "academic_year", "grade_level")
             .first()
         )
         if not class_section:
@@ -555,8 +555,8 @@ class AttendanceReportViewSet(viewsets.GenericViewSet):
                 "class_section": {
                     "id": str(class_section.id),
                     "title": class_section.title,
-                    "school": str(class_section.school_id),
                     "school_name": class_section.school.name,
+                    "organization_name": class_section.school.organization.name,
                 },
                 "date_from": date_from,
                 "date_to": date_to,
@@ -579,9 +579,13 @@ class AttendanceReportViewSet(viewsets.GenericViewSet):
     def school(self, request):
         serializer = SchoolAttendanceReportQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
-        school = School.objects.filter(
-            pk=serializer.validated_data["school"], id__in=selected_school_ids(request)
-        ).first()
+        school = (
+            School.objects.filter(
+                pk=serializer.validated_data["school"], id__in=selected_school_ids(request)
+            )
+            .select_related("organization")
+            .first()
+        )
         if not school:
             raise PermissionDenied("شعبه در محدوده دسترسی شما نیست.")
         year = AcademicYear.objects.filter(
@@ -650,7 +654,10 @@ class AttendanceReportViewSet(viewsets.GenericViewSet):
             )
         return Response(
             {
-                "school": {"id": str(school.id), "name": school.name},
+                "school": {
+                    "name": school.name,
+                    "organization_name": school.organization.name,
+                },
                 "academic_year": {"id": str(year.id), "title": year.title},
                 "date_from": date_from,
                 "date_to": date_to,

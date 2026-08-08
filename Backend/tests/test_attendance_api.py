@@ -342,7 +342,11 @@ def test_school_report_aggregates_accessible_classes(api_client, base_data):
     )
 
     assert response.status_code == 200, response.data
-    assert response.data["school"]["id"] == str(base_data["school1"].id)
+    assert response.data["school"] == {
+        "name": base_data["school1"].name,
+        "organization_name": base_data["organization"].name,
+    }
+    assert str(base_data["school1"].id) not in str(response.data["school"])
     assert response.data["academic_year"]["id"] == str(base_data["year"].id)
     assert response.data["summary"] == {
         "class_count": 1,

@@ -16,6 +16,7 @@ class StudentGuardianSerializer(serializers.ModelSerializer):
 
 class StudentSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(read_only=True)
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
     guardians = StudentGuardianSerializer(source="guardian_links", many=True, read_only=True)
 
     class Meta:
@@ -23,6 +24,7 @@ class StudentSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "organization",
+            "organization_name",
             "national_id",
             "first_name",
             "last_name",
@@ -38,6 +40,7 @@ class StudentSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "organization_name",
             "full_name",
             "status",
             "guardians",
@@ -56,6 +59,7 @@ class StudentSerializer(serializers.ModelSerializer):
 
 class GuardianSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(read_only=True)
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
     students = StudentGuardianSerializer(source="student_links", many=True, read_only=True)
 
     class Meta:
@@ -63,6 +67,7 @@ class GuardianSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "organization",
+            "organization_name",
             "national_id",
             "first_name",
             "last_name",
@@ -75,7 +80,14 @@ class GuardianSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "full_name", "students", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "organization_name",
+            "full_name",
+            "students",
+            "created_at",
+            "updated_at",
+        ]
 
     def validate_organization(self, value):
         if self.instance and value.pk != self.instance.organization_id:
@@ -97,6 +109,7 @@ class EnrollmentEventSerializer(serializers.ModelSerializer):
 class EnrollmentSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="student.full_name", read_only=True)
     school_name = serializers.CharField(source="school.name", read_only=True)
+    organization_name = serializers.CharField(source="school.organization.name", read_only=True)
     grade_title = serializers.CharField(source="grade_level.title", read_only=True)
     class_title = serializers.CharField(source="class_section.title", read_only=True)
     events = EnrollmentEventSerializer(many=True, read_only=True)
@@ -109,6 +122,7 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             "student_name",
             "school",
             "school_name",
+            "organization_name",
             "academic_year",
             "grade_level",
             "grade_title",
@@ -126,6 +140,7 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             "id",
             "student_name",
             "school_name",
+            "organization_name",
             "grade_title",
             "class_title",
             "events",

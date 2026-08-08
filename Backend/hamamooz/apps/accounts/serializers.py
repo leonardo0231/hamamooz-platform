@@ -17,6 +17,10 @@ from .models import Role, RoleAssignment, User
 
 class RoleAssignmentSerializer(serializers.ModelSerializer):
     role_display = serializers.CharField(source="get_role_display", read_only=True)
+    organization_name = serializers.CharField(
+        source="organization.name", read_only=True, allow_null=True
+    )
+    school_name = serializers.CharField(source="school.name", read_only=True, allow_null=True)
 
     class Meta:
         model = RoleAssignment
@@ -24,14 +28,23 @@ class RoleAssignmentSerializer(serializers.ModelSerializer):
             "id",
             "user",
             "organization",
+            "organization_name",
             "school",
+            "school_name",
             "role",
             "role_display",
             "is_active",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "role_display", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "organization_name",
+            "school_name",
+            "role_display",
+            "created_at",
+            "updated_at",
+        ]
 
     def validate(self, attrs):
         instance = self.instance or RoleAssignment()
