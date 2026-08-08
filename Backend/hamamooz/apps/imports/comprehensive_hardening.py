@@ -3,7 +3,7 @@ from io import BytesIO
 from openpyxl import load_workbook
 
 from hamamooz.apps.evaluations.catalog import FRAMEWORK_VERSION
-from hamamooz.apps.evaluations.models import MetricScore, MonthlyEvaluation
+from hamamooz.apps.evaluations.models import MonthlyEvaluation
 from hamamooz.apps.organizations.models import ClassSection
 from hamamooz.apps.students.models import Enrollment, Student
 
@@ -34,7 +34,8 @@ def _strict_national_id(value) -> str:
     national_id = _text(value)
     if len(national_id) != 10 or not national_id.isdigit():
         raise ValueError(
-            "کد ملی باید دقیقاً ۱۰ رقم باشد؛ صفر ابتدای کد ملی را حذف نکنید و ستون را Text نگه دارید."
+            "کد ملی باید دقیقاً ۱۰ رقم باشد؛ صفر ابتدای کد ملی را حذف نکنید "
+            "و ستون را Text نگه دارید."
         )
     return national_id
 
@@ -142,7 +143,8 @@ def validate_hardened_comprehensive_workbook(job, rows):
                             row,
                             "کد ملی",
                             "evaluation_identity_mismatch",
-                            "کد ملی ردیف ارزیابی با دانش‌آموز متناظر در شیت «دانش‌آموزان» یکسان نیست.",
+                            "کد ملی ردیف ارزیابی با دانش‌آموز متناظر در شیت "
+                            "«دانش‌آموزان» یکسان نیست.",
                         )
                     )
 
@@ -274,7 +276,9 @@ def _snapshot_change_counts(job, prepared):
         if evaluation is None:
             metric_created += len(item["metrics"])
             continue
-        existing_metrics = {score.metric_code: score.value for score in evaluation.metric_scores.all()}
+        existing_metrics = {
+            score.metric_code: score.value for score in evaluation.metric_scores.all()
+        }
         metrics_same = True
         for code, value in item["metrics"].items():
             if code not in existing_metrics:
