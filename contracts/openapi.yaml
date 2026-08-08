@@ -3344,13 +3344,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ImportJobRequest'
+              $ref: '#/components/schemas/ImportJobCreateRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/ImportJobRequest'
+              $ref: '#/components/schemas/ImportJobCreateRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ImportJobRequest'
+              $ref: '#/components/schemas/ImportJobCreateRequest'
         required: true
       security:
       - jwtAuth: []
@@ -3359,7 +3359,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImportJob'
+                $ref: '#/components/schemas/ImportJobCreate'
           description: ''
   /api/v1/imports/{id}/:
     get:
@@ -3477,28 +3477,12 @@ paths:
     get:
       operationId: imports_templates_retrieve
       parameters:
-      - in: query
-        name: class_section
-        schema:
-          type: string
-          format: uuid
-      - in: query
-        name: layout
-        schema:
-          type: string
-          enum:
-          - long
-          - smart
       - in: path
         name: template_type
         schema:
           type: string
           enum:
           - comprehensive_school
-          - enrollments
-          - monthly_evaluations
-          - scores
-          - students
         required: true
       tags:
       - imports
@@ -3601,6 +3585,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/MonthlyEvaluation'
           description: ''
+  /api/v1/monthly-evaluations/{id}/manual/:
+    delete:
+      operationId: monthly_evaluations_manual_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this monthly evaluation.
+        required: true
+      tags:
+      - monthly-evaluations
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/monthly-evaluations/analytics/:
     get:
       operationId: monthly_evaluations_analytics_retrieve
@@ -3628,6 +3630,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StudentEvaluationAnalytics'
+          description: ''
+  /api/v1/monthly-evaluations/catalog/:
+    get:
+      operationId: monthly_evaluations_catalog_retrieve
+      tags:
+      - monthly-evaluations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationCatalog'
           description: ''
   /api/v1/monthly-evaluations/dashboard/:
     get:
@@ -3681,6 +3697,38 @@ paths:
               schema:
                 type: string
                 format: binary
+          description: ''
+  /api/v1/monthly-evaluations/manual/:
+    post:
+      operationId: monthly_evaluations_manual_create
+      tags:
+      - monthly-evaluations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManualMonthlyEvaluationInputRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ManualMonthlyEvaluationInputRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ManualMonthlyEvaluationInputRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualMonthlyEvaluationResponse'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualMonthlyEvaluationResponse'
           description: ''
   /api/v1/organizations/:
     get:
@@ -7414,6 +7462,52 @@ components:
         * `transferred` - انتقال‌یافته
         * `withdrawn` - ترک‌تحصیل
         * `graduated` - فارغ‌التحصیل
+    EvaluationCatalog:
+      type: object
+      properties:
+        framework_version:
+          type: string
+        score_min:
+          type: integer
+        score_max:
+          type: integer
+        metric_count:
+          type: integer
+          minimum: 0
+        metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvaluationCatalogMetric'
+      required:
+      - framework_version
+      - metric_count
+      - metrics
+      - score_max
+      - score_min
+    EvaluationCatalogMetric:
+      type: object
+      properties:
+        code:
+          type: string
+        title:
+          type: string
+        domain_code:
+          type: string
+        domain_title:
+          type: string
+        domain_weight:
+          type: integer
+          minimum: 0
+        order:
+          type: integer
+          minimum: 1
+      required:
+      - code
+      - domain_code
+      - domain_title
+      - domain_weight
+      - order
+      - title
     EvaluationDashboard:
       type: object
       properties:
@@ -7744,10 +7838,10 @@ components:
           type: string
           readOnly: true
         import_type:
-          $ref: '#/components/schemas/ImportTypeEnum'
+          $ref: '#/components/schemas/ImportJobImportTypeEnum'
         status:
           allOf:
-          - $ref: '#/components/schemas/ImportJobStatusEnum'
+          - $ref: '#/components/schemas/Status6f2Enum'
           readOnly: true
         status_display:
           type: string
@@ -7817,14 +7911,113 @@ components:
       - successful_rows
       - total_rows
       - updated_at
-    ImportJobRequest:
+    ImportJobCreate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        organization:
+          type: string
+          format: uuid
+          readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
+        school:
+          type: string
+          format: uuid
+        school_name:
+          type: string
+          readOnly: true
+        import_type:
+          $ref: '#/components/schemas/ImportJobCreateImportTypeEnum'
+        status:
+          allOf:
+          - $ref: '#/components/schemas/Status6f2Enum'
+          readOnly: true
+        status_display:
+          type: string
+          readOnly: true
+        source_file:
+          type: string
+          format: uri
+        checksum:
+          type: string
+          readOnly: true
+        requested_by:
+          type: integer
+          readOnly: true
+        requested_by_name:
+          type: string
+          readOnly: true
+        total_rows:
+          type: integer
+          readOnly: true
+        successful_rows:
+          type: integer
+          readOnly: true
+        error_count:
+          type: integer
+          readOnly: true
+        errors:
+          readOnly: true
+        result_summary:
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - checksum
+      - created_at
+      - error_count
+      - errors
+      - finished_at
+      - id
+      - import_type
+      - organization
+      - organization_name
+      - requested_by
+      - requested_by_name
+      - result_summary
+      - school
+      - school_name
+      - source_file
+      - started_at
+      - status
+      - status_display
+      - successful_rows
+      - total_rows
+      - updated_at
+    ImportJobCreateImportTypeEnum:
+      enum:
+      - comprehensive_school
+      type: string
+      description: '* `comprehensive_school` - فایل جامع مدرسه'
+    ImportJobCreateRequest:
       type: object
       properties:
         school:
           type: string
           format: uuid
         import_type:
-          $ref: '#/components/schemas/ImportTypeEnum'
+          $ref: '#/components/schemas/ImportJobCreateImportTypeEnum'
         source_file:
           type: string
           format: binary
@@ -7832,21 +8025,7 @@ components:
       - import_type
       - school
       - source_file
-    ImportJobStatusEnum:
-      enum:
-      - queued
-      - processing
-      - completed
-      - failed
-      - cancelled
-      type: string
-      description: |-
-        * `queued` - در صف
-        * `processing` - در حال پردازش
-        * `completed` - تکمیل‌شده
-        * `failed` - ناموفق
-        * `cancelled` - لغوشده
-    ImportTypeEnum:
+    ImportJobImportTypeEnum:
       enum:
       - students
       - enrollments
@@ -7860,6 +8039,21 @@ components:
         * `scores` - نمرات اولیه
         * `monthly_evaluations` - ارزیابی جامع ماهانه
         * `comprehensive_school` - فایل جامع مدرسه
+    ImportJobRequest:
+      type: object
+      properties:
+        school:
+          type: string
+          format: uuid
+        import_type:
+          $ref: '#/components/schemas/ImportJobImportTypeEnum'
+        source_file:
+          type: string
+          format: binary
+      required:
+      - import_type
+      - school
+      - source_file
     KindEnum:
       enum:
       - absence
@@ -7892,6 +8086,227 @@ components:
           minLength: 1
       required:
       - refresh
+    ManualEvaluationResult:
+      type: object
+      properties:
+        created:
+          type: boolean
+        restored:
+          type: boolean
+        metrics_created:
+          type: integer
+          minimum: 0
+        metrics_updated:
+          type: integer
+          minimum: 0
+        metrics_unchanged:
+          type: integer
+          minimum: 0
+      required:
+      - created
+      - metrics_created
+      - metrics_unchanged
+      - metrics_updated
+      - restored
+    ManualMetricScoreInputRequest:
+      type: object
+      properties:
+        metric_code:
+          $ref: '#/components/schemas/MetricCodeEnum'
+        value:
+          type: integer
+          maximum: 5
+          minimum: 0
+      required:
+      - metric_code
+      - value
+    ManualMonthlyEvaluationInputRequest:
+      type: object
+      properties:
+        enrollment:
+          type: string
+          format: uuid
+          description: ثبت‌نام فعال دانش‌آموز در مدرسه و کلاس موردنظر
+        month_no:
+          type: integer
+          maximum: 12
+          minimum: 1
+          description: شماره ماه ۱ تا ۱۲
+        note:
+          type: string
+          default: ''
+          description: توضیح اختیاری برای ارزیابی این ماه
+          maxLength: 5000
+        metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManualMetricScoreInputRequest'
+          description: شاخص‌های ثبت‌شده؛ شاخص‌های ارسال‌نشده بدون تغییر باقی می‌مانند.
+      required:
+      - enrollment
+      - month_no
+    ManualMonthlyEvaluationResponse:
+      type: object
+      properties:
+        evaluation:
+          $ref: '#/components/schemas/MonthlyEvaluation'
+        result:
+          $ref: '#/components/schemas/ManualEvaluationResult'
+      required:
+      - evaluation
+      - result
+    MetricCodeEnum:
+      enum:
+      - EDU_01
+      - EDU_02
+      - EDU_03
+      - EDU_04
+      - EDU_05
+      - EDU_06
+      - EDU_07
+      - EDU_08
+      - EDU_09
+      - EDU_10
+      - DEV_01
+      - DEV_02
+      - DEV_03
+      - DEV_04
+      - DEV_05
+      - DEV_06
+      - DEV_07
+      - DEV_08
+      - DEV_09
+      - DEV_10
+      - CHR_01
+      - CHR_02
+      - CHR_03
+      - CHR_04
+      - CHR_05
+      - CHR_06
+      - CHR_07
+      - CHR_08
+      - CHR_09
+      - CHR_10
+      - DIS_01
+      - DIS_02
+      - DIS_03
+      - DIS_04
+      - DIS_05
+      - DIS_06
+      - DIS_07
+      - DIS_08
+      - CUL_01
+      - CUL_02
+      - CUL_03
+      - CUL_04
+      - CUL_05
+      - CUL_06
+      - CUL_07
+      - RES_01
+      - RES_02
+      - RES_03
+      - RES_04
+      - RES_05
+      - RES_06
+      - RES_07
+      - RES_08
+      - SPT_01
+      - SPT_02
+      - SPT_03
+      - SPT_04
+      - SPT_05
+      - SPT_06
+      - SPT_07
+      - ART_01
+      - ART_02
+      - ART_03
+      - ART_04
+      - ART_05
+      - ART_06
+      - ART_07
+      - PER_01
+      - PER_02
+      - PER_03
+      - PER_04
+      - PER_05
+      - PER_06
+      - PER_07
+      type: string
+      description: |-
+        * `EDU_01` - EDU_01
+        * `EDU_02` - EDU_02
+        * `EDU_03` - EDU_03
+        * `EDU_04` - EDU_04
+        * `EDU_05` - EDU_05
+        * `EDU_06` - EDU_06
+        * `EDU_07` - EDU_07
+        * `EDU_08` - EDU_08
+        * `EDU_09` - EDU_09
+        * `EDU_10` - EDU_10
+        * `DEV_01` - DEV_01
+        * `DEV_02` - DEV_02
+        * `DEV_03` - DEV_03
+        * `DEV_04` - DEV_04
+        * `DEV_05` - DEV_05
+        * `DEV_06` - DEV_06
+        * `DEV_07` - DEV_07
+        * `DEV_08` - DEV_08
+        * `DEV_09` - DEV_09
+        * `DEV_10` - DEV_10
+        * `CHR_01` - CHR_01
+        * `CHR_02` - CHR_02
+        * `CHR_03` - CHR_03
+        * `CHR_04` - CHR_04
+        * `CHR_05` - CHR_05
+        * `CHR_06` - CHR_06
+        * `CHR_07` - CHR_07
+        * `CHR_08` - CHR_08
+        * `CHR_09` - CHR_09
+        * `CHR_10` - CHR_10
+        * `DIS_01` - DIS_01
+        * `DIS_02` - DIS_02
+        * `DIS_03` - DIS_03
+        * `DIS_04` - DIS_04
+        * `DIS_05` - DIS_05
+        * `DIS_06` - DIS_06
+        * `DIS_07` - DIS_07
+        * `DIS_08` - DIS_08
+        * `CUL_01` - CUL_01
+        * `CUL_02` - CUL_02
+        * `CUL_03` - CUL_03
+        * `CUL_04` - CUL_04
+        * `CUL_05` - CUL_05
+        * `CUL_06` - CUL_06
+        * `CUL_07` - CUL_07
+        * `RES_01` - RES_01
+        * `RES_02` - RES_02
+        * `RES_03` - RES_03
+        * `RES_04` - RES_04
+        * `RES_05` - RES_05
+        * `RES_06` - RES_06
+        * `RES_07` - RES_07
+        * `RES_08` - RES_08
+        * `SPT_01` - SPT_01
+        * `SPT_02` - SPT_02
+        * `SPT_03` - SPT_03
+        * `SPT_04` - SPT_04
+        * `SPT_05` - SPT_05
+        * `SPT_06` - SPT_06
+        * `SPT_07` - SPT_07
+        * `ART_01` - ART_01
+        * `ART_02` - ART_02
+        * `ART_03` - ART_03
+        * `ART_04` - ART_04
+        * `ART_05` - ART_05
+        * `ART_06` - ART_06
+        * `ART_07` - ART_07
+        * `PER_01` - PER_01
+        * `PER_02` - PER_02
+        * `PER_03` - PER_03
+        * `PER_04` - PER_04
+        * `PER_05` - PER_05
+        * `PER_06` - PER_06
+        * `PER_07` - PER_07
     MetricScore:
       type: object
       properties:
@@ -10002,6 +10417,20 @@ components:
       description: |-
         * `warning` - هشدار
         * `critical` - بحرانی
+    Status6f2Enum:
+      enum:
+      - queued
+      - processing
+      - completed
+      - failed
+      - cancelled
+      type: string
+      description: |-
+        * `queued` - در صف
+        * `processing` - در حال پردازش
+        * `completed` - تکمیل‌شده
+        * `failed` - ناموفق
+        * `cancelled` - لغوشده
     Student:
       type: object
       properties:
