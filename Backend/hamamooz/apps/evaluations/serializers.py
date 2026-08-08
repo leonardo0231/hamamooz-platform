@@ -34,9 +34,7 @@ class ManualMetricScoreInputSerializer(serializers.Serializer):
 
 
 class ManualMonthlyEvaluationInputSerializer(serializers.Serializer):
-    enrollment = serializers.UUIDField(
-        help_text="ثبت‌نام فعال دانش‌آموز در مدرسه و کلاس موردنظر"
-    )
+    enrollment = serializers.UUIDField(help_text="ثبت‌نام فعال دانش‌آموز در مدرسه و کلاس موردنظر")
     month_no = serializers.IntegerField(min_value=1, max_value=12, help_text="شماره ماه ۱ تا ۱۲")
     note = serializers.CharField(
         required=False,
