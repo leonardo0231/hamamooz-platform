@@ -10,7 +10,9 @@ def upsert_manual_evaluation(*, enrollment, month_no, note, metrics, actor):
 
     Manual entry is intentionally an upsert for one enrollment/month/framework. Metrics not
     present in the request are preserved so a staff member can save a partial evaluation and
-    continue later without accidentally erasing previously recorded values.
+    continue later without accidentally erasing previously recorded values. If the evaluation
+    originally came from an import, its source_import_job is preserved as provenance while the
+    audit event records the later manual edit.
     """
 
     evaluation = (
@@ -38,7 +40,6 @@ def upsert_manual_evaluation(*, enrollment, month_no, note, metrics, actor):
 
     evaluation.note = note
     evaluation.recorded_by = actor
-    evaluation.source_import_job = None
     evaluation.full_clean(exclude=["id"])
     evaluation.save()
 
