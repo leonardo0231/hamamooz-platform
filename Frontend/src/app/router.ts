@@ -15,7 +15,7 @@ const routes: RouteDefinition[] = [
   { pattern: /^\/attendance\/?$/, title: 'حضور و غیاب', private: true, render: routeFactories.attendance },
   { pattern: /^\/reports\/?$/, title: 'گزارش‌ها', private: true, render: routeFactories.reports },
   { pattern: /^\/imports\/?$/, title: 'ورود اطلاعات', private: true, roles: ['system_admin', 'organization_admin', 'school_manager', 'educational_deputy', 'operator'], render: routeFactories.imports },
-  { pattern: /^\/manual-entry\/?$/, title: 'ثبت و ویرایش دستی', private: true, roles: ['system_admin', 'organization_admin', 'school_manager', 'educational_deputy', 'operator'], render: routeFactories.manualEntry },
+  { pattern: /^\/manual-entry\/?$/, title: 'ثبت و ویرایش دستی', private: true, render: routeFactories.manualEntry },
   { pattern: /^\/users\/?$/, title: 'کاربران', private: true, roles: administrativeRoles, render: routeFactories.users },
   { pattern: /^\/roles\/?$/, title: 'نقش‌ها', private: true, roles: administrativeRoles, render: routeFactories.roles },
   { pattern: /^\/profile\/?$/, title: 'پروفایل', private: true, render: routeFactories.profile },
