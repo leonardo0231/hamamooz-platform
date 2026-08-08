@@ -1,7 +1,7 @@
 import { apiRequest } from '../api/client.js';
 import { endpoints } from '../api/endpoints.js';
 import type { Pagination, Role } from '../api/types.js';
-import { activeRoles, administrativeRoles, broadEducationRoles, roleLabel } from '../app/permissions.js';
+import { activeRoles, administrativeRoles, broadEducationRoles, roleLabel, teacherWriteRoles } from '../app/permissions.js';
 import { store } from '../app/store.js';
 import { navigate } from '../app/router.js';
 import { h, initials, onWindowEventWhileConnected } from '../utils/dom.js';
@@ -20,6 +20,7 @@ const navigation: NavigationItem[] = [
   { href: '/alerts', label: 'مرکز هشدارها', icon: 'bell' },
   { href: '/reports', label: 'گزارش‌ها و کارنامه‌ها', icon: 'file' },
   { href: '/imports', label: 'ورود اطلاعات', icon: 'upload', roles: broadEducationRoles },
+  { href: '/manual-entry', label: 'ثبت و ویرایش دستی', icon: 'edit', roles: teacherWriteRoles },
   { href: '/users', label: 'کاربران', icon: 'user', roles: administrativeRoles },
   { href: '/roles', label: 'نقش‌ها و دسترسی', icon: 'settings', roles: administrativeRoles },
   { href: '/settings', label: 'تنظیمات سامانه', icon: 'settings' },
