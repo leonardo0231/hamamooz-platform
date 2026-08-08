@@ -57,9 +57,7 @@ def enrich_comprehensive_rows(job, loaded: LoadedImportRows) -> LoadedImportRows
     """
 
     evaluation_rows = {
-        row["__source_row__"]: row
-        for row in loaded.rows
-        if row.get("record_type") == "evaluation"
+        row["__source_row__"]: row for row in loaded.rows if row.get("record_type") == "evaluation"
     }
     if not evaluation_rows:
         return loaded
@@ -110,9 +108,7 @@ def validate_hardened_comprehensive_workbook(job, rows):
         try:
             national_id = _strict_national_id(row.get("national_id"))
         except ValueError as exc:
-            identity_errors.append(
-                _identity_error(row, "کد ملی", "national_id_format", str(exc))
-            )
+            identity_errors.append(_identity_error(row, "کد ملی", "national_id_format", str(exc)))
             continue
         students_by_local_code[local_code] = {
             "national_id": national_id,
