@@ -22,6 +22,7 @@ def upsert_manual_evaluation(*, enrollment, month_no, note, metrics, actor):
             month_no=month_no,
             framework_version=FRAMEWORK_VERSION,
         )
+        .order_by("is_deleted", "-updated_at")
         .first()
     )
     created = evaluation is None
