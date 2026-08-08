@@ -78,14 +78,42 @@ jobs:
         working-directory: Frontend
         run: npm run generate:api
 
-      - name: Commit generated artifacts
+      - name: Use generated endpoint registry in manual entry
         run: |
-          if git diff --quiet -- contracts/openapi.yaml Frontend/src/api/generated; then
-            echo "Generated API artifacts are already current."
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("Frontend/src/pages/manual-entry.ts")
+          text = path.read_text()
+          import_line = "import { endpoints } from '../api/endpoints.js';\n"
+          anchor = "import { apiRequest } from '../api/client.js';\n"
+          if import_line not in text:
+              text = text.replace(anchor, anchor + import_line, 1)
+          replacements = {
+              "apiRequest<MetricCatalogResponse>('/api/v1/monthly-evaluations/catalog/')":
+                  "apiRequest<MetricCatalogResponse>(endpoints.monthlyEvaluations.catalog)",
+              "apiRequest<Pagination<MonthlyEvaluationRecord>>('/api/v1/monthly-evaluations/', {":
+                  "apiRequest<Pagination<MonthlyEvaluationRecord>>(endpoints.monthlyEvaluations.list, {",
+              "apiRequest<ManualEvaluationSaveResponse>('/api/v1/monthly-evaluations/manual/', {":
+                  "apiRequest<ManualEvaluationSaveResponse>(endpoints.monthlyEvaluations.manual, {",
+              "apiRequest(`/api/v1/monthly-evaluations/${encodeURIComponent(id)}/manual/`, {":
+                  "apiRequest(endpoints.monthlyEvaluations.manualDelete(id), {",
+          }
+          for old, new in replacements.items():
+              if old not in text and new not in text:
+                  raise SystemExit(f"expected manual-entry endpoint expression was not found: {old}")
+              text = text.replace(old, new)
+          path.write_text(text)
+          PY
+
+      - name: Commit generated artifacts and endpoint migration
+        run: |
+          if git diff --quiet -- contracts/openapi.yaml Frontend/src/api/generated Frontend/src/pages/manual-entry.ts; then
+            echo "Generated API artifacts and manual endpoint usage are already current."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add contracts/openapi.yaml Frontend/src/api/generated/catalog.json Frontend/src/api/generated/catalog.ts
-          git commit -m "chore: regenerate OpenAPI contract and frontend catalog"
+          git add contracts/openapi.yaml Frontend/src/api/generated/catalog.json Frontend/src/api/generated/catalog.ts Frontend/src/pages/manual-entry.ts
+          git commit -m "chore: sync manual entry with generated API contract"
           git push origin HEAD:backend/comprehensive-manual-hardening
