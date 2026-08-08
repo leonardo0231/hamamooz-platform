@@ -14,15 +14,13 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from hamamooz.apps.accounts.access import allowed_class_ids, selected_school_ids
+from hamamooz.apps.accounts.access import selected_school_ids
 from hamamooz.apps.accounts.models import Role
 from hamamooz.apps.core.viewsets import AuditedModelViewSet
-from hamamooz.apps.organizations.models import ClassSection
 
 from .models import ImportJob
 from .serializers import ImportJobSerializer
 from .tasks import process_import_job_task
-from .templates import build_smart_evaluation_template
 
 IMPORTERS = [
     Role.SYSTEM_ADMIN,
@@ -100,20 +98,7 @@ class ImportJobViewSet(AuditedModelViewSet):
                 name="template_type",
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
-                enum=[choice.value for choice in ImportJob.ImportType],
-            ),
-            OpenApiParameter(
-                name="layout",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.QUERY,
-                enum=["long", "smart"],
-                required=False,
-            ),
-            OpenApiParameter(
-                name="class_section",
-                type=OpenApiTypes.UUID,
-                location=OpenApiParameter.QUERY,
-                required=False,
+                enum=[ImportJob.ImportType.COMPREHENSIVE_SCHOOL],
             ),
         ],
         responses={
@@ -122,63 +107,31 @@ class ImportJobViewSet(AuditedModelViewSet):
     )
     @action(detail=False, methods=["get"], url_path=r"templates/(?P<template_type>[^/.]+)")
     def template(self, request, template_type=None):
-        valid_types = {choice.value for choice in ImportJob.ImportType}
-        if template_type not in valid_types:
+        if template_type != ImportJob.ImportType.COMPREHENSIVE_SCHOOL:
             return Response(
-                {"detail": "نوع Template معتبر نیست."}, status=status.HTTP_404_NOT_FOUND
-            )
-        layout = request.query_params.get("layout", "long")
-        if layout == "smart":
-            if template_type != ImportJob.ImportType.MONTHLY_EVALUATIONS:
-                return Response(
-                    {"detail": "قالب هوشمند فقط برای ارزیابی جامع ماهانه در دسترس است."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            class_section_id = request.query_params.get("class_section")
-            if not class_section_id:
-                return Response(
-                    {"class_section": "کلاس برای تولید قالب هوشمند الزامی است."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            school_ids = selected_school_ids(request)
-            class_ids = allowed_class_ids(request.user, school_ids)
-            try:
-                class_section = ClassSection.objects.select_related("school", "academic_year").get(
-                    id=class_section_id, id__in=class_ids, school_id__in=school_ids
-                )
-            except (ClassSection.DoesNotExist, ValueError, TypeError):
-                return Response(
-                    {"class_section": "کلاس انتخاب‌شده معتبر یا قابل دسترس نیست."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-            output = build_smart_evaluation_template(class_section)
-            filename = (
-                f"smart-evaluations-{slugify(class_section.school.code)}-"
-                f"{slugify(class_section.academic_year.code)}-"
-                f"{slugify(class_section.code)}.xlsx"
-            )
-            return FileResponse(
-                output,
-                as_attachment=True,
-                filename=filename,
-                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            )
-        if layout != "long":
-            return Response(
-                {"layout": "layout باید long یا smart باشد."},
-                status=status.HTTP_400_BAD_REQUEST,
+                {
+                    "detail": (
+                        "فقط قالب «فایل جامع مدرسه» برای ورود گروهی اطلاعات فعال است. "
+                        "برای ثبت تکی از بخش ثبت و ویرایش دستی استفاده کنید."
+                    )
+                },
+                status=status.HTTP_404_NOT_FOUND,
             )
         template_path = (
-            Path(settings.BASE_DIR) / "docs" / "import_templates" / f"{template_type}_template.xlsx"
+            Path(settings.BASE_DIR)
+            / "docs"
+            / "import_templates"
+            / "comprehensive_school_template.xlsx"
         )
         if not template_path.exists():
             return Response(
-                {"detail": "Template هنوز تولید نشده است."}, status=status.HTTP_404_NOT_FOUND
+                {"detail": "قالب جامع مدرسه هنوز تولید نشده است."},
+                status=status.HTTP_404_NOT_FOUND,
             )
         return FileResponse(
             template_path.open("rb"),
             as_attachment=True,
-            filename=f"{slugify(template_type)}_template.xlsx",
+            filename="comprehensive_school_template.xlsx",
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
 
