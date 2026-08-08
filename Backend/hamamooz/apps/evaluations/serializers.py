@@ -47,7 +47,9 @@ class ManualMonthlyEvaluationInputSerializer(serializers.Serializer):
     )
     metrics = ManualMetricScoreInputSerializer(
         many=True,
-        allow_empty=False,
+        required=False,
+        allow_empty=True,
+        default=list,
         help_text="شاخص‌های ثبت‌شده؛ شاخص‌های ارسال‌نشده بدون تغییر باقی می‌مانند.",
     )
 
@@ -56,6 +58,11 @@ class ManualMonthlyEvaluationInputSerializer(serializers.Serializer):
         if len(codes) != len(set(codes)):
             raise serializers.ValidationError("هر شاخص در یک درخواست فقط یک‌بار قابل ثبت است.")
         return value
+
+    def validate(self, attrs):
+        if not attrs.get("metrics") and not str(attrs.get("note") or "").strip():
+            raise serializers.ValidationError("حداقل یک شاخص یا توضیح برای ارزیابی وارد کنید.")
+        return attrs
 
 
 class ManualEvaluationDeleteSerializer(serializers.Serializer):
