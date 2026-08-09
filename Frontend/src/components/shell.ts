@@ -47,181 +47,115 @@ export function createShell(content: HTMLElement): HTMLElement {
   const user = store.state.user;
   const fullName = `${user?.first_name ?? ''} ${user?.last_name ?? ''}`.trim() || user?.username || 'کاربر';
   const roles = activeRoles();
+  const visibleNavigation = navigation.filter(item => !item.roles || item.roles.some(role => roles.includes(role)));
+  const mobileQuery = window.matchMedia('(max-width: 1080px)');
+  const focusableSelector = 'a[href], button:not([disabled]), select:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
   let appMain: HTMLElement | null = null;
   let mobileToggle: HTMLButtonElement | null = null;
-  let pendingNavigation = 0;
-  const visibleNavigation = navigation.filter(item => !item.roles || item.roles.some(role => roles.includes(role)));
-  const navLinks: HTMLAnchorElement[] = [];
-  const closeButton = h('button', { className: 'icon-button sidebar__close', type: 'button', 'aria-label': 'بستن منوی اصلی' }, icon('close')) as HTMLButtonElement;
-  const navigationList = h('nav', { className: 'sidebar__nav', 'aria-label': 'بخش‌های سامانه' },
-    ...visibleNavigation.map(item => {
-      const active = isNavigationItemActive(item);
-      const link = h('a', {
-        className: `nav-link ${active ? 'is-active' : ''}`,
-        href: item.href,
-        'aria-current': active ? 'page' : undefined,
-        onClick: (event: MouseEvent) => {
-          if (!shouldHandleNavigation(event)) return;
-          event.preventDefault();
-          void activateNavigation(item, event.currentTarget as HTMLAnchorElement);
-        },
+
+  const closeButton = h('button', {
+    className: 'icon-button sidebar__close',
+    type: 'button',
+    'aria-label': 'بستن منوی اصلی',
+  }, icon('close')) as HTMLButtonElement;
+
+  const navLinks = visibleNavigation.map(item => {
+    const active = isNavigationItemActive(item);
+    return h('a', {
+      className: 'nav-link',
+      href: item.href,
+      'aria-current': active ? 'page' : undefined,
+      onClick: (event: MouseEvent) => {
+        if (!shouldHandleNavigation(event)) return;
+        event.preventDefault();
+        setDrawerState(false, false);
+        navigate(item.href);
       },
-      h('span', { className: 'nav-link__icon' }, icon(item.icon)),
-      h('span', { className: 'nav-link__label', text: item.label }),
-      ) as HTMLAnchorElement;
-      navLinks.push(link);
-      return link;
-    }),
-  );
-  const navigationViewport = h('div', { className: 'sidebar__menu-viewport', tabindex: '-1' }, navigationList);
-  const sidebar = h('aside', { className: 'sidebar', id: 'primary-navigation', 'aria-label': 'ناوبری اصلی', tabindex: '-1' },
-    h('div', { className: 'sidebar__header' },
-      h('div', { className: 'brand' }, h('span', { className: 'brand__mark' }, icon('book')), h('div', {}, h('strong', { text: 'هم‌آموز' }), h('small', { text: 'مدیریت هوشمند مدرسه' }))),
-      closeButton,
+    },
+    h('span', { className: 'nav-link__icon', 'aria-hidden': 'true' }, icon(item.icon)),
+    h('span', { className: 'nav-link__label', text: item.label }),
+    );
+  });
+
+  const sidebar = h('aside', {
+    className: 'sidebar',
+    id: 'primary-navigation',
+    'aria-label': 'ناوبری اصلی',
+    tabindex: '-1',
+  },
+  h('div', { className: 'sidebar__header' },
+    h('a', {
+      className: 'brand',
+      href: '/',
+      'aria-label': 'هم‌آموز — صفحه اصلی',
+      onClick: (event: MouseEvent) => {
+        if (!shouldHandleNavigation(event)) return;
+        event.preventDefault();
+        setDrawerState(false, false);
+        navigate('/');
+      },
+    },
+    h('span', { className: 'brand__mark', 'aria-hidden': 'true' }, icon('book')),
+    h('div', {}, h('strong', { text: 'هم‌آموز' }), h('small', { text: 'مدیریت مدرسه و یادگیری' })),
     ),
-    navigationViewport,
-    h('div', { className: 'sidebar__footer' },
-      h('button', { className: 'nav-link nav-link--button sidebar__logout', type: 'button', onClick: () => void import('../app/auth.js').then(module => module.logout()) },
-        h('span', { className: 'nav-link__icon' }, icon('logout')),
-        h('span', { className: 'nav-link__label', text: 'خروج از حساب' }),
-      ),
-      h('div', { className: 'role-card' }, h('span', { className: 'avatar avatar--accent', text: initials(fullName) }), h('div', {}, h('small', { text: 'نقش فعال' }), h('strong', { text: roles[0] ? roleLabel(roles[0]) : 'کاربر' }))),
+    closeButton,
+  ),
+  h('div', { className: 'sidebar__menu-viewport' },
+    h('nav', { className: 'sidebar__nav', 'aria-label': 'بخش‌های سامانه' }, ...navLinks),
+  ),
+  h('div', { className: 'sidebar__footer' },
+    h('button', {
+      className: 'sidebar__profile',
+      type: 'button',
+      onClick: () => {
+        setDrawerState(false, false);
+        navigate('/profile');
+      },
+    },
+    h('span', { className: 'avatar avatar--accent', text: initials(fullName) }),
+    h('span', { className: 'sidebar__profile-copy' },
+      h('strong', { text: fullName }),
+      h('small', { text: roles[0] ? roleLabel(roles[0]) : 'کاربر' }),
     ),
+    ),
+    h('button', {
+      className: 'icon-button sidebar__logout',
+      type: 'button',
+      title: 'خروج از حساب',
+      'aria-label': 'خروج از حساب',
+      onClick: () => void import('../app/auth.js').then(module => module.logout()),
+    }, icon('logout')),
+  ),
   );
-  const backdrop = h('div', { className: 'sidebar-backdrop', 'aria-hidden': 'true', onClick: () => {
-    cancelPendingNavigation();
-    setDrawerState(false);
-  } });
 
-  const isMobileLayout = (): boolean => window.matchMedia('(max-width: 980px)').matches;
-  const focusableSelector = 'a[href], button:not([disabled]), select:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
-  const reducedMotion = (): boolean => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  function navigationScrollTop(link: HTMLElement): number {
-    return Math.max(0, link.offsetTop - ((navigationViewport.clientHeight - link.offsetHeight) / 2));
-  }
-
-  function centerNavigationLink(link: HTMLElement, behavior: ScrollBehavior): void {
-    const top = navigationScrollTop(link);
-    if (behavior === 'auto') {
-      navigationViewport.style.scrollBehavior = 'auto';
-      navigationViewport.scrollTop = top;
-      navigationViewport.style.removeProperty('scroll-behavior');
-      return;
-    }
-    navigationViewport.scrollTo({ top, behavior });
-  }
-
-  let curveFrame = 0;
-  function updateNavigationCurve(): void {
-    curveFrame = 0;
-    const currentLink = navLinks.find(link => link.getAttribute('aria-current') === 'page');
-    navLinks.forEach(link => link.style.setProperty('--nav-spotlight-lock', '0px'));
-    if (currentLink && !sidebar.hasAttribute('data-navigation-state')) {
-      const lockOffset = navigationViewport.scrollTop - navigationScrollTop(currentLink);
-      currentLink.style.setProperty('--nav-spotlight-lock', `${lockOffset.toFixed(1)}px`);
-    }
-    if (isMobileLayout()) {
-      navLinks.forEach(link => link.style.setProperty('--nav-curve-inset', '0px'));
-      return;
-    }
-    const viewportBounds = navigationViewport.getBoundingClientRect();
-    const ellipseStyle = getComputedStyle(sidebar, '::before');
-    const ellipseRadiusInline = Number.parseFloat(ellipseStyle.width) / 2;
-    const ellipseRadiusBlock = Number.parseFloat(ellipseStyle.height) / 2;
-    const viewportCenter = viewportBounds.top + (viewportBounds.height / 2);
-    navLinks.forEach(link => {
-      const isSpotlight = link.classList.contains('is-pending')
-        || (!sidebar.hasAttribute('data-navigation-state') && link.getAttribute('aria-current') === 'page');
-      if (isSpotlight || !Number.isFinite(ellipseRadiusInline) || !Number.isFinite(ellipseRadiusBlock)) {
-        link.style.setProperty('--nav-curve-inset', '0px');
-        return;
-      }
-      const bounds = link.getBoundingClientRect();
-      const distance = Math.abs((bounds.top + (bounds.height / 2)) - viewportCenter);
-      const ratio = Math.min(.985, distance / ellipseRadiusBlock);
-      const ellipseInset = ellipseRadiusInline * (1 - Math.sqrt(1 - (ratio * ratio)));
-      link.style.setProperty('--nav-curve-inset', `${Math.max(0, ellipseInset - 4).toFixed(1)}px`);
-    });
-  }
-
-  function scheduleNavigationCurve(): void {
-    if (curveFrame) return;
-    curveFrame = window.requestAnimationFrame(updateNavigationCurve);
-  }
-
-  function cancelPendingNavigation(): void {
-    pendingNavigation += 1;
-    sidebar.removeAttribute('data-navigation-state');
-    navLinks.forEach(link => link.classList.remove('is-pending'));
-    appMain?.classList.remove('is-page-leaving');
-    scheduleNavigationCurve();
-  }
-
-  async function activateNavigation(item: NavigationItem, link: HTMLAnchorElement): Promise<void> {
-    const activation = ++pendingNavigation;
-    const instant = reducedMotion();
-    navLinks.forEach(candidate => candidate.classList.toggle('is-pending', candidate === link));
-    sidebar.setAttribute('data-navigation-state', 'centering');
-    centerNavigationLink(link, instant ? 'auto' : 'smooth');
-    scheduleNavigationCurve();
-
-    const exactPath = location.pathname.replace(/\/+$/, '') || '/';
-    const targetPath = item.href.replace(/\/+$/, '') || '/';
-    if (exactPath === targetPath) {
-      if (!instant) await new Promise(resolve => window.setTimeout(resolve, 360));
-      if (activation === pendingNavigation) cancelPendingNavigation();
-      return;
-    }
-
-    appMain?.classList.add('is-page-leaving');
-    if (!instant) await new Promise(resolve => window.setTimeout(resolve, 360));
-    if (activation !== pendingNavigation) return;
-    sidebar.setAttribute('data-navigation-state', 'navigating');
-    setDrawerState(false, false);
-    navigate(item.href);
-  }
+  const backdrop = h('div', {
+    className: 'sidebar-backdrop',
+    'aria-hidden': 'true',
+    onClick: () => setDrawerState(false),
+  });
 
   function setDrawerState(open: boolean, restoreFocus = true): void {
-    const mobile = isMobileLayout();
+    const mobile = mobileQuery.matches;
     const nextOpen = mobile && open;
     store.patch({ sidebarOpen: nextOpen });
     sidebar.classList.toggle('is-open', nextOpen);
     backdrop.classList.toggle('is-visible', nextOpen);
     document.body.classList.toggle('drawer-open', nextOpen);
     sidebar.toggleAttribute('inert', mobile && !nextOpen);
-    if (mobile && !nextOpen) sidebar.setAttribute('aria-hidden', 'true');
-    else sidebar.removeAttribute('aria-hidden');
+    sidebar.setAttribute('aria-hidden', mobile && !nextOpen ? 'true' : 'false');
     mobileToggle?.setAttribute('aria-expanded', String(nextOpen));
     mobileToggle?.setAttribute('aria-label', nextOpen ? 'بستن منوی اصلی' : 'بازکردن منوی اصلی');
-    if (appMain) appMain.toggleAttribute('inert', nextOpen);
+    appMain?.toggleAttribute('inert', nextOpen);
     if (nextOpen) queueMicrotask(() => closeButton.focus());
     else if (restoreFocus && mobile) queueMicrotask(() => mobileToggle?.focus());
   }
 
-  closeButton.addEventListener('click', () => {
-    cancelPendingNavigation();
-    setDrawerState(false);
-  });
-  navigationViewport.addEventListener('scroll', scheduleNavigationCurve, { passive: true });
-  sidebar.addEventListener('wheel', event => {
-    if (isMobileLayout() && !sidebar.classList.contains('is-open')) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (sidebar.getAttribute('data-navigation-state') === 'centering') cancelPendingNavigation();
-    const multiplier = event.deltaMode === WheelEvent.DOM_DELTA_LINE
-      ? 18
-      : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
-        ? navigationViewport.clientHeight
-        : 1;
-    navigationViewport.scrollTop += event.deltaY * multiplier;
-    scheduleNavigationCurve();
-  }, { passive: false });
+  closeButton.addEventListener('click', () => setDrawerState(false));
   sidebar.addEventListener('keydown', event => {
     if (!sidebar.classList.contains('is-open')) return;
     if (event.key === 'Escape') {
       event.preventDefault();
-      cancelPendingNavigation();
       setDrawerState(false);
       return;
     }
@@ -244,9 +178,14 @@ export function createShell(content: HTMLElement): HTMLElement {
   let currentSchools: NamedItem[] = [];
 
   const loadSchools = async (organizationId: string): Promise<boolean> => {
-    const response = await apiRequest<Pagination<NamedItem>>(endpoints.schools, { query: { page_size: 200, organization: organizationId || undefined } });
+    const response = await apiRequest<Pagination<NamedItem>>(endpoints.schools, {
+      query: { page_size: 200, organization: organizationId || undefined },
+    });
     currentSchools = response.results;
-    schoolSelect.replaceChildren(h('option', { value: '', text: 'همه شعب مجاز' }), ...currentSchools.map(item => h('option', { value: item.id, text: item.name ?? item.title ?? item.id })));
+    schoolSelect.replaceChildren(
+      h('option', { value: '', text: 'همه شعب مجاز' }),
+      ...currentSchools.map(item => h('option', { value: item.id, text: item.name ?? item.title ?? item.id })),
+    );
     const savedSchool = store.state.scope.schoolId;
     if (savedSchool && !currentSchools.some(item => item.id === savedSchool)) {
       store.setScope({ organizationId: organizationId || null, schoolId: null });
@@ -261,7 +200,10 @@ export function createShell(content: HTMLElement): HTMLElement {
     try {
       const orgResponse = await apiRequest<Pagination<NamedItem>>(endpoints.organizations, { query: { page_size: 200 } });
       const organizations = orgResponse.results;
-      organizationSelect.replaceChildren(h('option', { value: '', text: 'همه مجموعه‌های مجاز' }), ...organizations.map(item => h('option', { value: item.id, text: item.name ?? item.title ?? item.id })));
+      organizationSelect.replaceChildren(
+        h('option', { value: '', text: 'همه مجموعه‌های مجاز' }),
+        ...organizations.map(item => h('option', { value: item.id, text: item.name ?? item.title ?? item.id })),
+      );
       let organizationId = store.state.scope.organizationId ?? '';
       let corrected = false;
       if (organizationId && !organizations.some(item => item.id === organizationId)) {
@@ -298,26 +240,61 @@ export function createShell(content: HTMLElement): HTMLElement {
     'aria-expanded': 'false',
     onClick: () => setDrawerState(!sidebar.classList.contains('is-open')),
   }, icon('menu')) as HTMLButtonElement;
-  const header = h('header', { className: 'topbar' },
-    mobileToggle,
-    h('div', { className: 'scope-controls' }, organizationSelect, schoolSelect),
-    h('label', { className: 'global-search' }, icon('search'), h('input', { type: 'search', placeholder: 'جست‌وجو در دانش‌آموزان…', 'aria-label': 'جست‌وجوی سراسری', onKeydown: (event: KeyboardEvent) => { if (event.key === 'Enter') { const input = event.currentTarget as HTMLInputElement; navigate(`/students?search=${encodeURIComponent(input.value)}`); } } })),
-    h('button', { className: 'icon-button', type: 'button', 'aria-label': 'هشدارها', onClick: () => navigate('/alerts') }, icon('bell')),
-    h('button', { className: 'user-menu', type: 'button', onClick: () => navigate('/profile') }, h('span', { className: 'avatar', text: initials(fullName) }), h('span', {}, h('strong', { text: fullName }), h('small', { text: roles[0] ? roleLabel(roles[0]) : '' }))),
-  );
-  appMain = h('div', { className: 'app-main' }, header, h('main', { className: 'page-container', id: 'page-content', tabindex: '-1' }, content));
-  const shell = h('div', { className: 'app-shell' }, sidebar, backdrop, appMain);
-  setDrawerState(Boolean(store.state.sidebarOpen), false);
-  queueMicrotask(() => {
-    const activeLink = navLinks.find(link => link.getAttribute('aria-current') === 'page');
-    if (activeLink) centerNavigationLink(activeLink, 'auto');
-    updateNavigationCurve();
-    navigationViewport.classList.add('is-ready');
+
+  const searchInput = h('input', {
+    type: 'search',
+    placeholder: 'جست‌وجوی دانش‌آموز…',
+    'aria-label': 'جست‌وجوی سراسری دانش‌آموز',
+    onKeydown: (event: KeyboardEvent) => {
+      if (event.key !== 'Enter') return;
+      const input = event.currentTarget as HTMLInputElement;
+      const value = input.value.trim();
+      navigate(value ? `/students?search=${encodeURIComponent(value)}` : '/students');
+    },
   });
+
+  const header = h('header', { className: 'topbar' },
+    h('div', { className: 'topbar__leading' },
+      mobileToggle,
+      h('div', { className: 'scope-controls' },
+        h('span', { className: 'scope-controls__label', text: 'حوزه فعال' }),
+        organizationSelect,
+        schoolSelect,
+      ),
+    ),
+    h('label', { className: 'global-search' }, icon('search'), searchInput),
+    h('div', { className: 'topbar__actions' },
+      h('button', {
+        className: 'icon-button',
+        type: 'button',
+        title: 'مرکز هشدارها',
+        'aria-label': 'مرکز هشدارها',
+        onClick: () => navigate('/alerts'),
+      }, icon('bell')),
+      h('button', {
+        className: 'user-menu',
+        type: 'button',
+        onClick: () => navigate('/profile'),
+      },
+      h('span', { className: 'avatar', text: initials(fullName) }),
+      h('span', { className: 'user-menu__copy' },
+        h('strong', { text: fullName }),
+        h('small', { text: roles[0] ? roleLabel(roles[0]) : '' }),
+      ),
+      ),
+    ),
+  );
+
+  appMain = h('div', { className: 'app-main' },
+    header,
+    h('main', { className: 'page-container', id: 'page-content', tabindex: '-1' }, content),
+  );
+  const shell = h('div', { className: 'app-shell' }, sidebar, backdrop, appMain);
+
+  setDrawerState(Boolean(store.state.sidebarOpen), false);
   onWindowEventWhileConnected(shell, 'resize', () => {
-    if (!isMobileLayout()) setDrawerState(false, false);
+    if (!mobileQuery.matches) setDrawerState(false, false);
     else if (!sidebar.classList.contains('is-open')) setDrawerState(false, false);
-    scheduleNavigationCurve();
   });
   void loadScopes();
   return shell;
