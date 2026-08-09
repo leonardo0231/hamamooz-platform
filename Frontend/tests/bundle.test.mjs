@@ -88,7 +88,7 @@ test('schema forms use named relation pickers and repeatable structured rows', a
   assert.match(source, /افزودن/);
 });
 
-test('production output retains brand styles, fonts, and public assets', async () => {
+test('production output retains brand styles, fonts, public assets, and responsive shell rules', async () => {
   const output = new URL('../dist/', import.meta.url);
   const [appCss, brandCss, favicon, estedad, vazirmatn] = await Promise.all([
     readFile(new URL('app.css', output), 'utf8'),
@@ -103,6 +103,7 @@ test('production output retains brand styles, fonts, and public assets', async (
   assert.match(favicon, /<svg/);
   assert.ok(estedad.byteLength > 0);
   assert.ok(vazirmatn.byteLength > 0);
-  assert.match(appCss, /\.sidebar__menu-viewport\s*\{[^}]*pointer-events:\s*none/s);
-  assert.match(appCss, /\.nav-link\s*\{[^}]*pointer-events:\s*auto/s);
+  assert.match(appCss, /\.sidebar__menu-viewport\s*\{[^}]*overflow-y:\s*auto/s);
+  assert.match(appCss, /\.sidebar\.is-open\s*\{[^}]*translateX\(0\)/s);
+  assert.match(appCss, /\.table-wrap\s*\{[^}]*overflow-x:\s*auto/s);
 });
