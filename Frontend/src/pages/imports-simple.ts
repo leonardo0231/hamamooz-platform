@@ -10,7 +10,7 @@ import { confirmDialog, emptyState, errorState, loadingState, toast } from '../c
 import { icon } from '../components/icons.js';
 import { clear, formatDate, formatNumber, h, onWindowEventWhileConnected } from '../utils/dom.js';
 
-interface SchoolOption { id: string; name: string; }
+interface SchoolOption { id: string; name: string; code?: string; }
 interface ImportError { sheet?: string; row: number | null; column?: string; code?: string; message: string; }
 interface ImportJob {
   id: string;
@@ -168,36 +168,51 @@ async function openUploadDialog(onCreated: () => Promise<void>): Promise<void> {
   const preview = h('div', { className: 'import-preview', hidden: true });
   const submit = h('button', { className: 'button button--primary', type: 'submit', disabled: true }, icon('upload'), 'ارسال فایل و شروع پردازش') as HTMLButtonElement;
 
-  file.addEventListener('change', () => {
-    void (async () => {
-      clear(preview);
-      const selected = file.files?.[0];
-      preview.hidden = !selected;
-      submit.disabled = true;
-      if (!selected) return;
-      if (!selected.name.toLowerCase().endsWith('.xlsx')) {
-        preview.append(h('p', { className: 'validation-message validation-message--error', text: 'فقط فایل جامع با پسوند .xlsx پذیرفته می‌شود.' }));
-        return;
-      }
-      if (selected.size > 10 * 1024 * 1024) {
-        preview.append(h('p', { className: 'validation-message validation-message--error', text: 'حجم فایل نباید بیشتر از ۱۰ مگابایت باشد.' }));
-        return;
-      }
-      const result = await previewComprehensive(selected);
-      preview.append(h('div', { className: 'import-file-meta' }, h('strong', { text: selected.name }), h('span', { text: `${formatNumber(result.total)} ردیف قابل پردازش` })));
-      if (result.error) {
-        preview.append(h('p', { className: 'validation-message validation-message--error', text: result.error }));
-        return;
-      }
-      preview.append(
-        h('p', { className: 'validation-message validation-message--success', text: 'ساختار اولیه درست است. کنترل نهایی شناسه‌ها، مدرسه، کلاس و ظرفیت روی سرور انجام می‌شود.' }),
-        h('div', { className: 'table-wrap' }, h('table', { className: 'data-table' },
-          h('thead', {}, h('tr', {}, h('th', { text: 'شیت' }), h('th', { text: 'تعداد ردیف' }))),
-          h('tbody', {}, ...result.rows.map(row => h('tr', {}, h('td', { text: row[0] }), h('td', { text: formatNumber(Number(row[1])) })))),
-        )),
-      );
-      submit.disabled = false;
-    })();
+  const selectedSchool = (): SchoolOption | undefined => schools.find(item => item.id === school.value);
+  const selectedSchoolDescription = (): string => {
+    const target = selectedSchool();
+    if (!target) return 'مدرسه مقصد انتخاب نشده است.';
+    return target.code
+      ? `مدرسه مقصد: ${target.name} (کد مدرسه: ${target.code}). کد مدرسه در شیت کلاس‌بندی باید دقیقاً همین باشد.`
+      : `مدرسه مقصد: ${target.name}. کد مدرسه در شیت کلاس‌بندی باید دقیقاً با کد ثبت‌شده در سامانه یکسان باشد.`;
+  };
+
+  const refreshPreview = async (): Promise<void> => {
+    clear(preview);
+    const selected = file.files?.[0];
+    preview.hidden = !selected;
+    submit.disabled = true;
+    if (!selected) return;
+    if (!selected.name.toLowerCase().endsWith('.xlsx')) {
+      preview.append(h('p', { className: 'validation-message validation-message--error', text: 'فقط فایل جامع با پسوند .xlsx پذیرفته می‌شود.' }));
+      return;
+    }
+    if (selected.size > 10 * 1024 * 1024) {
+      preview.append(h('p', { className: 'validation-message validation-message--error', text: 'حجم فایل نباید بیشتر از ۱۰ مگابایت باشد.' }));
+      return;
+    }
+    const result = await previewComprehensive(selected);
+    preview.append(
+      h('div', { className: 'import-file-meta' }, h('strong', { text: selected.name }), h('span', { text: `${formatNumber(result.total)} ردیف قابل پردازش` })),
+      h('p', { className: 'muted', text: selectedSchoolDescription() }),
+    );
+    if (result.error) {
+      preview.append(h('p', { className: 'validation-message validation-message--error', text: result.error }));
+      return;
+    }
+    preview.append(
+      h('p', { className: 'validation-message validation-message--success', text: 'ساختار اولیه درست است. کنترل نهایی شناسه‌ها، مدرسه، کلاس و ظرفیت روی سرور انجام می‌شود.' }),
+      h('div', { className: 'table-wrap' }, h('table', { className: 'data-table' },
+        h('thead', {}, h('tr', {}, h('th', { text: 'شیت' }), h('th', { text: 'تعداد ردیف' }))),
+        h('tbody', {}, ...result.rows.map(row => h('tr', {}, h('td', { text: row[0] }), h('td', { text: formatNumber(Number(row[1])) })))),
+      )),
+    );
+    submit.disabled = false;
+  };
+
+  file.addEventListener('change', () => void refreshPreview());
+  school.addEventListener('change', () => {
+    if (file.files?.[0]) void refreshPreview();
   });
 
   const dialog = h('dialog', { className: 'dialog dialog--preview' }) as HTMLDialogElement;
