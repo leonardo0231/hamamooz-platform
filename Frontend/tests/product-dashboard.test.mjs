@@ -50,16 +50,31 @@ test('analytics exposes line bar radar and heatmap views without a chart depende
   assert.doesNotMatch(packageJson, /chart\.js|recharts|apexcharts|echarts/i);
 });
 
-test('product stylesheet is part of the production build and form polish remains contract-driven', async () => {
-  const [html, build, styles] = await Promise.all([
+test('responsive design system keeps global layout separate from dashboard analytics', async () => {
+  const [html, build, appStyles, productStyles] = await Promise.all([
     readFile(new URL('../src/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../scripts/build.mjs', import.meta.url), 'utf8'),
+    readFile(new URL('../src/styles/app.css', import.meta.url), 'utf8'),
     readFile(new URL('../src/styles/product.css', import.meta.url), 'utf8'),
   ]);
   assert.match(html, /\/product\.css/);
   assert.match(build, /src\/styles\/product\.css/);
-  assert.match(styles, /\.schema-form/);
-  assert.match(styles, /\.manual-entry-group/);
-  assert.match(styles, /prefers-reduced-motion/);
-  assert.match(styles, /\.heatmap-table/);
+  assert.match(appStyles, /\.schema-form/);
+  assert.match(appStyles, /\.manual-entry-group/);
+  assert.match(appStyles, /\.table-wrap/);
+  assert.match(appStyles, /@media \(max-width: 1080px\)/);
+  assert.match(appStyles, /@media \(max-width: 680px\)/);
+  assert.match(productStyles, /\.decision-dashboard/);
+  assert.match(productStyles, /\.heatmap-table/);
+  assert.match(productStyles, /prefers-reduced-motion/);
+  assert.doesNotMatch(appStyles, /\.data-table,\s*\.data-table thead,\s*\.data-table tbody,[\s\S]*?display:\s*block/);
+});
+
+test('application shell uses a conventional responsive drawer without geometry-driven navigation', async () => {
+  const source = await readFile(new URL('../src/components/shell.ts', import.meta.url), 'utf8');
+  assert.match(source, /max-width: 1080px/);
+  assert.match(source, /sidebar__profile/);
+  assert.match(source, /sidebar\.classList\.toggle\('is-open'/);
+  assert.match(source, /toggleAttribute\('inert'/);
+  assert.doesNotMatch(source, /navigationScrollTop|updateNavigationCurve|nav-spotlight|ellipseRadius/);
 });
