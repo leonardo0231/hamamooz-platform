@@ -289,10 +289,7 @@ def _preflight_comprehensive_classes(job, class_rows):
                 row["__source_row__"],
                 "کد مدرسه",
                 "school",
-                (
-                    f'کد مدرسه "{school_code}" با مدرسه انتخاب‌شده '
-                    f'"{job.school.code}" مطابقت ندارد.'
-                ),
+                (f'کد مدرسه "{school_code}" با مدرسه انتخاب‌شده "{job.school.code}" مطابقت ندارد.'),
             )
         )
 
@@ -322,10 +319,7 @@ def _preflight_comprehensive_classes(job, class_rows):
                     None,
                     "سال تحصیلی",
                     "academic_year",
-                    (
-                        f'سال تحصیلی "{academic_year_code}" در این مجموعه وجود ندارد '
-                        "یا فعال نیست."
-                    ),
+                    (f'سال تحصیلی "{academic_year_code}" در این مجموعه وجود ندارد یا فعال نیست.'),
                 )
             )
 
