@@ -1,0 +1,336 @@
+
+=== DIRECTORY TREE (max depth 3, source files only) ===
+.env
+.env.example
+.github
+.github\CODEOWNERS
+.github\pull_request_template.md
+.github\workflows
+.github\workflows\backend-ci.yml
+.github\workflows\frontend-ci.yml
+.gitignore
+Backend
+Backend\.dockerignore
+Backend\.env
+Backend\.env.example
+Backend\.env.production.example
+Backend\.gitattributes
+Backend\.gitignore
+Backend\.pytest_cache
+Backend\.pytest_cache\.gitignore
+Backend\.pytest_cache\CACHEDIR.TAG
+Backend\.pytest_cache\README.md
+Backend\.pytest_cache\v
+Backend\.pytest_cache\v\cache
+Backend\.ruff_cache
+Backend\.ruff_cache\.gitignore
+Backend\.ruff_cache\0.12.4
+Backend\.ruff_cache\0.12.4\10204663738375025026
+Backend\.ruff_cache\0.12.4\1229152359498198281
+Backend\.ruff_cache\0.12.4\3611326572642484206
+Backend\.ruff_cache\0.12.4\5591465402555681257
+Backend\.ruff_cache\CACHEDIR.TAG
+Backend\.test-media
+Backend\.test-media\attendance
+Backend\.test-media\attendance\evidence
+Backend\.test-media\health
+Backend\.test-media\imports
+Backend\.test-media\imports\2026
+Backend\CHANGELOG.md
+Backend\COMMIT_INSTRUCTIONS_FA.md
+Backend\config
+Backend\config\__init__.py
+Backend\config\api_urls.py
+Backend\config\asgi.py
+Backend\config\celery.py
+Backend\config\settings
+Backend\config\settings\__init__.py
+Backend\config\settings\base.py
+Backend\config\settings\development.py
+Backend\config\settings\production.py
+Backend\config\settings\test.py
+Backend\config\urls.py
+Backend\config\wsgi.py
+Backend\db.sqlite3
+Backend\docker
+Backend\docker\nginx
+Backend\docker\nginx\nginx.conf
+Backend\docker-compose.preview.yml
+Backend\docker-compose.yml
+Backend\Dockerfile
+Backend\docs
+Backend\docs\00-INDEX_FA.md
+Backend\docs\01-MVP_SCOPE_FA.md
+Backend\docs\02-ARCHITECTURE_FA.md
+Backend\docs\03-DATA_MODEL_FA.md
+Backend\docs\04-API_FA.md
+Backend\docs\05-SECURITY_FA.md
+Backend\docs\06-OPERATIONS_FA.md
+Backend\docs\07-TESTING_FA.md
+Backend\docs\08-DECISIONS_FA.md
+Backend\docs\09-OFFLINE_DEPLOYMENT_FA.md
+Backend\docs\10-DELIVERY_MANIFEST_FA.md
+Backend\docs\11-CONFIGURATION_FA.md
+Backend\docs\12-DEVELOPMENT_FA.md
+Backend\docs\13-RUNBOOK_FA.md
+Backend\docs\14-BACKEND_REVIEW_FA.md
+Backend\docs\api-client-integration.md
+Backend\docs\api.md
+Backend\docs\API_REFERENCE_FA.md
+Backend\docs\architecture.md
+Backend\docs\ARCHITECTURE_FA.md
+Backend\docs\assumptions.md
+Backend\docs\backlog.md
+Backend\docs\backup-restore.md
+Backend\docs\branch-scope.md
+Backend\docs\decisions
+Backend\docs\decisions\0001-modular-monolith.md
+Backend\docs\decisions\0002-email-jwt-authentication.md
+Backend\docs\decisions\0003-primary-keys.md
+Backend\docs\decisions\0004-object-storage.md
+Backend\docs\deployment.md
+Backend\docs\DEPLOYMENT_HARDENING_FA.md
+Backend\docs\erd.md
+Backend\docs\error-codes.md
+Backend\docs\EXTERNAL_FILES_FA.md
+Backend\docs\FIX_REPORT_2026-07-22_FA.md
+Backend\docs\import_templates
+Backend\docs\import_templates\comprehensive_school_template.xlsx
+Backend\docs\import_templates\enrollments_template.xlsx
+Backend\docs\import_templates\monthly_evaluations_template.xlsx
+Backend\docs\import_templates\scores_template.xlsx
+Backend\docs\import_templates\students_template.xlsx
+Backend\docs\INSTALLATION_FA.md
+Backend\docs\openapi-schema.yml
+Backend\docs\openapi.md
+Backend\docs\permissions-matrix.md
+Backend\docs\requirements-traceability-matrix.md
+Backend\docs\requirements.md
+Backend\docs\risks.md
+Backend\docs\security.md
+Backend\docs\testing.md
+Backend\docs\VALIDATION_REPORT_FA.md
+Backend\hamamooz
+Backend\hamamooz\__init__.py
+Backend\hamamooz\apps
+Backend\hamamooz\apps\__init__.py
+Backend\hamamooz\apps\academics
+Backend\hamamooz\apps\accounts
+Backend\hamamooz\apps\attendance
+Backend\hamamooz\apps\core
+Backend\hamamooz\apps\dashboard
+Backend\hamamooz\apps\evaluations
+Backend\hamamooz\apps\imports
+Backend\hamamooz\apps\organizations
+Backend\hamamooz\apps\reports
+Backend\hamamooz\apps\students
+Backend\hamamooz_backend.egg-info
+Backend\hamamooz_backend.egg-info\dependency_links.txt
+Backend\hamamooz_backend.egg-info\PKG-INFO
+Backend\hamamooz_backend.egg-info\requires.txt
+Backend\hamamooz_backend.egg-info\SOURCES.txt
+Backend\hamamooz_backend.egg-info\top_level.txt
+Backend\Makefile
+Backend\manage.py
+Backend\nginx
+Backend\nginx\default.conf
+Backend\nginx\tls.conf.example
+Backend\PACKAGE_MANIFEST_SHA256.txt
+Backend\pyproject.toml
+Backend\README.md
+Backend\requirements
+Backend\requirements\base.txt
+Backend\requirements\dev.txt
+Backend\requirements\production.txt
+Backend\scripts
+Backend\scripts\backup_loop.sh
+Backend\scripts\backup_media_loop.sh
+Backend\scripts\backup_minio_loop.sh
+Backend\scripts\backup_postgres.sh
+Backend\scripts\entrypoint.sh
+Backend\scripts\generate_openapi.sh
+Backend\scripts\restore_media.sh
+Backend\scripts\restore_postgres.sh
+Backend\static
+Backend\static\fonts
+Backend\static\fonts\Estedad.woff2
+Backend\static\fonts\Vazirmatn.woff2
+Backend\templates
+Backend\templates\reports
+Backend\templates\reports\report_card.html
+Backend\tests
+Backend\tests\conftest.py
+Backend\tests\test_access.py
+Backend\tests\test_api_workflows.py
+Backend\tests\test_attendance.py
+Backend\tests\test_attendance_api.py
+Backend\tests\test_auth.py
+Backend\tests\test_comprehensive_import.py
+Backend\tests\test_enrollment_invariants.py
+Backend\tests\test_hardening_completion.py
+Backend\tests\test_human_readable_scopes.py
+Backend\tests\test_imports.py
+Backend\tests\test_management_and_tasks.py
+Backend\tests\test_monthly_evaluations.py
+Backend\tests\test_openapi_schema.py
+Backend\tests\test_reports_and_enrollment.py
+Backend\tests\test_reports_dashboard_core.py
+Backend\tests\test_scores_and_calculations.py
+Backend\tests\test_security_regressions.py
+Backend\uv.lock
+contracts
+contracts\API_CHANGELOG.md
+contracts\openapi.yaml
+contracts\README.md
+docker-compose.yml
+docs
+docs\API_CHANGE_TEMPLATE.md
+docs\codebase
+docs\codebase\.codebase-scan.txt
+docs\codebase\ARCHITECTURE.md
+docs\codebase\CONCERNS.md
+docs\codebase\CONVENTIONS.md
+docs\codebase\INTEGRATIONS.md
+docs\codebase\STACK.md
+docs\codebase\STRUCTURE.md
+docs\codebase\TESTING.md
+docs\DOCKER_LOCAL_FA.md
+docs\DOCKER_REVIEW_FA.md
+docs\FRONTEND_HANDOFF_FA.md
+docs\INTEGRATION_MATRIX.md
+docs\PRODUCT_COMPLETION_REVIEW_2026-07-26_FA.md
+Frontend
+
+=== STACK DETECTION (manifest files) ===
+No recognized manifest files found in project root.
+
+=== ENTRY POINTS ===
+No common entry points found. Check 'main' or 'scripts.start' in manifest files above.
+
+=== LINTING AND FORMATTING CONFIG ===
+No linting or formatting config files found in project root.
+
+=== ENVIRONMENT VARIABLE TEMPLATES ===
+--- .env.example ---
+# Optional local overrides. `docker compose up --build -d` also works without this file.
+# Never use these local defaults in production.
+
+DJANGO_SETTINGS_MODULE=config.settings.development
+DJANGO_SECRET_KEY=replace-with-a-long-random-development-secret
+DJANGO_DEBUG=true
+DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,web,frontend
+DJANGO_CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+
+POSTGRES_DB=hamamooz
+POSTGRES_USER=hamamooz
+POSTGRES_PASSWORD=hamamooz-local-password
+# Optional: leave empty to build it from POSTGRES_* inside the container.
+DATABASE_URL=
+
+REDIS_URL=redis://redis-cache:6379/0
+CELERY_BROKER_URL=redis://redis-broker:6379/0
+CELERY_RESULT_BACKEND=redis://redis-broker:6379/1
+CELERY_TASK_ALWAYS_EAGER=false
+CELERY_WORKER_CONCURRENCY=2
+USE_S3=false
+READINESS_CHECK_BROKER=false
+READINESS_CHECK_STORAGE=true
+
+# Local demo bootstrap. It runs idempotently after migrations.
+SEED_DEMO=true
+SEED_ADMIN_USERNAME=admin
+SEED_ADMIN_EMAIL=admin@example.com
+SEED_ADMIN_PASSWORD=Admin123!ChangeMe
+
+VITE_APP_NAME=هم‌آموز
+VITE_REQUEST_TIMEOUT_MS=20000
+HAMAMOOZ_API_PORT=8000
+HAMAMOOZ_FRONTEND_PORT=5173
+
+
+=== TODO / FIXME / HACK (production code only, test dirs excluded) ===
+Frontend\scripts\lint.mjs:11: if (/\b(TODO|FIXME)\b/i.test(text)) failures.push(`${path}: unfinished marker`);
+Frontend\scripts\lint.mjs:11: if (/\b(TODO|FIXME)\b/i.test(text)) failures.push(`${path}: unfinished marker`);
+
+=== GIT RECENT COMMITS (last 20) ===
+822bcd4 ci: validate integrated main platform
+1433cd6 merge: integrate responsive frontend MVP
+71cf2bb merge: integrate backend MVP hardening
+788696b fix(ci): format comprehensive import preflight
+4ce7c59 fix(imports): stop cascade after structural errors
+f62ba3c fix(frontend): show selected school in import preview
+f98ea64 test(frontend): align bundle checks with responsive navigation
+2d2e444 test(frontend): cover rebuilt responsive shell and layouts
+96391aa style(frontend): rebuild global responsive design system
+3ccc2ef style(frontend): rebuild dashboard analytics layout
+fe32b00 refactor(frontend): simplify responsive application shell
+ec5d2ce test(frontend): cover role dashboards analytics and chart surfaces
+cd9af9a build(frontend): include product stylesheet
+c7cee09 style(frontend): load product dashboard styles
+9ab7a6a style(frontend): polish role dashboards charts and forms
+1f34689 feat(frontend): route overview to role-aware dashboard
+6d027ba feat(frontend): implement role-aware analytical dashboards
+fdcd467 feat(frontend): add accessible evaluation heatmap
+2b12fc9 feat(frontend): expose analytics filter endpoints
+f22e2b3 feat(frontend): add accessible native dashboard charts
+
+=== HIGH-CHURN FILES (last 90 days, top 20) ===
+  14 Backend/config/settings/base.py
+  13 .github/workflows/backend-ci.yml
+   9 README.md
+   9 Backend/docker-compose.yml
+   8 .github/workflows/frontend-ci.yml
+   8 contracts/openapi.yaml
+   8 Backend/Dockerfile
+   8 Backend/.env.example
+   7 Backend/hamamooz/apps/imports/services.py
+   7 Backend/hamamooz/apps/imports/views.py
+   7 Backend/pyproject.toml
+   7 Backend/apps/organizations/models.py
+   7 Backend/apps/organizations/selectors.py
+   7 Backend/config/settings/production.py
+   6 .github/workflows/pr-boundary.yml
+   6 Frontend/src/styles/app.css
+   6 Frontend/scripts/build.mjs
+   6 Frontend/src/api/endpoints.ts
+   6 Frontend/README.md
+   6 Frontend/nginx.conf
+
+=== MONOREPO SIGNALS ===
+No monorepo signals detected.
+
+=== CODE METRICS ===
+Total files scanned: 1063
+Total lines of code: 27001
+
+Files by language:
+  Other: 859
+  Python: 167
+  TypeScript: 37
+
+Top 10 largest files:
+outputs\019fc094-c086-7cf0-8ddc-c00ae8df484f\قالب جامع مدرسه - ۱۰۰ رکورد نمونه.xlsx.inspect.ndjson: 19089.8KB
+outputs\019fc094-c086-7cf0-8ddc-c00ae8df484f\قالب جامع جمع‌آوری اطلاعات مدرسه.xlsx.inspect.ndjson: 12894.8KB
+Backend\db.sqlite3: 1552.0KB
+outputs\019fc094-c086-7cf0-8ddc-c00ae8df484f\قالب جامع مدرسه - ۱۰۰ رکورد نمونه.xlsx: 612.5KB
+Backend\docs\import_templates\comprehensive_school_template.xlsx: 526.2KB
+Backend\.test-media\imports\2026\08\comprehensive_school_GNgJMqp.xlsx: 504.9KB
+Backend\.test-media\imports\2026\08\comprehensive_school_ZEwFpXf.xlsx: 504.9KB
+Backend\.test-media\imports\2026\08\comprehensive_school_CLUtLkd.xlsx: 504.9KB
+Backend\.test-media\imports\2026\08\comprehensive_school_SpQglrF.xlsx: 504.9KB
+Backend\.test-media\imports\2026\08\comprehensive_school_89jxcZW.xlsx: 504.9KB
+
+=== CI/CD PIPELINES ===
+CI/CD: GitHub Actions
+
+=== CONTAINERS & ORCHESTRATION ===
+Orchestration: Docker Compose found
+
+=== SECURITY & COMPLIANCE ===
+No security configs detected.
+
+=== PERFORMANCE & TESTING ===
+No performance testing configs detected.
+
+=== SCAN COMPLETE ===
