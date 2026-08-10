@@ -2,9 +2,7 @@ name: Frontend CI
 
 on:
   push:
-    branches:
-      - main
-      - frontend/mvp-bootstrap
+    branches: [main]
     paths:
       - "Frontend/**"
       - "contracts/**"
@@ -20,6 +18,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: frontend-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   frontend-quality:
@@ -57,6 +59,16 @@ jobs:
 
       - name: Regenerate API catalog
         run: npm run generate:api
+
+      - name: Upload generated API catalog
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-api-catalog
+          path: |
+            Frontend/src/api/generated/catalog.json
+            Frontend/src/api/generated/catalog.ts
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Verify committed API catalog
         run: git diff --exit-code -- src/api/generated
