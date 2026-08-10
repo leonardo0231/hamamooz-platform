@@ -11,6 +11,7 @@ from openpyxl import load_workbook
 from hamamooz.apps.evaluations.catalog import METRIC_CATALOG
 from hamamooz.apps.evaluations.models import MetricScore, MonthlyEvaluation
 from hamamooz.apps.imports.models import ImportJob
+from hamamooz.apps.imports.pipeline import process_import_job as process_hardened_import_job
 from hamamooz.apps.imports.serializers import uploaded_file_checksum
 from hamamooz.apps.imports.services import process_import_job
 from hamamooz.apps.organizations.models import ClassSection
@@ -55,6 +56,55 @@ def comprehensive_workbook_bytes(
     for index in range(metric_count):
         evaluations.cell(row=5, column=7 + index, value=score)
     evaluations.cell(row=5, column=94, value="ثبت از فایل جامع")
+
+    output = BytesIO()
+    workbook.save(output)
+    return output.getvalue()
+
+
+def large_workbook_with_invalid_class_references(base_data):
+    """Create the shape that previously produced hundreds of cascade errors."""
+    template = (
+        Path(settings.BASE_DIR) / "docs" / "import_templates" / "comprehensive_school_template.xlsx"
+    )
+    workbook = load_workbook(template)
+    classes = workbook["کلاس‌بندی"]
+    students = workbook["دانش‌آموزان"]
+    evaluations = workbook["ثبت اطلاعات"]
+
+    class_codes = []
+    for index in range(4):
+        row = 5 + index
+        class_code = f"invalid-class-{index + 1}"
+        class_codes.append(class_code)
+        classes.cell(row=row, column=2, value="wrong-school")
+        classes.cell(row=row, column=3, value="unknown-year")
+        classes.cell(row=row, column=4, value=class_code)
+        classes.cell(row=row, column=5, value=f"Invalid class {index + 1}")
+        classes.cell(row=row, column=6, value=base_data["grade"].code)
+        classes.cell(row=row, column=7, value=30)
+
+    for index in range(100):
+        row = 5 + index
+        local_code = str(index + 1)
+        class_code = class_codes[index % len(class_codes)]
+        students.cell(row=row, column=2, value=local_code)
+        students.cell(
+            row=row,
+            column=3,
+            value="invalid-national-id" if index == 0 else f"{9_000_000_000 + index:010d}",
+        )
+        students.cell(row=row, column=4, value=f"bulk-{index + 1:03d}")
+        students.cell(row=row, column=5, value="Sara")
+        students.cell(row=row, column=6, value="Ahmadi")
+        students.cell(row=row, column=7, value="female")
+        students.cell(row=row, column=8, value=date(2012, 3, 4))
+        students.cell(row=row, column=9, value=class_code)
+
+        evaluations.cell(row=row, column=1, value=index + 1)
+        evaluations.cell(row=row, column=2, value=1)
+        evaluations.cell(row=row, column=3, value=local_code)
+        evaluations.cell(row=row, column=7, value=4)
 
     output = BytesIO()
     workbook.save(output)
@@ -196,6 +246,51 @@ def test_comprehensive_import_reports_unknown_academic_year_with_location(base_d
     assert job.errors[0]["column"] == "سال تحصیلی"
     assert job.errors[0]["code"] == "academic_year"
     assert not Student.objects.filter(national_id="0012345680").exists()
+
+
+@pytest.mark.django_db
+def test_comprehensive_import_reports_independent_errors_after_class_preflight(base_data):
+    payload = large_workbook_with_invalid_class_references(base_data)
+    job = create_comprehensive_job(base_data, payload)
+
+    process_hardened_import_job(job.id)
+    job.refresh_from_db()
+
+    assert job.status == ImportJob.Status.FAILED
+    assert job.total_rows == 204
+    assert job.error_count > 2, job.errors
+    assert "structural_validation" not in [error["code"] for error in job.errors]
+    school_error = next(error for error in job.errors if error["code"] == "school")
+    academic_year_error = next(error for error in job.errors if error["code"] == "academic_year")
+    assert school_error["sheet"] == "کلاس‌بندی"
+    assert school_error["row"] == 5
+    assert '"wrong-school"' in school_error["message"]
+    assert '"s1"' in school_error["message"]
+    assert '"unknown-year"' in academic_year_error["message"]
+    assert any(error["sheet"] == "دانش‌آموزان" for error in job.errors)
+    assert not Student.objects.filter(national_id__startswith="9000000").exists()
+
+
+@pytest.mark.django_db
+def test_comprehensive_import_rejects_non_empty_rows_beyond_template_limits(base_data):
+    workbook = load_workbook(BytesIO(comprehensive_workbook_bytes(base_data)))
+    classes = workbook["کلاس‌بندی"]
+    classes.cell(row=35, column=2, value=base_data["school1"].code)
+    classes.cell(row=35, column=3, value=base_data["year"].code)
+    classes.cell(row=35, column=4, value="overflow-class")
+    classes.cell(row=35, column=5, value="Overflow class")
+    classes.cell(row=35, column=6, value=base_data["grade"].code)
+    classes.cell(row=35, column=7, value=30)
+    payload = BytesIO()
+    workbook.save(payload)
+
+    job = create_comprehensive_job(base_data, payload.getvalue())
+    process_hardened_import_job(job.id)
+    job.refresh_from_db()
+
+    assert job.status == ImportJob.Status.FAILED
+    assert job.error_count == 1
+    assert not ClassSection.objects.filter(code="overflow-class").exists()
 
 
 @pytest.mark.django_db

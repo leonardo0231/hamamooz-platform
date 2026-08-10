@@ -28,6 +28,74 @@ class MetricScoreSerializer(serializers.ModelSerializer):
         return self._definition(obj)["domain_title"]
 
 
+class ManualMetricScoreInputSerializer(serializers.Serializer):
+    metric_code = serializers.ChoiceField(choices=list(METRIC_CATALOG))
+    value = serializers.IntegerField(min_value=0, max_value=5)
+
+
+class ManualMonthlyEvaluationInputSerializer(serializers.Serializer):
+    enrollment = serializers.UUIDField(help_text="ثبت‌نام فعال دانش‌آموز در مدرسه و کلاس موردنظر")
+    month_no = serializers.IntegerField(min_value=1, max_value=12, help_text="شماره ماه ۱ تا ۱۲")
+    note = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        max_length=5000,
+        help_text="توضیح اختیاری برای ارزیابی این ماه",
+    )
+    metrics = ManualMetricScoreInputSerializer(
+        many=True,
+        required=False,
+        allow_empty=True,
+        default=list,
+        help_text="شاخص‌های ثبت‌شده؛ شاخص‌های ارسال‌نشده بدون تغییر باقی می‌مانند.",
+    )
+
+    def validate_metrics(self, value):
+        codes = [item["metric_code"] for item in value]
+        if len(codes) != len(set(codes)):
+            raise serializers.ValidationError("هر شاخص در یک درخواست فقط یک‌بار قابل ثبت است.")
+        return value
+
+    def validate(self, attrs):
+        if not attrs.get("metrics") and not str(attrs.get("note") or "").strip():
+            raise serializers.ValidationError("حداقل یک شاخص یا توضیح برای ارزیابی وارد کنید.")
+        return attrs
+
+
+class ManualEvaluationDeleteSerializer(serializers.Serializer):
+    reason = serializers.CharField(
+        min_length=3,
+        max_length=1000,
+        help_text="دلیل حذف منطقی ارزیابی از نمای جاری",
+    )
+
+
+class ManualEvaluationResultSerializer(serializers.Serializer):
+    created = serializers.BooleanField()
+    restored = serializers.BooleanField()
+    metrics_created = serializers.IntegerField(min_value=0)
+    metrics_updated = serializers.IntegerField(min_value=0)
+    metrics_unchanged = serializers.IntegerField(min_value=0)
+
+
+class EvaluationCatalogMetricSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    title = serializers.CharField()
+    domain_code = serializers.CharField()
+    domain_title = serializers.CharField()
+    domain_weight = serializers.IntegerField(min_value=0)
+    order = serializers.IntegerField(min_value=1)
+
+
+class EvaluationCatalogSerializer(serializers.Serializer):
+    framework_version = serializers.CharField()
+    score_min = serializers.IntegerField()
+    score_max = serializers.IntegerField()
+    metric_count = serializers.IntegerField(min_value=0)
+    metrics = EvaluationCatalogMetricSerializer(many=True)
+
+
 class DomainScoreSerializer(serializers.Serializer):
     code = serializers.CharField()
     title = serializers.CharField()
@@ -194,3 +262,8 @@ class MonthlyEvaluationSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_completion_warning(self, obj) -> str | None:
         return self._summary(obj)["completion_warning"]
+
+
+class ManualMonthlyEvaluationResponseSerializer(serializers.Serializer):
+    evaluation = MonthlyEvaluationSerializer()
+    result = ManualEvaluationResultSerializer()

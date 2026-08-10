@@ -2,7 +2,6 @@ from collections import Counter
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
-from django.db.models import Q
 from django.utils import timezone
 
 from hamamooz.apps.evaluations.catalog import FRAMEWORK_VERSION, METRIC_CATALOG
@@ -134,6 +133,24 @@ def _metric_columns(sheet):
     return result
 
 
+def _reject_rows_beyond_template_limit(sheet, *, max_row, min_column, max_column):
+    for source_row, values in enumerate(
+        sheet.iter_rows(
+            min_row=max_row + 1,
+            max_row=sheet.max_row,
+            min_col=min_column,
+            max_col=max_column,
+            values_only=True,
+        ),
+        start=max_row + 1,
+    ):
+        if any(value not in (None, "") for value in values):
+            raise ValueError(
+                f"Sheet '{sheet.title}' contains data beyond the supported template range "
+                f"at row {source_row}."
+            )
+
+
 def load_comprehensive_workbook(job, workbook) -> LoadedImportRows:
     classes_sheet = _sheet(workbook, CLASS_SHEET)
     students_sheet = _sheet(workbook, STUDENT_SHEET)
@@ -142,6 +159,9 @@ def load_comprehensive_workbook(job, workbook) -> LoadedImportRows:
     _validate_headers(students_sheet, STUDENT_HEADERS)
     _validate_headers(evaluation_sheet, EVALUATION_IDENTITY_HEADERS)
     metric_columns = _metric_columns(evaluation_sheet)
+    _reject_rows_beyond_template_limit(classes_sheet, max_row=34, min_column=2, max_column=7)
+    _reject_rows_beyond_template_limit(students_sheet, max_row=104, min_column=2, max_column=9)
+    _reject_rows_beyond_template_limit(evaluation_sheet, max_row=1204, min_column=1, max_column=94)
 
     rows = []
     for source_row, values in enumerate(
@@ -269,11 +289,30 @@ def _model_error(exc):
     return "; ".join(exc.messages)
 
 
-def validate_comprehensive_workbook(job, rows):
+def _preflight_comprehensive_classes(job, class_rows):
+    """Validate class-level references before inspecting dependent rows.
+
+    Students and evaluations rely on the classes in this sheet.  Returning the structural
+    errors first prevents one incorrect reference from being reported again for every
+    dependent row in a large workbook.
+    """
     errors = []
-    class_rows = [row for row in rows if row["record_type"] == "class"]
-    student_rows = [row for row in rows if row["record_type"] == "student"]
-    evaluation_rows = [row for row in rows if row["record_type"] == "evaluation"]
+
+    reported_school_codes = set()
+    for row in class_rows:
+        school_code = _text(row["school_code"])
+        if school_code == job.school.code or school_code in reported_school_codes:
+            continue
+        reported_school_codes.add(school_code)
+        errors.append(
+            _error(
+                CLASS_SHEET,
+                row["__source_row__"],
+                "کد مدرسه",
+                "school",
+                (f'کد مدرسه "{school_code}" با مدرسه انتخاب‌شده "{job.school.code}" مطابقت ندارد.'),
+            )
+        )
 
     year_codes = {_text(row["academic_year_code"]) for row in class_rows}
     if "" in year_codes or len(year_codes) != 1:
@@ -294,44 +333,93 @@ def validate_comprehensive_workbook(job, rows):
             is_active=True,
         ).first()
         if academic_year is None:
+            academic_year_code = next(iter(year_codes))
             errors.append(
                 _error(
                     CLASS_SHEET,
                     None,
                     "سال تحصیلی",
                     "academic_year",
-                    "سال تحصیلی فایل در سازمان پیدا نشد یا فعال نیست.",
+                    (f'سال تحصیلی "{academic_year_code}" در این مجموعه وجود ندارد یا فعال نیست.'),
                 )
             )
 
-    grade_values = {_text(row["grade"]) for row in class_rows if _text(row["grade"])}
-    grades = GradeLevel.objects.filter(organization=job.organization, is_active=True).filter(
-        Q(code__in=grade_values) | Q(title__in=grade_values)
-    )
     grade_map = {}
-    for grade in grades:
+    for grade in GradeLevel.objects.filter(organization=job.organization, is_active=True):
         grade_map.setdefault(_label(grade.code), grade)
         grade_map.setdefault(_label(grade.title), grade)
 
     normalized_classes = []
     seen_class_codes = set()
+    reported_grade_values = set()
     for row in class_rows:
         source_row = row["__source_row__"]
-        try:
-            school_code = _text(row["school_code"])
-            class_code = _text(row["class_code"])
-            class_title = _text(row["class_title"])
-            grade = grade_map.get(_label(row["grade"]))
-            if school_code != job.school.code:
-                raise ValueError("کد مدرسه با مدرسه انتخاب‌شده در سامانه یکسان نیست.")
-            if not class_code or class_code in seen_class_codes:
-                raise ValueError("کد کلاس خالی یا تکراری است.")
-            if not class_title:
-                raise ValueError("نام کلاس الزامی است.")
-            if grade is None:
-                raise ValueError("پایه تحصیلی در سازمان پیدا نشد یا فعال نیست.")
-            capacity = _as_positive_int(row["capacity"], "ظرفیت")
+        class_code = _text(row["class_code"])
+        class_title = _text(row["class_title"])
+        grade_value = _text(row["grade"])
+        grade = grade_map.get(_label(grade_value))
+        row_has_error = False
+
+        if not class_code:
+            errors.append(
+                _error(
+                    CLASS_SHEET,
+                    source_row,
+                    "کد کلاس",
+                    "class",
+                    "کد کلاس الزامی است.",
+                )
+            )
+            row_has_error = True
+        elif class_code in seen_class_codes:
+            errors.append(
+                _error(
+                    CLASS_SHEET,
+                    source_row,
+                    "کد کلاس",
+                    "class",
+                    "کد کلاس تکراری است.",
+                )
+            )
+            row_has_error = True
+        else:
             seen_class_codes.add(class_code)
+
+        if not class_title:
+            errors.append(
+                _error(
+                    CLASS_SHEET,
+                    source_row,
+                    "نام کلاس",
+                    "class",
+                    "نام کلاس الزامی است.",
+                )
+            )
+            row_has_error = True
+
+        grade_key = _label(grade_value)
+        if grade is None:
+            if grade_key not in reported_grade_values:
+                reported_grade_values.add(grade_key)
+                errors.append(
+                    _error(
+                        CLASS_SHEET,
+                        source_row,
+                        "پایه تحصیلی",
+                        "grade",
+                        f'پایه "{grade_value}" در این مجموعه وجود ندارد یا فعال نیست.',
+                    )
+                )
+            row_has_error = True
+
+        try:
+            capacity = _as_positive_int(row["capacity"], "ظرفیت")
+        except ValueError as exc:
+            errors.append(_error(CLASS_SHEET, source_row, "ظرفیت", "capacity", str(exc)))
+            row_has_error = True
+        else:
+            if row_has_error:
+                continue
             normalized_classes.append(
                 {
                     "code": class_code,
@@ -341,8 +429,18 @@ def validate_comprehensive_workbook(job, rows):
                     "source_row": source_row,
                 }
             )
-        except ValueError as exc:
-            errors.append(_error(CLASS_SHEET, source_row, None, "class", str(exc)))
+
+    return {"academic_year": academic_year, "classes": normalized_classes}, errors
+
+
+def validate_comprehensive_workbook(job, rows):
+    class_rows = [row for row in rows if row["record_type"] == "class"]
+    student_rows = [row for row in rows if row["record_type"] == "student"]
+    evaluation_rows = [row for row in rows if row["record_type"] == "evaluation"]
+
+    preflight, errors = _preflight_comprehensive_classes(job, class_rows)
+    academic_year = preflight["academic_year"]
+    normalized_classes = preflight["classes"]
 
     class_map = {item["code"]: item for item in normalized_classes}
     normalized_students = []

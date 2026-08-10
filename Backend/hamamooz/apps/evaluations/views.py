@@ -1,34 +1,57 @@
 from uuid import UUID
 
+from django.db import transaction
 from django.db.models import Prefetch
 from django.http import FileResponse
 from django.utils.text import slugify
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from hamamooz.apps.accounts.access import allowed_class_ids, selected_school_ids
+from hamamooz.apps.accounts.models import Role
 from hamamooz.apps.accounts.permissions import RolePermission
+from hamamooz.apps.core.services import record_audit
 from hamamooz.apps.organizations.models import AcademicYear, ClassSection
 from hamamooz.apps.students.models import Enrollment
 
+from .catalog import FRAMEWORK_VERSION, METRIC_CATALOG
 from .exports import build_evaluation_analytics_workbook
+from .manual import delete_manual_evaluation, upsert_manual_evaluation
 from .models import MonthlyEvaluation
 from .serializers import (
+    EvaluationCatalogSerializer,
     EvaluationDashboardSerializer,
+    ManualEvaluationDeleteSerializer,
+    ManualMonthlyEvaluationInputSerializer,
+    ManualMonthlyEvaluationResponseSerializer,
     MonthlyEvaluationSerializer,
     StudentEvaluationAnalyticsSerializer,
 )
 from .services import EvaluationAnalyticsService
+
+EVALUATION_WRITERS = [
+    Role.SYSTEM_ADMIN,
+    Role.ORGANIZATION_ADMIN,
+    Role.SCHOOL_MANAGER,
+    Role.EDUCATIONAL_DEPUTY,
+    Role.OPERATOR,
+    Role.TEACHER,
+]
 
 
 class MonthlyEvaluationViewSet(ReadOnlyModelViewSet):
     queryset = MonthlyEvaluation.objects.none()
     serializer_class = MonthlyEvaluationSerializer
     permission_classes = [RolePermission]
+    required_roles_by_action = {
+        "manual": EVALUATION_WRITERS,
+        "manual_delete": EVALUATION_WRITERS,
+    }
     filterset_fields = [
         "enrollment",
         "enrollment__student",
@@ -63,6 +86,126 @@ class MonthlyEvaluationViewSet(ReadOnlyModelViewSet):
             )
             .prefetch_related("metric_scores")
         )
+
+    @extend_schema(responses={200: EvaluationCatalogSerializer})
+    @action(detail=False, methods=["get"], url_path="catalog")
+    def catalog(self, request):
+        metrics = [
+            {
+                "code": code,
+                "title": definition["title"],
+                "domain_code": definition["domain_code"],
+                "domain_title": definition["domain_title"],
+                "domain_weight": definition["domain_weight"],
+                "order": definition["order"],
+            }
+            for code, definition in METRIC_CATALOG.items()
+        ]
+        return Response(
+            {
+                "framework_version": FRAMEWORK_VERSION,
+                "score_min": 0,
+                "score_max": 5,
+                "metric_count": len(metrics),
+                "metrics": metrics,
+            }
+        )
+
+    @extend_schema(
+        request=ManualMonthlyEvaluationInputSerializer,
+        responses={
+            200: ManualMonthlyEvaluationResponseSerializer,
+            201: ManualMonthlyEvaluationResponseSerializer,
+        },
+    )
+    @action(detail=False, methods=["post"], url_path="manual")
+    def manual(self, request):
+        serializer = ManualMonthlyEvaluationInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        school_ids = selected_school_ids(request)
+        class_ids = allowed_class_ids(request.user, school_ids)
+        try:
+            enrollment = Enrollment.objects.select_related(
+                "student", "school", "academic_year", "class_section"
+            ).get(
+                id=serializer.validated_data["enrollment"],
+                school_id__in=school_ids,
+                class_section_id__in=class_ids,
+                status=Enrollment.Status.ACTIVE,
+            )
+        except Enrollment.DoesNotExist as exc:
+            raise ValidationError(
+                {"enrollment": "ثبت‌نام فعال انتخاب‌شده معتبر یا در حوزه دسترسی شما نیست."}
+            ) from exc
+
+        with transaction.atomic():
+            evaluation, result = upsert_manual_evaluation(
+                enrollment=enrollment,
+                month_no=serializer.validated_data["month_no"],
+                note=serializer.validated_data.get("note", ""),
+                metrics=serializer.validated_data["metrics"],
+                actor=request.user,
+            )
+            record_audit(
+                action="evaluation.manual_upserted",
+                actor=request.user,
+                request=request,
+                entity=evaluation,
+                organization_id=enrollment.student.organization_id,
+                school_id=enrollment.school_id,
+                changes=result,
+                metadata={
+                    "month_no": evaluation.month_no,
+                    "framework_version": evaluation.framework_version,
+                    "metric_count": len(serializer.validated_data["metrics"]),
+                },
+            )
+
+        evaluation = self.get_queryset().get(pk=evaluation.pk)
+        return Response(
+            {
+                "evaluation": MonthlyEvaluationSerializer(evaluation).data,
+                "result": result,
+            },
+            status=status.HTTP_201_CREATED if result["created"] else status.HTTP_200_OK,
+        )
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="reason",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                required=True,
+                description="دلیل حذف منطقی ارزیابی از نمای جاری.",
+            )
+        ],
+        request=None,
+        responses={204: None},
+    )
+    @action(detail=True, methods=["delete"], url_path="manual")
+    def manual_delete(self, request, pk=None):
+        evaluation = self.get_object()
+        delete_data = request.data or {"reason": request.query_params.get("reason")}
+        serializer = ManualEvaluationDeleteSerializer(data=delete_data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            deleted = delete_manual_evaluation(evaluation=evaluation)
+            record_audit(
+                action="evaluation.manual_deleted",
+                actor=request.user,
+                request=request,
+                entity=deleted,
+                organization_id=deleted.enrollment.student.organization_id,
+                school_id=deleted.enrollment.school_id,
+                metadata={
+                    "month_no": deleted.month_no,
+                    "framework_version": deleted.framework_version,
+                    "reason": serializer.validated_data["reason"],
+                },
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     def _cohort_enrollments(self):
         academic_year_id = self.request.query_params.get("academic_year")
