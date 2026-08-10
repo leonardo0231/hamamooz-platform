@@ -263,7 +263,7 @@ def test_import_create_duplicate_and_retry_api_paths(api_client, base_data):
         "/api/v1/imports/",
         {
             "school": str(base_data["school1"].id),
-            "import_type": ImportJob.ImportType.STUDENTS,
+            "import_type": ImportJob.ImportType.COMPREHENSIVE_SCHOOL,
             "source_file": source,
         },
         format="multipart",
@@ -276,7 +276,7 @@ def test_import_create_duplicate_and_retry_api_paths(api_client, base_data):
         "/api/v1/imports/",
         {
             "school": str(base_data["school1"].id),
-            "import_type": ImportJob.ImportType.STUDENTS,
+            "import_type": ImportJob.ImportType.COMPREHENSIVE_SCHOOL,
             "source_file": SimpleUploadedFile(
                 "students.xlsx",
                 source_bytes,
