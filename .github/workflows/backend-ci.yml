@@ -40,7 +40,7 @@ jobs:
         env:
           POSTGRES_DB: hamamooz_test
           POSTGRES_USER: hamamooz
-          POSTGRES_PASSWORD: test-password
+          POSTGRES_PASSWORD: ${{ github.run_id }}
         ports:
           - 5432:5432
         options: >-
@@ -61,12 +61,12 @@ jobs:
 
     env:
       DJANGO_SETTINGS_MODULE: config.settings.test
-      DATABASE_URL: postgresql://hamamooz:test-password@localhost:5432/hamamooz_test
+      DATABASE_URL: postgresql://hamamooz:${{ github.run_id }}@localhost:5432/hamamooz_test
       REDIS_URL: redis://localhost:6379/0
       CELERY_BROKER_URL: redis://localhost:6379/1
       CELERY_RESULT_BACKEND: redis://localhost:6379/2
       CELERY_TASK_ALWAYS_EAGER: "true"
-      DJANGO_SECRET_KEY: ci-only-secret-key-at-least-50-characters-long-123456
+      DJANGO_SECRET_KEY: ci-${{ github.run_id }}-${{ github.sha }}
       USE_S3: "false"
       EMAIL_BACKEND: django.core.mail.backends.locmem.EmailBackend
       ATTENDANCE_ASYNC_NOTIFICATIONS: "false"
@@ -134,8 +134,8 @@ jobs:
 
       - name: Smoke test private S3 storage against MinIO
         env:
-          AWS_ACCESS_KEY_ID: hamamooz-ci
-          AWS_SECRET_ACCESS_KEY: hamamooz-ci-secret
+          AWS_ACCESS_KEY_ID: ci-${{ github.run_id }}
+          AWS_SECRET_ACCESS_KEY: ci-${{ github.sha }}
           AWS_STORAGE_BUCKET_NAME: hamamooz-ci-private
           AWS_S3_ENDPOINT_URL: http://localhost:9000
           AWS_S3_REGION_NAME: us-east-1
@@ -193,7 +193,7 @@ jobs:
           PGPORT: "5432"
           PGDATABASE: hamamooz_test
           PGUSER: hamamooz
-          PGPASSWORD: test-password
+          PGPASSWORD: ${{ github.run_id }}
           BACKUP_DIR: /tmp/hamamooz-backups
         run: |
           mkdir --parents "$BACKUP_DIR"
