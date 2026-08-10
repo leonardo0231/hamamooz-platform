@@ -51,6 +51,7 @@ const sourceHtml = await readFile(resolve(root, 'src/index.html'), 'utf8');
 await writeFile(resolve(root, 'dist/index.html'), sourceHtml.replaceAll('__API_BASE_URL__', apiBaseUrl).replaceAll('__API_ORIGIN__', apiOrigin).replaceAll('__APP_NAME__', appName).replaceAll('__REQUEST_TIMEOUT_MS__', requestTimeoutMs));
 await cp(resolve(root, 'src/styles/app.css'), resolve(root, 'dist/app.css'));
 await cp(resolve(root, 'src/styles/brand.css'), resolve(root, 'dist/brand.css'));
+await cp(resolve(root, 'src/styles/product.css'), resolve(root, 'dist/product.css'));
 await cp(resolve(root, 'public'), resolve(root, 'dist'), { recursive: true });
 const manifest = { builtAt: new Date().toISOString(), contract: 'contracts/openapi.yaml' };
 await writeFile(resolve(root, 'dist/build-manifest.json'), JSON.stringify(manifest, null, 2));
