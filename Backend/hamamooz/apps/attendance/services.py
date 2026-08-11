@@ -308,6 +308,9 @@ def finalize_attendance_session(*, session, actor, request=None):
         school_id=session.school_id,
         changes={"record_count": len(recorded_ids)},
     )
+    from hamamooz.apps.analytics.scheduling import schedule_targeted_analytics
+
+    schedule_targeted_analytics(recorded_ids)
     return session
 
 

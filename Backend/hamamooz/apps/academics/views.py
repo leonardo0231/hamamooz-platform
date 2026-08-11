@@ -13,6 +13,7 @@ from hamamooz.apps.accounts.models import Role
 from hamamooz.apps.accounts.permissions import RolePermission
 from hamamooz.apps.core.services import record_audit
 from hamamooz.apps.core.viewsets import AuditedModelViewSet
+from hamamooz.apps.students.models import Enrollment
 
 from .models import (
     Assessment,
@@ -285,6 +286,14 @@ class AssessmentViewSet(AuditedModelViewSet):
             class_id = str(updated.course_offering.class_section_id)
             term_id = str(updated.course_offering.term_id)
             transaction.on_commit(lambda: recalculate_class_term_task.delay(class_id, term_id))
+            from hamamooz.apps.analytics.scheduling import schedule_targeted_analytics
+
+            schedule_targeted_analytics(
+                Enrollment.objects.filter(
+                    class_section=updated.course_offering.class_section,
+                    status=Enrollment.Status.ACTIVE,
+                ).values_list("id", flat=True)
+            )
             record_audit(
                 action="assessment.locked",
                 actor=request.user,
@@ -326,6 +335,9 @@ class ScoreViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Ge
                     str(updated.assessment.course_offering.term_id),
                 )
             )
+            from hamamooz.apps.analytics.scheduling import schedule_targeted_analytics
+
+            schedule_targeted_analytics([updated.enrollment_id])
             record_audit(
                 action="score.locked_corrected",
                 actor=request.user,
