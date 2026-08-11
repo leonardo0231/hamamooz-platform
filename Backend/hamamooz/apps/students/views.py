@@ -12,6 +12,7 @@ from hamamooz.apps.accounts.access import (
 from hamamooz.apps.accounts.models import Role
 from hamamooz.apps.core.services import record_audit
 from hamamooz.apps.core.viewsets import AuditedModelViewSet
+from hamamooz.apps.recommendations.permissions import visible_recommendations_queryset
 
 from .models import Enrollment, Guardian, Student, StudentGuardian
 from .selectors import (
@@ -205,6 +206,7 @@ class StudentViewSet(AuditedModelViewSet):
             student=student,
             school_ids=selected_school_ids(request),
             class_ids=student_read_class_ids(request.user, selected_school_ids(request)),
+            recommendation_queryset=visible_recommendations_queryset(request),
         )
         return Response(Student360RecommendationsSerializer(recommendations).data)
 
