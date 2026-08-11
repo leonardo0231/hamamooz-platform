@@ -1,4 +1,5 @@
 from django.db import transaction
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -9,12 +10,32 @@ from hamamooz.apps.core.services import record_audit
 from hamamooz.apps.core.viewsets import AuditedModelViewSet
 
 from .models import Enrollment, Guardian, Student, StudentGuardian
+from .selectors import (
+    build_student_360_academics,
+    build_student_360_activities,
+    build_student_360_attendance,
+    build_student_360_behavior,
+    build_student_360_evaluations,
+    build_student_360_recommendations,
+    build_student_360_reports,
+    build_student_360_risks,
+    build_student_360_summary,
+)
 from .serializers import (
     ChangeClassSerializer,
     ChangeEnrollmentStatusSerializer,
     EnrollmentSerializer,
     GuardianSerializer,
     LinkGuardianSerializer,
+    Student360AcademicsSerializer,
+    Student360ActivitiesSerializer,
+    Student360AttendanceSerializer,
+    Student360BehaviorSerializer,
+    Student360EvaluationsSerializer,
+    Student360RecommendationsSerializer,
+    Student360ReportsSerializer,
+    Student360RisksSerializer,
+    Student360SummarySerializer,
     StudentSerializer,
     TransferEnrollmentSerializer,
 )
@@ -57,6 +78,119 @@ class StudentViewSet(AuditedModelViewSet):
             .prefetch_related("guardian_links__guardian")
             .distinct()
         )
+
+    @extend_schema(responses={200: Student360SummarySerializer})
+    @action(detail=True, methods=["get"], url_path="360/summary")
+    def student_360_summary(self, request, pk=None):
+        student = self.get_object()
+        school_ids = selected_school_ids(request)
+        class_ids = allowed_class_ids(request.user, school_ids)
+        summary = build_student_360_summary(
+            student=student,
+            school_ids=school_ids,
+            class_ids=class_ids,
+        )
+        return Response(Student360SummarySerializer(summary).data)
+
+    @extend_schema(responses={200: Student360AcademicsSerializer})
+    @action(detail=True, methods=["get"], url_path="360/academics")
+    def student_360_academics(self, request, pk=None):
+        student = self.get_object()
+        school_ids = selected_school_ids(request)
+        class_ids = allowed_class_ids(request.user, school_ids)
+        academics = build_student_360_academics(
+            student=student,
+            school_ids=school_ids,
+            class_ids=class_ids,
+        )
+        return Response(Student360AcademicsSerializer(academics).data)
+
+    @extend_schema(responses={200: Student360AttendanceSerializer})
+    @action(detail=True, methods=["get"], url_path="360/attendance")
+    def student_360_attendance(self, request, pk=None):
+        student = self.get_object()
+        school_ids = selected_school_ids(request)
+        class_ids = allowed_class_ids(request.user, school_ids)
+        attendance = build_student_360_attendance(
+            student=student,
+            school_ids=school_ids,
+            class_ids=class_ids,
+        )
+        return Response(Student360AttendanceSerializer(attendance).data)
+
+    @extend_schema(responses={200: Student360EvaluationsSerializer})
+    @action(detail=True, methods=["get"], url_path="360/evaluations")
+    def student_360_evaluations(self, request, pk=None):
+        student = self.get_object()
+        school_ids = selected_school_ids(request)
+        class_ids = allowed_class_ids(request.user, school_ids)
+        evaluations = build_student_360_evaluations(
+            student=student,
+            school_ids=school_ids,
+            class_ids=class_ids,
+        )
+        return Response(Student360EvaluationsSerializer(evaluations).data)
+
+    @extend_schema(responses={200: Student360ReportsSerializer})
+    @action(detail=True, methods=["get"], url_path="360/reports")
+    def student_360_reports(self, request, pk=None):
+        student = self.get_object()
+        school_ids = selected_school_ids(request)
+        class_ids = allowed_class_ids(request.user, school_ids)
+        reports = build_student_360_reports(
+            student=student,
+            school_ids=school_ids,
+            class_ids=class_ids,
+        )
+        return Response(Student360ReportsSerializer(reports, context={"request": request}).data)
+
+    @extend_schema(responses={200: Student360BehaviorSerializer})
+    @action(detail=True, methods=["get"], url_path="360/behavior")
+    def student_360_behavior(self, request, pk=None):
+        student = self.get_object()
+        school_ids = selected_school_ids(request)
+        class_ids = allowed_class_ids(request.user, school_ids)
+        behavior = build_student_360_behavior(
+            student=student,
+            school_ids=school_ids,
+            class_ids=class_ids,
+        )
+        return Response(Student360BehaviorSerializer(behavior).data)
+
+    @extend_schema(responses={200: Student360ActivitiesSerializer})
+    @action(detail=True, methods=["get"], url_path="360/activities")
+    def student_360_activities(self, request, pk=None):
+        student = self.get_object()
+        school_ids = selected_school_ids(request)
+        class_ids = allowed_class_ids(request.user, school_ids)
+        activities = build_student_360_activities(
+            student=student,
+            school_ids=school_ids,
+            class_ids=class_ids,
+        )
+        return Response(Student360ActivitiesSerializer(activities).data)
+
+    @extend_schema(responses={200: Student360RisksSerializer})
+    @action(detail=True, methods=["get"], url_path="360/risks")
+    def student_360_risks(self, request, pk=None):
+        student = self.get_object()
+        risks = build_student_360_risks(
+            student=student,
+            school_ids=selected_school_ids(request),
+            class_ids=allowed_class_ids(request.user, selected_school_ids(request)),
+        )
+        return Response(Student360RisksSerializer(risks).data)
+
+    @extend_schema(responses={200: Student360RecommendationsSerializer})
+    @action(detail=True, methods=["get"], url_path="360/recommendations")
+    def student_360_recommendations(self, request, pk=None):
+        student = self.get_object()
+        recommendations = build_student_360_recommendations(
+            student=student,
+            school_ids=selected_school_ids(request),
+            class_ids=allowed_class_ids(request.user, selected_school_ids(request)),
+        )
+        return Response(Student360RecommendationsSerializer(recommendations).data)
 
     @action(detail=True, methods=["post"], url_path="guardians")
     def link_guardian(self, request, pk=None):

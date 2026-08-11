@@ -1,6 +1,8 @@
 from rest_framework import serializers
 
 from hamamooz.apps.accounts.access import accessible_organization_ids, accessible_school_ids
+from hamamooz.apps.evaluations.serializers import MonthlyEvaluationSerializer
+from hamamooz.apps.reports.serializers import ReportArchiveSerializer
 
 from .models import Enrollment, EnrollmentEvent, Guardian, Student, StudentGuardian
 from .services import create_enrollment
@@ -55,6 +57,137 @@ class StudentSerializer(serializers.ModelSerializer):
         if request and value.id not in set(accessible_organization_ids(request.user)):
             raise serializers.ValidationError("به این مجموعه دسترسی ندارید.")
         return value
+
+
+class Student360IdentitySerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    full_name = serializers.CharField()
+    status = serializers.CharField()
+
+
+class Student360EnrollmentSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    student_number = serializers.CharField()
+    school = serializers.CharField()
+    academic_year = serializers.CharField()
+    grade = serializers.CharField()
+    class_section = serializers.CharField()
+    status = serializers.CharField()
+
+
+class Student360SummarySerializer(serializers.Serializer):
+    student = Student360IdentitySerializer()
+    current_enrollment = Student360EnrollmentSerializer(allow_null=True)
+
+
+class Student360TermSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    title = serializers.CharField()
+
+
+class Student360TermResultSerializer(serializers.Serializer):
+    enrollment = serializers.UUIDField()
+    term = Student360TermSerializer()
+    average = serializers.FloatField(allow_null=True)
+    class_rank = serializers.IntegerField(allow_null=True)
+    passed = serializers.BooleanField()
+    formula_version = serializers.CharField()
+
+
+class Student360SubjectResultSerializer(serializers.Serializer):
+    enrollment = serializers.UUIDField()
+    subject = serializers.CharField()
+    average = serializers.FloatField(allow_null=True)
+    passed = serializers.BooleanField()
+    formula_version = serializers.CharField()
+
+
+class Student360AcademicsSerializer(serializers.Serializer):
+    term_results = Student360TermResultSerializer(many=True)
+    subject_results = Student360SubjectResultSerializer(many=True)
+
+
+class Student360AttendanceMetricsSerializer(serializers.Serializer):
+    total_sessions = serializers.IntegerField(min_value=0)
+    absence_count = serializers.IntegerField(min_value=0)
+    excused_absence_count = serializers.IntegerField(min_value=0)
+    unexcused_absence_count = serializers.IntegerField(min_value=0)
+    late_count = serializers.IntegerField(min_value=0)
+    early_leave_count = serializers.IntegerField(min_value=0)
+    absence_percent = serializers.FloatField(min_value=0)
+
+
+class Student360AttendanceSerializer(serializers.Serializer):
+    enrollment = serializers.UUIDField(allow_null=True)
+    date_from = serializers.DateField(allow_null=True)
+    date_to = serializers.DateField(allow_null=True)
+    metrics = Student360AttendanceMetricsSerializer(allow_null=True)
+
+
+class Student360EvaluationsSerializer(serializers.Serializer):
+    framework_version = serializers.CharField()
+    evaluations = MonthlyEvaluationSerializer(many=True)
+
+
+class Student360ReportsSerializer(serializers.Serializer):
+    reports = ReportArchiveSerializer(many=True)
+
+
+class Student360BehaviorEventSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    event_type = serializers.CharField()
+    polarity = serializers.CharField()
+    severity = serializers.CharField()
+    status = serializers.CharField()
+
+
+class Student360BehaviorSerializer(serializers.Serializer):
+    events = Student360BehaviorEventSerializer(many=True)
+
+
+class Student360ActivityParticipationSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    activity = serializers.CharField()
+    kind = serializers.CharField()
+    status = serializers.CharField()
+    participation_role = serializers.CharField()
+    result = serializers.CharField()
+    placement = serializers.IntegerField(allow_null=True)
+
+
+class Student360ActivitiesSerializer(serializers.Serializer):
+    participations = Student360ActivityParticipationSerializer(many=True)
+
+
+class Student360RiskSignalSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    rule_code = serializers.CharField()
+    rule_version = serializers.IntegerField()
+    severity = serializers.CharField()
+    evidence = serializers.JSONField()
+    explanation = serializers.CharField()
+    window = serializers.JSONField()
+    created_at = serializers.DateTimeField()
+
+
+class Student360RisksSerializer(serializers.Serializer):
+    signals = Student360RiskSignalSerializer(many=True)
+
+
+class Student360RecommendationSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    audience = serializers.CharField()
+    priority = serializers.CharField()
+    status = serializers.CharField()
+    rule_code = serializers.CharField()
+    rule_version = serializers.IntegerField()
+    generated_text = serializers.CharField()
+    approved_text = serializers.CharField()
+    approved_at = serializers.DateTimeField(allow_null=True)
+
+
+class Student360RecommendationsSerializer(serializers.Serializer):
+    recommendations = Student360RecommendationSerializer(many=True)
 
 
 class GuardianSerializer(serializers.ModelSerializer):
