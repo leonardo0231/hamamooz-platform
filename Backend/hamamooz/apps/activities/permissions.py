@@ -1,0 +1,20 @@
+from hamamooz.apps.accounts.models import Role
+
+ACTIVITY_WRITERS = [
+    Role.SYSTEM_ADMIN,
+    Role.ORGANIZATION_ADMIN,
+    Role.SCHOOL_MANAGER,
+    Role.EDUCATIONAL_DEPUTY,
+    Role.STUDENT_AFFAIRS_DEPUTY,
+    Role.OPERATOR,
+    Role.TEACHER,
+]
+
+ACTIVITY_MANAGERS = [
+    Role.SYSTEM_ADMIN,
+    Role.ORGANIZATION_ADMIN,
+    Role.SCHOOL_MANAGER,
+    Role.EDUCATIONAL_DEPUTY,
+    Role.STUDENT_AFFAIRS_DEPUTY,
+    Role.OPERATOR,
+]
