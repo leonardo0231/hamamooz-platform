@@ -33,6 +33,7 @@ export function createShell(content: HTMLElement): HTMLElement {
   const fullName = `${user?.first_name ?? ''} ${user?.last_name ?? ''}`.trim() || user?.username || 'کاربر';
   const roles = activeRoles();
   const visibleNavigation = staffNavigationForRoles(roles);
+  const visibleWorkspaceIds = new Set(visibleNavigation.map(workspace => workspace.id));
   const contextRole = roles.length ? primaryRole(roles) : null;
   const mobileQuery = window.matchMedia('(max-width: 1080px)');
   const focusableSelector = 'a[href], button:not([disabled]), select:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -239,6 +240,10 @@ export function createShell(content: HTMLElement): HTMLElement {
     },
   });
 
+  const studentSearch = visibleWorkspaceIds.has('students')
+    ? h('label', { className: 'global-search' }, icon('search'), searchInput)
+    : null;
+
   const header = h('header', { className: 'topbar' },
     h('div', { className: 'topbar__leading' },
       mobileToggle,
@@ -248,14 +253,14 @@ export function createShell(content: HTMLElement): HTMLElement {
         schoolSelect,
       ),
     ),
-    h('label', { className: 'global-search' }, icon('search'), searchInput),
+    studentSearch,
     h('div', { className: 'topbar__actions' },
-      h('button', {
+      visibleWorkspaceIds.has('attendance') && h('button', {
         className: 'icon-button',
         type: 'button',
         title: 'مرکز هشدارها',
         'aria-label': 'مرکز هشدارها',
-        onClick: () => navigate('/alerts'),
+        onClick: () => navigate('/attendance/alerts'),
       }, icon('bell')),
       h('button', {
         className: 'user-menu',

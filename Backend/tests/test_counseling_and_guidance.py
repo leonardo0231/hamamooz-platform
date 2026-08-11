@@ -3,7 +3,7 @@ from django.utils import timezone
 
 from hamamooz.apps.accounts.models import Role, RoleAssignment, User
 from hamamooz.apps.core.models import AuditEvent
-from hamamooz.apps.counseling.models import CounselingCase, CounselingSession
+from hamamooz.apps.counseling.models import CounselingCase, CounselingSession, Referral
 from hamamooz.apps.guidance.models import GuideTeacherAssignment
 from hamamooz.apps.students.models import Enrollment
 
@@ -204,6 +204,106 @@ def test_guide_teacher_can_only_see_assigned_enrollment(api_client, base_data):
     )
     # Object existence is intentionally concealed outside the guide cohort.
     assert forbidden.status_code == 404
+
+
+@pytest.mark.django_db
+def test_guide_teacher_student_directory_and_360_are_limited_to_their_assignment(
+    api_client, base_data
+):
+    guide_teacher = User.objects.create_user(
+        username="guide-student-access", email="guide-student-access@example.com", password="Strong-pass-123"
+    )
+    RoleAssignment.objects.create(
+        user=guide_teacher,
+        organization=base_data["organization"],
+        school=base_data["school1"],
+        role=Role.GUIDE_TEACHER,
+    )
+    GuideTeacherAssignment.objects.create(
+        enrollment=base_data["enrollments"][0],
+        guide_teacher=guide_teacher,
+        starts_at=base_data["year"].starts_on,
+        assigned_by=base_data["manager"],
+    )
+
+    api_client.force_authenticate(guide_teacher)
+    headers = {"HTTP_X_SCHOOL_ID": str(base_data["school1"].id)}
+    directory = api_client.get("/api/v1/students/", **headers)
+    visible = api_client.get(
+        f"/api/v1/students/{base_data['students'][0].id}/360/summary/", **headers
+    )
+    hidden = api_client.get(
+        f"/api/v1/students/{base_data['students'][1].id}/360/summary/", **headers
+    )
+
+    assert directory.status_code == 200
+    assert [row["id"] for row in directory.data["results"]] == [str(base_data["students"][0].id)]
+    assert visible.status_code == 200
+    assert visible.data["student"]["id"] == str(base_data["students"][0].id)
+    assert hidden.status_code == 404
+
+
+@pytest.mark.django_db
+def test_counselor_student_directory_and_360_are_limited_to_owned_cases(api_client, base_data):
+    counselor = make_counselor(base_data, username="counselor-student-access")
+    CounselingCase.objects.create(
+        organization=base_data["organization"],
+        school=base_data["school1"],
+        enrollment=base_data["enrollments"][0],
+        assigned_counselor=counselor,
+        opened_by=counselor,
+    )
+
+    api_client.force_authenticate(counselor)
+    headers = {"HTTP_X_SCHOOL_ID": str(base_data["school1"].id)}
+    directory = api_client.get("/api/v1/students/", **headers)
+    visible = api_client.get(
+        f"/api/v1/students/{base_data['students'][0].id}/360/summary/", **headers
+    )
+    hidden = api_client.get(
+        f"/api/v1/students/{base_data['students'][1].id}/360/summary/", **headers
+    )
+
+    assert directory.status_code == 200
+    assert [row["id"] for row in directory.data["results"]] == [str(base_data["students"][0].id)]
+    assert visible.status_code == 200
+    assert hidden.status_code == 404
+
+
+@pytest.mark.django_db
+def test_incoming_counseling_referral_grants_only_its_target_student(api_client, base_data):
+    source_counselor = make_counselor(base_data, username="source-referral")
+    target_counselor = make_counselor(base_data, username="target-referral")
+    source_case = CounselingCase.objects.create(
+        organization=base_data["organization"],
+        school=base_data["school1"],
+        enrollment=base_data["enrollments"][0],
+        assigned_counselor=source_counselor,
+        opened_by=source_counselor,
+    )
+    Referral.objects.create(
+        source_case=source_case,
+        target_enrollment=base_data["enrollments"][0],
+        target_counselor=target_counselor,
+        created_by=source_counselor,
+        purpose="handoff",
+        status=Referral.Status.SENT,
+    )
+
+    api_client.force_authenticate(target_counselor)
+    headers = {"HTTP_X_SCHOOL_ID": str(base_data["school1"].id)}
+    directory = api_client.get("/api/v1/students/", **headers)
+    visible = api_client.get(
+        f"/api/v1/students/{base_data['students'][0].id}/360/summary/", **headers
+    )
+    hidden = api_client.get(
+        f"/api/v1/students/{base_data['students'][1].id}/360/summary/", **headers
+    )
+
+    assert directory.status_code == 200
+    assert [row["id"] for row in directory.data["results"]] == [str(base_data["students"][0].id)]
+    assert visible.status_code == 200
+    assert hidden.status_code == 404
 
 
 @pytest.mark.django_db

@@ -16,6 +16,7 @@ const dashboardByPrimaryRole: Partial<Record<Role, RoleDashboardKind>> = {
 };
 
 export function dashboardKindForRoles(roles: Role[]): RoleDashboardKind | null {
+  if (!roles.length) return null;
   return dashboardByPrimaryRole[primaryRole(roles)] ?? null;
 }
 

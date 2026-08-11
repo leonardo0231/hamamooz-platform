@@ -19,12 +19,14 @@ test('staff navigation is an eight-workspace task map, not a resource list', asy
   assert.doesNotMatch(shell, /label: 'پورتال خانواده و دانش‌آموز'/);
 });
 
-test('workspace visibility and role dashboards use a focused primary role', async () => {
+test('workspace visibility preserves every authorized role while dashboards retain a focused role', async () => {
   const [workspaces, dashboard] = await Promise.all([
     source('../src/app/workspaces.ts'),
     source('../src/pages/dashboard-entry.ts'),
   ]);
-  assert.match(workspaces, /primaryRole\(roles\)/);
+  assert.match(workspaces, /const activeRoleSet = new Set\(roles\)/);
+  assert.match(workspaces, /workspace\.roles\.some\(role => activeRoleSet\.has\(role\)\)/);
+  assert.doesNotMatch(workspaces, /primaryRole\(roles\)/);
   assert.match(workspaces, /educationWorkspaceRoles[\s\S]*?'teacher'/);
   assert.match(workspaces, /dataCenterWorkspaceRoles[\s\S]*?'operator'/);
   assert.match(workspaces, /administrationWorkspaceRoles: Role\[\] = policyManagementRoles/);

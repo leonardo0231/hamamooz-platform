@@ -1,5 +1,5 @@
 import { login } from '../app/auth.js';
-import { navigate } from '../app/router.js';
+import { navigate, postLoginRedirectPath } from '../app/router.js';
 import { ApiError } from '../api/types.js';
 import { config } from '../app/config.js';
 import { h } from '../utils/dom.js';
@@ -27,7 +27,7 @@ export function renderLoginPage(): HTMLElement {
     try {
       await login(identifier.value.trim(), password.value, remember.checked);
       const returnTo = new URLSearchParams(location.search).get('returnTo');
-      navigate(returnTo?.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/', true);
+      navigate(postLoginRedirectPath(returnTo), true);
     } catch (caught) {
       const apiError = caught instanceof ApiError ? caught : null;
       error.textContent = apiError?.message ?? (caught instanceof Error ? caught.message : 'ورود ناموفق بود.');

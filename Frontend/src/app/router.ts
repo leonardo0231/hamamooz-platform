@@ -1,4 +1,4 @@
-import { administrativeRoles, hasAnyRole, teacherWriteRoles } from './permissions.js';
+import { activeRoles, administrativeRoles, hasAnyRole, teacherWriteRoles } from './permissions.js';
 import { routeFactories, type RouteDefinition } from './routes.js';
 import { ensureUser } from './auth.js';
 import { store } from './store.js';
@@ -13,7 +13,7 @@ const routes: RouteDefinition[] = [
   { pattern: /^\/?$/, title: 'داشبورد', private: true, render: routeFactories.dashboard },
   { pattern: /^\/students\/?$/, title: 'دانش‌آموزان', private: true, roles: studentWorkspaceRoles, render: routeFactories.students },
   { pattern: /^\/students\/(?<id>[^/]+)\/?$/, title: 'پرونده دانش‌آموز', private: true, roles: studentWorkspaceRoles, render: routeFactories.student },
-  { pattern: /^\/alerts\/?$/, title: 'مرکز هشدارها', private: true, render: routeFactories.alerts },
+  { pattern: /^\/alerts\/?$/, title: 'مرکز هشدارها', private: true, roles: attendanceWorkspaceRoles, render: routeFactories.alerts },
   { pattern: /^\/education\/?$/, title: 'آموزش', private: true, roles: educationWorkspaceRoles, render: routeFactories.education },
   { pattern: /^\/attendance\/?$/, title: 'حضور و غیاب', private: true, roles: attendanceWorkspaceRoles, render: routeFactories.attendance },
   { pattern: /^\/attendance\/(?<tab>sessions|records|alerts|notifications)\/?$/, title: 'حضور و غیاب', private: true, roles: attendanceWorkspaceRoles, render: routeFactories.attendance },
@@ -33,6 +33,30 @@ const routes: RouteDefinition[] = [
 ];
 
 let renderVersion = 0;
+
+/**
+ * A return target must stay on this origin and never re-enter the login route.
+ * The latter avoids an authenticated user looping through /login?returnTo=/login.
+ */
+export function safeReturnTo(returnTo: string | null, origin = location.origin): string | null {
+  if (!returnTo?.startsWith('/') || returnTo.startsWith('//')) return null;
+  try {
+    const appOrigin = new URL(origin).origin;
+    const target = new URL(returnTo, appOrigin);
+    if (target.origin !== appOrigin || target.pathname === '/login' || target.pathname === '/login/') return null;
+    return `${target.pathname}${target.search}${target.hash}`;
+  } catch {
+    return null;
+  }
+}
+
+export function defaultAuthenticatedPath(roles = activeRoles()): string {
+  return roles.length ? '/' : '/portal';
+}
+
+export function postLoginRedirectPath(returnTo: string | null, roles = activeRoles(), origin = location.origin): string {
+  return safeReturnTo(returnTo, origin) ?? defaultAuthenticatedPath(roles);
+}
 
 function wrapPrivatePage(route: RouteDefinition, page: HTMLElement): HTMLElement {
   return route.shell === 'portal' ? createPortalShell(page) : createShell(page);
@@ -86,8 +110,17 @@ export async function renderRoute(): Promise<void> {
       navigate('/profile?passwordRequired=1', true);
       return;
     }
+    if (location.pathname === '/' && defaultAuthenticatedPath() === '/portal') {
+      navigate('/portal', true);
+      return;
+    }
+    if (location.pathname === '/alerts' || location.pathname === '/alerts/') {
+      navigate(`/attendance/alerts${location.search}${location.hash}`, true);
+      return;
+    }
   } else if (location.pathname.startsWith('/login') && await ensureUser()) {
-    navigate('/', true);
+    const returnTo = new URLSearchParams(location.search).get('returnTo');
+    navigate(postLoginRedirectPath(returnTo), true);
     return;
   }
 

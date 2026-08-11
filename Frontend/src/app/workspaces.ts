@@ -1,6 +1,5 @@
 import type { Role } from '../api/types.js';
 import { policyManagementRoles } from './permissions.js';
-import { primaryRole } from '../ui/role-experience.js';
 
 export interface StaffWorkspace {
   id: string;
@@ -24,7 +23,7 @@ export const followUpWorkspaceRoles: Role[] = [
 ];
 
 export const dataCenterWorkspaceRoles: Role[] = [
-  'system_admin', 'organization_admin', 'school_manager', 'operator',
+  'system_admin', 'organization_admin', 'school_manager', 'educational_deputy', 'operator',
 ];
 
 export const studentWorkspaceRoles: Role[] = [
@@ -35,7 +34,7 @@ export const studentWorkspaceRoles: Role[] = [
 export const administrationWorkspaceRoles: Role[] = policyManagementRoles;
 
 export const reportWorkspaceRoles: Role[] = [
-  'system_admin', 'organization_admin', 'school_manager', 'educational_deputy', 'student_affairs_deputy',
+  'system_admin', 'organization_admin', 'school_manager', 'educational_deputy', 'operator', 'teacher',
 ];
 
 export const staffWorkspaces: StaffWorkspace[] = [
@@ -68,14 +67,15 @@ export const staffWorkspaces: StaffWorkspace[] = [
 ];
 
 /**
- * A person may hold several backend permissions. The staff navigation uses one
- * primary work context instead of the union of every permission family, so the
- * sidebar remains a task map rather than an API-resource inventory.
+ * A person may hold several backend permissions. Preserve every authorized
+ * workspace, in the stable task-map order defined above, rather than hiding
+ * capabilities behind a single primary role.
  */
 export function staffNavigationForRoles(roles: Role[]): StaffWorkspace[] {
-  if (!roles.length) return staffWorkspaces.filter(workspace => workspace.id === 'home');
-  const contextRole = primaryRole(roles);
-  return staffWorkspaces.filter(workspace => !workspace.roles || workspace.roles.includes(contextRole));
+  const activeRoleSet = new Set(roles);
+  return staffWorkspaces.filter(
+    workspace => !workspace.roles || workspace.roles.some(role => activeRoleSet.has(role)),
+  );
 }
 
 export function isStaffWorkspaceActive(workspace: StaffWorkspace, pathname = location.pathname): boolean {

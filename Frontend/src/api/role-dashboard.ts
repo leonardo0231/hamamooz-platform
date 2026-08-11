@@ -32,6 +32,10 @@ function operationPath(id: string): string {
   return operation.path;
 }
 
+// The reports page resolves this focused view through reports_drafts_list,
+// whose response is ReportDraft rather than ReportArchive.
+const reportDraftsRoute = '/reports?view=drafts';
+
 /**
  * The backend returns a drill-down API path as part of its small read model.
  * Resolve those paths from operation IDs here, instead of copying API literals
@@ -47,7 +51,7 @@ export const roleDashboardDrillDownRoutes: Record<string, string> = {
   [operationPath('counseling_referrals_list')]: '/follow-up?view=counseling-referrals',
   [operationPath('guide_teacher_assignments_list')]: '/follow-up?view=guide-assignments',
   [operationPath('guide_follow_ups_list')]: '/follow-up?view=guide-follow-ups',
-  [operationPath('reports_drafts_list')]: '/reports?view=drafts',
+  [operationPath('reports_drafts_list')]: reportDraftsRoute,
 };
 
 export const roleDashboardApi = {
