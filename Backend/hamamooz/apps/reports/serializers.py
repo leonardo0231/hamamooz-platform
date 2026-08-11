@@ -4,7 +4,8 @@ from hamamooz.apps.academics.models import Assessment, CourseOffering
 from hamamooz.apps.academics.services import validate_score_completeness
 from hamamooz.apps.accounts.access import accessible_school_ids, allowed_class_ids
 
-from .models import ReportArchive
+from .models import ReportArchive, ReportDraft, ReportTemplate
+from .services import ALLOWED_REPORT_BLOCKS, build_draft_snapshot
 
 
 def validate_report_selection(attrs, request):
@@ -101,11 +102,14 @@ class ReportArchiveSerializer(serializers.ModelSerializer):
             "requested_by",
             "requested_by_name",
             "formula_version",
+            "output_format",
             "snapshot",
             "download_url",
             "error_message",
             "started_at",
             "completed_at",
+            "released_by",
+            "released_at",
             "created_at",
             "updated_at",
         ]
@@ -121,11 +125,14 @@ class ReportArchiveSerializer(serializers.ModelSerializer):
             "requested_by",
             "requested_by_name",
             "formula_version",
+            "output_format",
             "snapshot",
             "download_url",
             "error_message",
             "started_at",
             "completed_at",
+            "released_by",
+            "released_at",
             "created_at",
             "updated_at",
         ]
@@ -171,3 +178,189 @@ class ReportPreviewSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         return validate_report_selection(attrs, self.context["request"])
+
+
+class ReportTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReportTemplate
+        fields = [
+            "id",
+            "organization",
+            "school",
+            "code",
+            "title",
+            "report_type",
+            "output_format",
+            "blocks",
+            "presentation",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate(self, attrs):
+        from hamamooz.apps.accounts.access import accessible_organization_ids, selected_school_ids
+
+        request = self.context["request"]
+        organization = attrs.get("organization") or self.instance.organization
+        school = attrs.get("school", self.instance.school if self.instance else None)
+        if organization.id not in set(accessible_organization_ids(request.user)):
+            raise serializers.ValidationError(
+                {"organization": "Organization is outside your access scope."}
+            )
+        if school and school.id not in set(selected_school_ids(request)):
+            raise serializers.ValidationError(
+                {"school": "School is outside the selected access scope."}
+            )
+        instance = self.instance or ReportTemplate()
+        for field, value in attrs.items():
+            setattr(instance, field, value)
+        instance.full_clean(exclude=["id"])
+        return attrs
+
+
+class ReportDraftSerializer(serializers.ModelSerializer):
+    archive_id = serializers.UUIDField(source="archive.id", read_only=True, allow_null=True)
+
+    class Meta:
+        model = ReportDraft
+        fields = [
+            "id",
+            "template",
+            "organization",
+            "school",
+            "academic_year",
+            "term",
+            "enrollment",
+            "class_section",
+            "snapshot",
+            "content_overrides",
+            "status",
+            "created_by",
+            "reviewed_by",
+            "reviewed_at",
+            "rejection_reason",
+            "archive_id",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "organization",
+            "school",
+            "academic_year",
+            "snapshot",
+            "status",
+            "created_by",
+            "reviewed_by",
+            "reviewed_at",
+            "rejection_reason",
+            "archive_id",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class ReportDraftCreateSerializer(serializers.Serializer):
+    template = serializers.PrimaryKeyRelatedField(
+        queryset=ReportTemplate.objects.filter(is_active=True)
+    )
+    term = serializers.PrimaryKeyRelatedField(
+        queryset=ReportArchive._meta.get_field("term").remote_field.model.objects.all()
+    )
+    enrollment = serializers.PrimaryKeyRelatedField(
+        queryset=ReportArchive._meta.get_field("enrollment").remote_field.model.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    class_section = serializers.PrimaryKeyRelatedField(
+        queryset=ReportArchive._meta.get_field("class_section").remote_field.model.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+
+    def validate(self, attrs):
+        request = self.context["request"]
+        template = attrs["template"]
+        enrollment = attrs.get("enrollment")
+        class_section = attrs.get("class_section")
+        if bool(enrollment) == bool(class_section):
+            raise serializers.ValidationError(
+                "Exactly one of enrollment or class_section is required."
+            )
+        school = enrollment.school if enrollment else class_section.school
+        academic_year = enrollment.academic_year if enrollment else class_section.academic_year
+        if template.school_id and template.school_id != school.id:
+            raise serializers.ValidationError(
+                {"template": "Template is unavailable for this school."}
+            )
+        if template.organization_id != school.organization_id:
+            raise serializers.ValidationError(
+                {"template": "Template organization does not match the report scope."}
+            )
+        if attrs["term"].academic_year_id != academic_year.id:
+            raise serializers.ValidationError(
+                {"term": "Term does not belong to the report academic year."}
+            )
+        if school.id not in set(accessible_school_ids(request.user)):
+            raise serializers.ValidationError({"detail": "School is outside your access scope."})
+        scope_class = enrollment.class_section if enrollment else class_section
+        if scope_class.id not in set(allowed_class_ids(request.user, [school.id])):
+            raise serializers.ValidationError({"detail": "Class is outside your access scope."})
+        if template.report_type == ReportArchive.ReportType.STUDENT_REPORT_CARD and not enrollment:
+            raise serializers.ValidationError(
+                {"enrollment": "Student templates require enrollment."}
+            )
+        if (
+            template.report_type == ReportArchive.ReportType.CLASS_REPORT_CARDS
+            and not class_section
+        ):
+            raise serializers.ValidationError(
+                {"class_section": "Class templates require class_section."}
+            )
+        attrs["_school"] = school
+        attrs["_academic_year"] = academic_year
+        return attrs
+
+    def create(self, validated_data):
+        school = validated_data.pop("_school")
+        academic_year = validated_data.pop("_academic_year")
+        template = validated_data["template"]
+        snapshot = build_draft_snapshot(
+            template,
+            term=validated_data["term"],
+            enrollment=validated_data.get("enrollment"),
+            class_section=validated_data.get("class_section"),
+        )
+        return ReportDraft.objects.create(
+            **validated_data,
+            organization=school.organization,
+            school=school,
+            academic_year=academic_year,
+            snapshot=snapshot,
+            created_by=self.context["request"].user,
+        )
+
+
+class ReportDraftContentSerializer(serializers.Serializer):
+    content_overrides = serializers.JSONField()
+
+    def validate_content_overrides(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Content overrides must be an object.")
+        invalid = set(value) - ALLOWED_REPORT_BLOCKS
+        if invalid:
+            raise serializers.ValidationError(
+                f"Only allowlisted blocks may be overridden: {', '.join(sorted(invalid))}."
+            )
+        if any(not isinstance(item, str) for item in value.values()):
+            raise serializers.ValidationError("Each override must be plain text.")
+        return value
+
+
+class ReportDraftTransitionSerializer(serializers.Serializer):
+    target_status = serializers.ChoiceField(
+        choices=[choice for choice, _ in ReportDraft.Status.choices]
+    )
+    rejection_reason = serializers.CharField(required=False, allow_blank=False, max_length=500)

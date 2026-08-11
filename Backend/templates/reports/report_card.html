@@ -7,7 +7,7 @@
     @font-face { font-family: "Estedad"; src: url("static/fonts/Estedad.woff2"); font-weight: 100 900; }
     @font-face { font-family: "Vazirmatn"; src: url("static/fonts/Vazirmatn.woff2"); font-weight: 100 900; }
     @page {
-      size: A4 portrait;
+      size: {{ page_size }};
       margin: 14mm 12mm 15mm;
       @bottom-center { content: "صفحه " counter(page) " از " counter(pages); font-size: 9px; color: #64748b; }
     }
@@ -39,6 +39,7 @@
 <body>
 {% for report in reports %}
 <section class="report">
+  {% if "student_identity" in blocks %}
   <header class="header">
     <div>{% if report.school.logo_url %}<img class="logo" src="{{ report.school.logo_url }}" alt="لوگو">{% endif %}</div>
     <div>
@@ -49,6 +50,9 @@
     <div></div>
   </header>
 
+  {% if overrides.student_identity %}
+  <div class="meta">{{ overrides.student_identity }}</div>
+  {% else %}
   <div class="meta">
     <div><strong>نام دانش‌آموز:</strong> {{ report.student.full_name }}</div>
     <div><strong>کد ملی:</strong> {{ report.student.national_id }}</div>
@@ -57,7 +61,13 @@
     <div><strong>پایه:</strong> {{ report.academic.grade }}</div>
     <div><strong>کلاس / نوبت:</strong> {{ report.academic.class }} / {{ report.academic.term }}</div>
   </div>
+  {% endif %}
+  {% endif %}
 
+  {% if "academic_summary" in blocks %}
+  {% if overrides.academic_summary %}
+  <div class="meta">{{ overrides.academic_summary }}</div>
+  {% else %}
   <table>
     <thead>
       <tr><th>ردیف</th><th>درس</th><th>ضریب</th><th>مستمر</th><th>میان‌ترم</th><th>پایانی</th><th>میانگین</th><th>وضعیت</th></tr>
@@ -84,12 +94,39 @@
     <div><strong>نتیجه</strong>{{ report.summary.status_label }}</div>
     <div><strong>نسخه فرمول</strong>{{ report.summary.formula_version }}</div>
   </div>
+  {% endif %}
+  {% endif %}
 
+  {% if "attendance_summary" in blocks %}
+  <div class="summary">
+    <div><strong>جلسات نهایی</strong>{{ report.product_context.attendance.finalized_session_count }}</div>
+    <div><strong>غیبت غیرموجه</strong>{{ report.product_context.attendance.unexcused_absence_count }}</div>
+    {% if overrides.attendance_summary %}<div><strong>یادداشت</strong>{{ overrides.attendance_summary }}</div>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if "recommendations" in blocks %}
+  <div class="meta">
+    <strong>توصیه‌های تأییدشده</strong>
+    {% if overrides.recommendations %}
+      <span>{{ overrides.recommendations }}</span>
+    {% else %}
+      {% for recommendation in report.product_context.approved_recommendations %}
+        <span>{{ recommendation.approved_text }}</span>
+      {% empty %}
+        <span class="empty">توصیهٔ تأییدشده‌ای وجود ندارد.</span>
+      {% endfor %}
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if "signatures" in blocks %}
   <div class="signatures">
     <div>امضای دبیر<div class="signature-space"></div></div>
     <div>امضای معاون آموزشی<div class="signature-space"></div></div>
     <div>امضا و مهر مدیر<div class="signature-space"></div></div>
   </div>
+  {% endif %}
   <footer class="footer"><span>{{ report.school.address }} {{ report.school.phone }}</span><span>تولیدشده توسط سامانه هم‌آموز</span></footer>
 </section>
 {% endfor %}

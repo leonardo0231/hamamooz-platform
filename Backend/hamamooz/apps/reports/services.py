@@ -2,6 +2,7 @@ from collections import defaultdict
 from copy import deepcopy
 from datetime import timedelta
 from decimal import Decimal
+from io import BytesIO
 from pathlib import Path
 
 from django.conf import settings
@@ -27,7 +28,35 @@ from hamamooz.apps.academics.models import (
 )
 from hamamooz.apps.students.models import Enrollment
 
-from .models import ReportArchive
+from .models import ReportArchive, ReportDraft
+
+ALLOWED_REPORT_BLOCKS = {
+    "student_identity",
+    "academic_summary",
+    "attendance_summary",
+    "evaluation_radar",
+    "strengths",
+    "weaknesses",
+    "recommendations",
+    "signatures",
+}
+
+# The layout is data, but not executable template source.  Keeping the CSS
+# values here prevents a manager-provided presentation JSON object from
+# influencing @page with arbitrary text.
+ALLOWED_REPORT_PAGE_SIZES = {
+    "a4_portrait": "A4 portrait",
+    "a3_landscape": "A3 landscape",
+}
+
+
+def report_page_size(presentation):
+    """Return a safe CSS @page value for a frozen template presentation."""
+    if not isinstance(presentation, dict):
+        return ALLOWED_REPORT_PAGE_SIZES["a4_portrait"]
+    return ALLOWED_REPORT_PAGE_SIZES.get(
+        presentation.get("page_size"), ALLOWED_REPORT_PAGE_SIZES["a4_portrait"]
+    )
 
 
 def _decimal_string(value, decimal_places=2):
@@ -147,11 +176,15 @@ def build_report_snapshot(report_type, term, enrollment=None, class_section=None
 
 
 def render_report_html(snapshot, *, preview=False):
+    template = snapshot.get("template", {})
     return render_to_string(
         "reports/report_card.html",
         {
             "reports": snapshot["reports"],
             "preview": preview,
+            "blocks": template.get("blocks", ALLOWED_REPORT_BLOCKS),
+            "overrides": snapshot.get("content_overrides", {}),
+            "page_size": report_page_size(template.get("presentation")),
             "generated_at": timezone.now(),
         },
     )
@@ -186,6 +219,238 @@ def render_report_pdf(snapshot):
         string=html,
         base_url=Path(settings.BASE_DIR).as_uri(),
     ).write_pdf(presentational_hints=False)
+
+
+def render_report_docx(snapshot):
+    """Render a fixed, reviewed DOCX template from a frozen report snapshot.
+
+    The document template is shipped with the application.  Managers configure
+    only allowlisted layout blocks; they never upload executable Jinja or Python.
+    """
+    from docxtpl import DocxTemplate
+
+    template_path = Path(settings.BASE_DIR) / "templates" / "reports" / "report_card.docx"
+    if not template_path.is_file():
+        raise ValueError("The approved DOCX report template is unavailable.")
+    template = snapshot.get("template", {})
+    document = DocxTemplate(template_path)
+    document.render(
+        {
+            "reports": snapshot.get("reports", []),
+            "blocks": template.get("blocks", ALLOWED_REPORT_BLOCKS),
+            "overrides": snapshot.get("content_overrides", {}),
+            "generated_at": timezone.now(),
+        }
+    )
+    output = BytesIO()
+    document.save(output)
+    return output.getvalue()
+
+
+def _report_extended_context(enrollment):
+    """Build a no-counseling snapshot extension from approved, scoped domains."""
+    from hamamooz.apps.activities.models import ActivityParticipation
+    from hamamooz.apps.analytics.models import StudentRiskSignal
+    from hamamooz.apps.attendance.models import AttendanceRecord, AttendanceSession
+    from hamamooz.apps.behavior.models import BehaviorEvent
+    from hamamooz.apps.evaluations.models import MonthlyEvaluation
+    from hamamooz.apps.recommendations.models import Recommendation
+
+    attendance_records = AttendanceRecord.objects.filter(
+        enrollment=enrollment, session__status=AttendanceSession.Status.FINALIZED
+    )
+    attendance = {
+        "finalized_session_count": attendance_records.values("session_id").distinct().count(),
+        "unexcused_absence_count": attendance_records.filter(
+            status=AttendanceRecord.Status.ABSENT_UNEXCUSED
+        ).count(),
+    }
+    evaluations = [
+        {
+            "month_no": item.month_no,
+            "framework_version": item.framework_version,
+            "metric_scores": {score.metric_code: score.value for score in item.metric_scores.all()},
+        }
+        for item in MonthlyEvaluation.objects.filter(enrollment=enrollment)
+        .prefetch_related("metric_scores")
+        .order_by("month_no", "framework_version")
+    ]
+    behavior = [
+        {
+            "event_type": item.event_type.code,
+            "polarity": item.polarity,
+            "severity": item.severity,
+            "status": item.status,
+            "occurred_at": item.occurred_at.isoformat(),
+        }
+        for item in BehaviorEvent.objects.filter(
+            enrollment=enrollment,
+            status__in=[
+                BehaviorEvent.Status.CONFIRMED,
+                BehaviorEvent.Status.UNDER_FOLLOW_UP,
+                BehaviorEvent.Status.RESOLVED,
+            ],
+        ).select_related("event_type")
+    ]
+    activities = [
+        {
+            "title": item.activity.title,
+            "kind": item.activity.kind,
+            "status": item.status,
+            "result": item.result,
+            "placement": item.placement,
+        }
+        for item in ActivityParticipation.objects.filter(enrollment=enrollment).select_related(
+            "activity"
+        )
+    ]
+    signals = [
+        {
+            "rule_code": item.rule_code,
+            "rule_version": item.rule_version,
+            "severity": item.severity,
+            "evidence": item.evidence,
+            "explanation": item.explanation,
+            "window": item.window,
+        }
+        for item in StudentRiskSignal.objects.filter(
+            enrollment=enrollment, state=StudentRiskSignal.State.ACTIVE
+        )
+    ]
+    recommendations = [
+        {
+            "audience": item.audience,
+            "rule_code": item.rule_code,
+            "rule_version": item.rule_version,
+            "priority": item.priority,
+            "approved_text": item.approved_text,
+        }
+        for item in Recommendation.objects.filter(
+            enrollment=enrollment, status=Recommendation.Status.APPROVED
+        ).exclude(audience=Recommendation.Audience.COUNSELOR)
+    ]
+    return {
+        "attendance": attendance,
+        "evaluations": evaluations,
+        "behavior_events": behavior,
+        "activities": activities,
+        "analytics_signals": signals,
+        "approved_recommendations": recommendations,
+    }
+
+
+def build_draft_snapshot(template, *, term, enrollment=None, class_section=None):
+    """Freeze all report inputs at draft creation; counseling is intentionally absent."""
+    snapshot = build_report_snapshot(
+        template.report_type,
+        term,
+        enrollment=enrollment,
+        class_section=class_section,
+    )
+    enrollments = (
+        [enrollment]
+        if enrollment
+        else list(
+            Enrollment.all_objects.filter(
+                class_section=class_section,
+                enrolled_on__lte=term.ends_on,
+                is_deleted=False,
+            )
+            .filter(Q(left_on__isnull=True) | Q(left_on__gte=term.starts_on))
+            .select_related("student")
+        )
+    )
+    for report, subject in zip(snapshot["reports"], enrollments, strict=True):
+        report["product_context"] = _report_extended_context(subject)
+    snapshot["template"] = {
+        "id": str(template.id),
+        "code": template.code,
+        "blocks": list(template.blocks),
+        "presentation": template.presentation,
+        "output_format": template.output_format,
+    }
+    return snapshot
+
+
+def render_report_draft(draft_id):
+    """Render exactly the frozen approved snapshot into the immutable archive."""
+    with transaction.atomic():
+        draft = (
+            # enrollment and class_section are deliberately nullable (a draft
+            # has exactly one of them). PostgreSQL rejects a plain FOR UPDATE
+            # over the nullable side of the resulting outer join, so lock only
+            # the draft row that protects this state transition.
+            ReportDraft.objects.select_for_update(of=("self",))
+            .select_related(
+                "template",
+                "organization",
+                "school",
+                "academic_year",
+                "term",
+                "enrollment",
+                "class_section",
+            )
+            .get(pk=draft_id)
+        )
+        if draft.status == ReportDraft.Status.RENDERED:
+            return draft
+        if draft.status != ReportDraft.Status.APPROVED:
+            raise ValueError("Only an approved report draft may be rendered.")
+        render_snapshot = deepcopy(draft.snapshot)
+        render_snapshot["content_overrides"] = dict(draft.content_overrides)
+        archive = ReportArchive.objects.create(
+            organization=draft.organization,
+            school=draft.school,
+            academic_year=draft.academic_year,
+            term=draft.term,
+            report_type=draft.template.report_type,
+            status=ReportArchive.Status.PROCESSING,
+            enrollment=draft.enrollment,
+            class_section=draft.class_section,
+            requested_by=draft.created_by,
+            output_format=draft.template.output_format,
+            snapshot=render_snapshot,
+            formula_version=(render_snapshot.get("reports") or [{}])[0]
+            .get("summary", {})
+            .get("formula_version", ""),
+            started_at=timezone.now(),
+        )
+    try:
+        if draft.template.output_format == draft.template.OutputFormat.DOCX:
+            output = render_report_docx(render_snapshot)
+            extension = "docx"
+        else:
+            output = render_report_pdf(render_snapshot)
+            extension = "pdf"
+        filename = f"draft_{draft.id}_{draft.created_at:%Y-%m-%d}.{extension}"
+        archive.output_file.save(filename, ContentFile(output), save=False)
+        output_name = archive.output_file.name
+        with transaction.atomic():
+            archive = ReportArchive.objects.select_for_update().get(pk=archive.pk)
+            archive.output_file.name = output_name
+            archive.status = ReportArchive.Status.COMPLETED
+            archive.completed_at = timezone.now()
+            archive.error_message = ""
+            archive.save(
+                update_fields=[
+                    "output_file",
+                    "status",
+                    "completed_at",
+                    "error_message",
+                    "updated_at",
+                ]
+            )
+            draft = ReportDraft.objects.select_for_update().get(pk=draft_id)
+            draft.status = ReportDraft.Status.RENDERED
+            draft.archive = archive
+            draft.save(update_fields=["status", "archive", "updated_at"])
+            return draft
+    except Exception as exc:
+        archive.status = ReportArchive.Status.FAILED
+        archive.error_message = str(exc)[:2000]
+        archive.completed_at = timezone.now()
+        archive.save(update_fields=["status", "error_message", "completed_at", "updated_at"])
+        raise
 
 
 def generate_report(report_id):

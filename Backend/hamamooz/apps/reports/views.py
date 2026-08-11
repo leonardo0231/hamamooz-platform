@@ -1,7 +1,10 @@
 from django.db import transaction
 from django.db.models import Q
 from django.http import FileResponse
+from django.utils import timezone
+from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from hamamooz.apps.accounts.access import allowed_class_ids, selected_school_ids
@@ -9,9 +12,17 @@ from hamamooz.apps.accounts.models import Role
 from hamamooz.apps.core.services import record_audit
 from hamamooz.apps.core.viewsets import AuditedModelViewSet
 
-from .models import ReportArchive
-from .serializers import ReportArchiveSerializer, ReportPreviewSerializer
-from .services import build_report_snapshot, render_report_html
+from .models import ReportArchive, ReportDraft, ReportTemplate
+from .serializers import (
+    ReportArchiveSerializer,
+    ReportDraftContentSerializer,
+    ReportDraftCreateSerializer,
+    ReportDraftSerializer,
+    ReportDraftTransitionSerializer,
+    ReportPreviewSerializer,
+    ReportTemplateSerializer,
+)
+from .services import build_report_snapshot, render_report_draft, render_report_html
 from .tasks import generate_report_task
 
 REPORTERS = [
@@ -21,6 +32,12 @@ REPORTERS = [
     Role.EDUCATIONAL_DEPUTY,
     Role.OPERATOR,
     Role.TEACHER,
+]
+REPORT_REVIEWERS = [
+    Role.SYSTEM_ADMIN,
+    Role.ORGANIZATION_ADMIN,
+    Role.SCHOOL_MANAGER,
+    Role.EDUCATIONAL_DEPUTY,
 ]
 
 
@@ -43,7 +60,11 @@ class ReportArchiveViewSet(AuditedModelViewSet):
         "enrollment",
         "class_section",
     ]
-    required_roles_by_action = {"create": REPORTERS, "preview": REPORTERS}
+    required_roles_by_action = {
+        "create": REPORTERS,
+        "preview": REPORTERS,
+        "release": REPORT_REVIEWERS,
+    }
 
     def get_queryset(self):
         school_ids = selected_school_ids(self.request)
@@ -95,6 +116,12 @@ class ReportArchiveViewSet(AuditedModelViewSet):
             school_id=report.school_id,
         )
         report.output_file.open("rb")
+        extension = "docx" if report.output_format == ReportArchive.OutputFormat.DOCX else "pdf"
+        content_type = (
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            if extension == "docx"
+            else "application/pdf"
+        )
         return FileResponse(
             report.output_file,
             as_attachment=True,
@@ -102,7 +129,197 @@ class ReportArchiveViewSet(AuditedModelViewSet):
                 f"{_safe_filename_part(report.organization.name)}-"
                 f"{_safe_filename_part(report.school.name)}-"
                 f"{_safe_filename_part(report.get_report_type_display())}-"
-                f"{report.created_at:%Y-%m-%d}.pdf"
+                f"{report.created_at:%Y-%m-%d}.{extension}"
             ),
-            content_type="application/pdf",
+            content_type=content_type,
         )
+
+    @action(detail=True, methods=["post"])
+    def release(self, request, pk=None):
+        report = self.get_object()
+        if report.status != ReportArchive.Status.COMPLETED:
+            return Response({"detail": "Only a completed report may be released."}, status=409)
+        if report.released_at:
+            return Response(ReportArchiveSerializer(report, context={"request": request}).data)
+        report.released_by = request.user
+        report.released_at = timezone.now()
+        report.save(update_fields=["released_by", "released_at", "updated_at"])
+        record_audit(
+            action="report.released",
+            actor=request.user,
+            request=request,
+            entity=report,
+            organization_id=report.organization_id,
+            school_id=report.school_id,
+        )
+        return Response(ReportArchiveSerializer(report, context={"request": request}).data)
+
+
+class ReportTemplateViewSet(AuditedModelViewSet):
+    queryset = ReportTemplate.objects.none()
+    serializer_class = ReportTemplateSerializer
+    filterset_fields = ["organization", "school", "report_type", "output_format", "is_active"]
+    search_fields = ["code", "title"]
+    required_roles_by_action = {
+        action_name: REPORT_REVIEWERS
+        for action_name in ["create", "update", "partial_update", "destroy"]
+    }
+
+    def get_queryset(self):
+        school_ids = selected_school_ids(self.request)
+        from hamamooz.apps.accounts.access import accessible_organization_ids
+
+        return ReportTemplate.objects.filter(
+            organization_id__in=accessible_organization_ids(self.request.user)
+        ).filter(Q(school__isnull=True) | Q(school_id__in=school_ids))
+
+
+class ReportDraftViewSet(AuditedModelViewSet):
+    queryset = ReportDraft.objects.none()
+    serializer_class = ReportDraftSerializer
+    http_method_names = ["get", "post", "patch", "head", "options"]
+    filterset_fields = ["school", "academic_year", "term", "enrollment", "class_section", "status"]
+    ordering_fields = ["created_at", "reviewed_at"]
+    required_roles_by_action = {
+        "create": REPORTERS,
+        "partial_update": REPORTERS,
+        "submit": REPORTERS,
+        "approve": REPORT_REVIEWERS,
+        "reject": REPORT_REVIEWERS,
+        "render": REPORT_REVIEWERS,
+    }
+
+    def get_queryset(self):
+        school_ids = selected_school_ids(self.request)
+        class_ids = allowed_class_ids(self.request.user, school_ids)
+        return (
+            ReportDraft.objects.filter(school_id__in=school_ids)
+            .filter(
+                Q(enrollment__class_section_id__in=class_ids) | Q(class_section_id__in=class_ids)
+            )
+            .select_related("template", "enrollment__student", "class_section", "archive")
+        )
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return ReportDraftCreateSerializer
+        return ReportDraftSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = ReportDraftCreateSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        draft = serializer.save()
+        record_audit(
+            action="report.draft_created",
+            actor=request.user,
+            request=request,
+            entity=draft,
+            organization_id=draft.organization_id,
+            school_id=draft.school_id,
+            metadata={"template": draft.template.code, "snapshot_version": "full_product_v1"},
+        )
+        return Response(ReportDraftSerializer(draft).data, status=status.HTTP_201_CREATED)
+
+    def partial_update(self, request, *args, **kwargs):
+        draft = self.get_object()
+        if draft.status != ReportDraft.Status.DRAFT:
+            raise PermissionDenied("Only a draft report may be edited.")
+        serializer = ReportDraftContentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        draft.content_overrides = serializer.validated_data["content_overrides"]
+        draft.save(update_fields=["content_overrides", "updated_at"])
+        record_audit(
+            action="report.draft_edited",
+            actor=request.user,
+            request=request,
+            entity=draft,
+            organization_id=draft.organization_id,
+            school_id=draft.school_id,
+            metadata={"scope": "allowlisted_content_overrides"},
+        )
+        return Response(ReportDraftSerializer(draft).data)
+
+    @action(detail=True, methods=["post"])
+    def submit(self, request, pk=None):
+        draft = self.get_object()
+        if draft.status != ReportDraft.Status.DRAFT:
+            return Response({"detail": "Only a draft report may be submitted."}, status=409)
+        draft.status = ReportDraft.Status.SUBMITTED
+        draft.save(update_fields=["status", "updated_at"])
+        record_audit(
+            action="report.draft_submitted",
+            actor=request.user,
+            request=request,
+            entity=draft,
+            organization_id=draft.organization_id,
+            school_id=draft.school_id,
+        )
+        return Response(ReportDraftSerializer(draft).data)
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        draft = self.get_object()
+        if draft.status != ReportDraft.Status.SUBMITTED:
+            return Response({"detail": "Only a submitted report may be approved."}, status=409)
+        draft.status = ReportDraft.Status.APPROVED
+        draft.reviewed_by = request.user
+        draft.reviewed_at = timezone.now()
+        draft.rejection_reason = ""
+        draft.full_clean(exclude=["id"])
+        draft.save(
+            update_fields=["status", "reviewed_by", "reviewed_at", "rejection_reason", "updated_at"]
+        )
+        record_audit(
+            action="report.draft_approved",
+            actor=request.user,
+            request=request,
+            entity=draft,
+            organization_id=draft.organization_id,
+            school_id=draft.school_id,
+        )
+        return Response(ReportDraftSerializer(draft).data)
+
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        draft = self.get_object()
+        if draft.status != ReportDraft.Status.SUBMITTED:
+            return Response({"detail": "Only a submitted report may be rejected."}, status=409)
+        serializer = ReportDraftTransitionSerializer(
+            data={"target_status": "rejected", **request.data}
+        )
+        serializer.is_valid(raise_exception=True)
+        draft.status = ReportDraft.Status.REJECTED
+        draft.reviewed_by = request.user
+        draft.reviewed_at = timezone.now()
+        draft.rejection_reason = serializer.validated_data["rejection_reason"]
+        draft.save(
+            update_fields=["status", "reviewed_by", "reviewed_at", "rejection_reason", "updated_at"]
+        )
+        record_audit(
+            action="report.draft_rejected",
+            actor=request.user,
+            request=request,
+            entity=draft,
+            organization_id=draft.organization_id,
+            school_id=draft.school_id,
+        )
+        return Response(ReportDraftSerializer(draft).data)
+
+    @action(detail=True, methods=["post"])
+    def render(self, request, pk=None):
+        draft = self.get_object()
+        if draft.status != ReportDraft.Status.APPROVED:
+            return Response({"detail": "Only an approved report may be rendered."}, status=409)
+        try:
+            rendered = render_report_draft(draft.id)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=409)
+        record_audit(
+            action="report.draft_rendered",
+            actor=request.user,
+            request=request,
+            entity=rendered,
+            organization_id=rendered.organization_id,
+            school_id=rendered.school_id,
+        )
+        return Response(ReportDraftSerializer(rendered).data)

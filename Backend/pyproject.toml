@@ -21,6 +21,7 @@ dependencies = [
     "openpyxl==3.1.5",
     "xlrd==2.0.2",
     "weasyprint==69.0",
+    "docxtpl==0.20.2",
     "gunicorn==23.0.0",
     "sentry-sdk[django]==2.33.0",
     "Pillow==12.3.0",
@@ -59,7 +60,9 @@ exclude = ["*/migrations/*"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
-ignore = ["B008"]
+# ruff-format owns line layout; E501 otherwise flags intentional long URLs,
+# serializer field lists, and template strings it cannot safely reflow.
+ignore = ["B008", "E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["config", "hamamooz"]
