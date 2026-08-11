@@ -26,7 +26,19 @@ interface AttendanceAlert {
   resolved_at: string | null;
 }
 
+interface AttendancePolicyOption {
+  id: string;
+  school_name: string;
+  academic_year_title: string;
+  warning_absence_percent: number | string | null;
+}
+
 const labels: Record<string, string> = { critical: 'بحرانی', warning: 'مهم', open: 'باز', acknowledged: 'در حال بررسی', resolved: 'حل‌شده', daily: 'روزانه', period: 'زنگ درسی' };
+
+function policyLabel(policy: AttendancePolicyOption): string {
+  const threshold = policy.warning_absence_percent === null ? '' : ` · هشدار از ${formatNumber(policy.warning_absence_percent)}٪`;
+  return `${policy.school_name} · ${policy.academic_year_title}${threshold}`;
+}
 
 function alertCard(alert: AttendanceAlert, selected: boolean, onSelect: () => void): HTMLElement {
   return h('button', { className: `alert-list-item ${selected ? 'is-selected' : ''}`, type: 'button', dataset: { id: alert.id }, 'aria-pressed': String(selected), onClick: onSelect },
@@ -96,8 +108,8 @@ export async function renderAlertsPage(): Promise<HTMLElement> {
     policy.replaceChildren(h('option', { value: '', text: 'انتخاب سیاست حضور' }));
     evaluateButton.disabled = true;
     try {
-      const response = await apiRequest<Pagination<{ id: string; title: string }>>(endpoints.attendancePolicies, { query: { page_size: 200, is_active: true } });
-      policy.append(...response.results.map(item => h('option', { value: item.id, text: item.title })));
+      const response = await apiRequest<Pagination<AttendancePolicyOption>>(endpoints.attendancePolicies, { query: { page_size: 200, is_active: true } });
+      policy.append(...response.results.map(item => h('option', { value: item.id, text: policyLabel(item) })));
       evaluateButton.disabled = !hasWriteScope() || response.results.length === 0;
     } catch (error) {
       toast('دریافت سیاست‌های حضور ناموفق بود', 'error', error instanceof Error ? error.message : undefined);

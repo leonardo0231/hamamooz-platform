@@ -9,7 +9,7 @@ function primitiveNode(field: string, value: unknown): HTMLElement {
   if (typeof value === 'boolean' || statusFields.has(field)) {
     return h('span', { className: `badge badge--${badgeTone(value)}`, text });
   }
-  return h('span', { className: 'detail-value', text, title: text, tabindex: text.length > 45 ? '0' : undefined });
+  return h('span', { className: 'detail-value', text, title: text });
 }
 
 function primitiveList(_field: string, values: unknown[]): HTMLElement {
@@ -29,7 +29,7 @@ function tableForObjects(values: Record<string, unknown>[]): HTMLElement {
     return h('tr', {}, ...cells);
   }));
   const table = h('table', { className: 'data-table detail-table' }, h('caption', { className: 'sr-only', text: 'جزئیات فهرست' }), head, body);
-  return h('div', { className: 'table-wrap detail-table-wrap' }, table);
+  return h('div', { className: 'table-wrap detail-table-wrap', role: 'region', tabindex: '0', 'aria-label': 'جزئیات فهرست' }, table);
 }
 
 function objectSection(value: Record<string, unknown>, depth: number): HTMLElement {

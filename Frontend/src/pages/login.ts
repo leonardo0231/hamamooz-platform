@@ -39,7 +39,7 @@ export function renderLoginPage(): HTMLElement {
     }
   });
 
-  return h('main', { className: 'login-page' },
+  return h('main', { className: 'login-page', id: 'page-content', tabindex: '-1' },
     h('section', { className: 'login-visual', 'aria-hidden': 'true' },
       h('div', { className: 'login-orb login-orb--one' }), h('div', { className: 'login-orb login-orb--two' }),
       h('div', { className: 'login-visual__content' }, h('div', { className: 'brand brand--large' }, h('span', { className: 'brand__mark' }, icon('book')), h('div', {}, h('strong', { text: config.appName }), h('small', { text: 'مدیریت هوشمند مدرسه' }))),
@@ -53,7 +53,7 @@ export function renderLoginPage(): HTMLElement {
       ),
     ),
     h('section', { className: 'login-panel' },
-      h('div', { className: 'login-card' }, h('span', { className: 'eyebrow', text: 'ورود امن' }), h('h2', { text: 'خوش آمدید' }), h('p', { text: 'برای ادامه، اطلاعات حساب سازمانی خود را وارد کنید.' }), form,
+      h('div', { className: 'login-card' }, h('span', { className: 'eyebrow', text: 'ورود امن' }), h('h1', { text: 'خوش آمدید' }), h('p', { text: 'برای ادامه، اطلاعات حساب سازمانی خود را وارد کنید.' }), form,
         h('div', { className: 'login-security' }, icon('check'), h('span', { text: 'Access Token فقط در حافظه نگهداری می‌شود و نشست از طریق Backend اعتبارسنجی خواهد شد.' }))),
     ),
   );

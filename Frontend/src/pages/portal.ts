@@ -3,6 +3,7 @@ import { ApiError } from '../api/types.js';
 import { emptyState, errorState, loadingState, toast } from '../components/feedback.js';
 import { icon } from '../components/icons.js';
 import { clear, formatDate, formatNumber, h, safeText } from '../utils/dom.js';
+import { labelForValue } from '../ui/presentation.js';
 
 function download(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
@@ -26,32 +27,32 @@ function snapshotView(snapshot: PortalSnapshot, onDownload: (reportId: string) =
   const attendance = h(
     'div',
     { className: 'metric-grid' },
-    h('div', { className: 'metric-card metric-card--border-blue' }, h('small', { text: 'Finalized sessions' }), h('strong', { text: formatNumber(snapshot.attendance.finalized_session_count) })),
-    h('div', { className: 'metric-card metric-card--border-orange' }, h('small', { text: 'Unexcused absences' }), h('strong', { text: formatNumber(snapshot.attendance.unexcused_absence_count) })),
-    h('div', { className: 'metric-card metric-card--border-green' }, h('small', { text: 'Excused absences' }), h('strong', { text: formatNumber(snapshot.attendance.excused_absence_count) })),
+    h('div', { className: 'metric-card metric-card--border-blue' }, h('small', { text: 'جلسات نهایی‌شده' }), h('strong', { text: formatNumber(snapshot.attendance.finalized_session_count) })),
+    h('div', { className: 'metric-card metric-card--border-orange' }, h('small', { text: 'غیبت‌های غیرموجه' }), h('strong', { text: formatNumber(snapshot.attendance.unexcused_absence_count) })),
+    h('div', { className: 'metric-card metric-card--border-green' }, h('small', { text: 'غیبت‌های موجه' }), h('strong', { text: formatNumber(snapshot.attendance.excused_absence_count) })),
   );
   const reports = snapshot.reports.length
     ? h('div', { className: 'report-list' }, ...snapshot.reports.map(report => h(
       'div',
       { className: 'report-item' },
       h('span', { className: 'report-item__icon' }, icon('file')),
-      h('div', { className: 'report-item__body' }, h('strong', { text: safeText(report.report_type) }), h('small', { text: `${safeText(report.term)} · ${formatDate(report.released_at, true)} · ${report.output_format.toUpperCase()}` })),
-      h('button', { className: 'button button--secondary', type: 'button', onClick: () => void onDownload(report.id) }, icon('download'), 'Download'),
+      h('div', { className: 'report-item__body' }, h('strong', { text: labelForValue(report.report_type) }), h('small', { text: `${safeText(report.term)} · ${formatDate(report.released_at, true)} · ${report.output_format.toUpperCase()}` })),
+      h('button', { className: 'button button--secondary', type: 'button', onClick: () => void onDownload(report.id) }, icon('download'), 'دریافت'),
     )))
-    : emptyState('No released report', 'Only reports explicitly released by school staff are available here.');
+    : emptyState('گزارش منتشرشده‌ای وجود ندارد', 'فقط گزارش‌هایی که کارکنان مدرسه منتشر کرده‌اند در اینجا نمایش داده می‌شوند.');
   const recommendations = snapshot.recommendations.length
-    ? h('ul', { className: 'plain-list' }, ...snapshot.recommendations.map(item => h('li', {}, h('strong', { text: safeText(item.priority) }), h('p', { text: safeText(item.approved_text) }), h('small', { text: formatDate(item.approved_at, true) }))))
-    : emptyState('No approved recommendation', 'Drafts and recommendations for other audiences are not shown.');
+    ? h('ul', { className: 'plain-list' }, ...snapshot.recommendations.map(item => h('li', {}, h('strong', { text: labelForValue(item.priority) }), h('p', { text: safeText(item.approved_text) }), h('small', { text: formatDate(item.approved_at, true) }))))
+    : emptyState('توصیه تأییدشده‌ای وجود ندارد', 'پیش‌نویس‌ها و توصیه‌های مخاطبان دیگر نمایش داده نمی‌شوند.');
   const guidePlans = snapshot.guidePlans.length
     ? h('ul', { className: 'plain-list' }, ...snapshot.guidePlans.map(plan => h('li', {}, h('strong', { text: safeText(plan.title) }), h('p', { text: safeText(plan.objectives) }), h('small', { text: formatDate(plan.released_at, true) }))))
-    : emptyState('No released follow-up plan', 'Only guidance plans released by the school are shown.');
+    : emptyState('برنامه پیگیری منتشرشده‌ای وجود ندارد', 'فقط برنامه‌های راهنمایی منتشرشده توسط مدرسه نمایش داده می‌شوند.');
   return h(
     'div',
     { className: 'portal-content-grid' },
-    section('Attendance summary', 'Finalized attendance only.', 'calendar', attendance),
-    section('Released reports', 'Official reports that were released to you.', 'file', reports),
-    section('Approved recommendations', 'Human-approved advice for this portal audience.', 'check', recommendations),
-    section('Follow-up plans', 'Released guidance plans only.', 'check', guidePlans),
+    section('خلاصه حضور و غیاب', 'فقط جلسات نهایی‌شده نمایش داده می‌شوند.', 'calendar', attendance),
+    section('گزارش‌های منتشرشده', 'گزارش‌های رسمی منتشرشده برای شما.', 'file', reports),
+    section('توصیه‌های تأییدشده', 'پیشنهادهایی که برای مخاطبان این پرتال تأیید شده‌اند.', 'check', recommendations),
+    section('برنامه‌های پیگیری', 'فقط برنامه‌های راهنمایی منتشرشده.', 'check', guidePlans),
   );
 }
 
@@ -63,17 +64,17 @@ export async function renderPortalPage(): Promise<HTMLElement> {
   const page = h('section', { className: 'page portal-page' });
   const content = h('div');
   page.append(
-    h('div', { className: 'page-heading' }, h('div', {}, h('h1', { text: 'Portal' }), h('p', { text: 'Released reports, approved recommendations, and follow-up plans.' }))),
+    h('div', { className: 'page-heading' }, h('div', {}, h('h1', { text: 'پرتال خانواده و دانش‌آموز' }), h('p', { text: 'گزارش‌های منتشرشده، توصیه‌های تأییدشده و برنامه‌های پیگیری.' }))),
     content,
   );
 
   async function loadParent(children: PortalStudent[]): Promise<void> {
     clear(content);
     if (!children.length) {
-      content.append(emptyState('No linked student', 'This guardian account has no active student relationship.'));
+      content.append(emptyState('دانش‌آموز مرتبطی یافت نشد', 'برای این حساب ولی، ارتباط فعال با دانش‌آموزی ثبت نشده است.'));
       return;
     }
-    const selector = h('select', { className: 'scope-select', 'aria-label': 'Select child' }, ...children.map(child => h('option', { value: child.id, text: child.full_name }))) as HTMLSelectElement;
+    const selector = h('select', { className: 'scope-select', 'aria-label': 'انتخاب دانش‌آموز' }, ...children.map(child => h('option', { value: child.id, text: child.full_name }))) as HTMLSelectElement;
     const selected = h('div');
     const loadChild = async (): Promise<void> => {
       clear(selected);
@@ -87,7 +88,7 @@ export async function renderPortalPage(): Promise<HTMLElement> {
           const report = snapshot.reports.find(item => item.id === reportId);
           download(await portalApi.downloadChildReport(studentId, reportId), `released-report-${reportId}.${report?.output_format ?? 'pdf'}`);
         }
-          catch (error) { toast('Report download failed.', 'error', error instanceof Error ? error.message : undefined); }
+          catch (error) { toast('دریافت گزارش ناموفق بود.', 'error', error instanceof Error ? error.message : undefined); }
         }));
       } catch (error) {
         clear(selected);
@@ -95,7 +96,7 @@ export async function renderPortalPage(): Promise<HTMLElement> {
       }
     };
     selector.addEventListener('change', () => void loadChild());
-    content.append(section('My children', 'Your linked students are determined server-side.', 'users', selector), selected);
+    content.append(section('دانش‌آموزان من', 'فهرست دانش‌آموزان مرتبط توسط سامانه تعیین می‌شود.', 'users', selector), selected);
     await loadChild();
   }
 
@@ -109,7 +110,7 @@ export async function renderPortalPage(): Promise<HTMLElement> {
           const report = snapshot.reports.find(item => item.id === reportId);
           download(await portalApi.downloadStudentReport(reportId), `released-report-${reportId}.${report?.output_format ?? 'pdf'}`);
         }
-        catch (error) { toast('Report download failed.', 'error', error instanceof Error ? error.message : undefined); }
+        catch (error) { toast('دریافت گزارش ناموفق بود.', 'error', error instanceof Error ? error.message : undefined); }
     }));
   }
 
@@ -130,7 +131,7 @@ export async function renderPortalPage(): Promise<HTMLElement> {
       } catch (studentError) {
         clear(content);
         if (errorStatus(studentError) === 403) {
-          content.append(emptyState('Portal access is not configured', 'This account is neither an active guardian nor an active student portal account.'));
+          content.append(emptyState('دسترسی پرتال پیکربندی نشده است', 'این حساب نه ولی فعال است و نه حساب فعال پرتال دانش‌آموز.'));
         } else {
           content.append(errorState(studentError, () => void load()));
         }

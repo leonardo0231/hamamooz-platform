@@ -221,7 +221,7 @@ function enrollmentLabel(item: EnrollmentOption): string {
 }
 
 async function requestEvaluationDelete(id: string, onDeleted: () => Promise<void>): Promise<void> {
-  const dialog = h('dialog', { className: 'dialog' }) as HTMLDialogElement;
+  const dialog = h('dialog', { className: 'dialog', 'aria-label': 'حذف منطقی ارزیابی' }) as HTMLDialogElement;
   const reason = h('textarea', { rows: 3, required: true, minLength: 3, maxLength: 1000, placeholder: 'مثلاً: ثبت اشتباه برای ماه یا دانش‌آموز دیگر' }) as HTMLTextAreaElement;
   const form = h('form', { className: 'dialog__body' },
     h('div', { className: 'dialog__header' }, h('div', {}, h('h2', { text: 'حذف منطقی ارزیابی' }), h('p', { text: 'ارزیابی از لیست جاری حذف می‌شود اما سابقه آن در پایگاه داده و Audit حفظ می‌شود.' })), h('button', { className: 'icon-button', type: 'button', onClick: () => dialog.close(), 'aria-label': 'بستن' }, icon('close'))),
@@ -269,7 +269,7 @@ async function openMonthlyEvaluationDialog(): Promise<void> {
     return;
   }
 
-  const dialog = h('dialog', { className: 'dialog dialog--wide' }) as HTMLDialogElement;
+  const dialog = h('dialog', { className: 'dialog dialog--wide', 'aria-label': 'ارزیابی جامع ماهانه' }) as HTMLDialogElement;
   const enrollmentSearch = h('input', { type: 'search', placeholder: 'نام، کد ملی یا شماره دانش‌آموزی…', 'aria-label': 'جست‌وجوی دانش‌آموز' }) as HTMLInputElement;
   const enrollment = h('select', { required: true, disabled: true }, h('option', { value: '', text: 'در حال دریافت دانش‌آموزان…' })) as HTMLSelectElement;
   const month = h('select', { required: true }, h('option', { value: '', text: 'ماه را انتخاب کنید' }), ...MONTHS.map((label, index) => h('option', { value: String(index + 1), text: `${formatNumber(index + 1)} — ${label}` }))) as HTMLSelectElement;

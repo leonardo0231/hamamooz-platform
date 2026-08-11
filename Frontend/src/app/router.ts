@@ -51,7 +51,12 @@ export async function renderRoute(): Promise<void> {
 
   if (!route) {
     const page = await routeFactories.notFound();
-    if (version === renderVersion) root.replaceChildren(store.state.user ? createShell(page) : page);
+    if (version === renderVersion) {
+      document.title = 'صفحه پیدا نشد | هم‌آموز';
+      document.body.classList.toggle('is-login', !store.state.user);
+      root.replaceChildren(store.state.user ? createShell(page) : h('main', { id: 'page-content', tabindex: '-1' }, page));
+      queueMicrotask(() => document.querySelector<HTMLElement>('#page-content')?.focus({ preventScroll: true }));
+    }
     return;
   }
 
@@ -85,7 +90,10 @@ export async function renderRoute(): Promise<void> {
   } catch (error) {
     if (version !== renderVersion) return;
     const failure = h('section', { className: 'error-page' }, h('h1', { text: 'بارگذاری صفحه ناموفق بود' }), h('p', { text: error instanceof Error ? error.message : 'خطای ناشناخته' }), h('button', { className: 'button button--primary', type: 'button', onClick: () => void renderRoute() }, 'تلاش دوباره'));
-    root.replaceChildren(route.private ? createShell(failure) : failure);
+    document.title = 'بارگذاری صفحه ناموفق بود | هم‌آموز';
+    document.body.classList.toggle('is-login', !route.private);
+    root.replaceChildren(route.private ? createShell(failure) : h('main', { id: 'page-content', tabindex: '-1' }, failure));
+    queueMicrotask(() => document.querySelector<HTMLElement>('#page-content')?.focus({ preventScroll: true }));
   }
 }
 

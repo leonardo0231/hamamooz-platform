@@ -17,10 +17,16 @@ const fieldLabels: Record<string, string> = {
   requested_by_name: 'درخواست‌دهنده', formula_version: 'نسخه فرمول', error_message: 'شرح خطا', source_file: 'فایل منبع', evidence_files: 'مدارک',
 };
 
+const contextualFieldLabels: Record<string, string> = {
+  enrollments__academic_year: 'سال تحصیلی ثبت‌نام',
+  enrollments__class_section: 'کلاس ثبت‌نام',
+};
+
 const valueLabels: Record<string, string> = {
   active: 'فعال', inactive: 'غیرفعال', female: 'دختر', male: 'پسر',
   draft: 'پیش‌نویس', submitted: 'ارسال‌شده', approved: 'تأییدشده', rejected: 'ردشده', locked: 'قفل‌شده',
   open: 'باز', acknowledged: 'در حال بررسی', resolved: 'رفع‌شده', warning: 'مهم', critical: 'بحرانی',
+  low: 'کم', medium: 'متوسط', high: 'زیاد',
   queued: 'در صف', processing: 'در حال پردازش', completed: 'تکمیل‌شده', failed: 'ناموفق', cancelled: 'لغوشده',
   present: 'حاضر', absent_unexcused: 'غیبت غیرموجه', excused_absent: 'غیبت موجه', unexcused_absent: 'غیبت غیرموجه', not_entered: 'ثبت‌نشده', finalized: 'نهایی‌شده',
   daily: 'روزانه', period: 'زنگ درسی', provisional: 'موقت', final: 'نهایی', transferred: 'منتقل‌شده', withdrawn: 'ترک‌تحصیل', graduated: 'فارغ‌التحصیل',
@@ -43,7 +49,7 @@ const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}
 
 export function labelForField(name: string, schema?: ContractSchema): string {
   const schemaTitle = schema?.title?.replace(/\s*\(.*\)$/, '').trim();
-  return schemaTitle || fieldLabels[name] || name.replaceAll('_', ' ').replaceAll('-', ' ');
+  return schemaTitle || fieldLabels[name] || contextualFieldLabels[name] || name.replaceAll('_', ' ').replaceAll('-', ' ');
 }
 
 export function labelForValue(value: unknown): string {

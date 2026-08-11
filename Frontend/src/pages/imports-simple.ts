@@ -107,7 +107,7 @@ async function previewComprehensive(file: File): Promise<{ rows: string[][]; tot
 
 function showSummary(job: ImportJob): void {
   const entries = Object.entries(job.result_summary ?? {}).filter(([key, value]) => key in summaryLabels && typeof value === 'number');
-  const dialog = h('dialog', { className: 'dialog' }) as HTMLDialogElement;
+  const dialog = h('dialog', { className: 'dialog', 'aria-label': 'خلاصه فایل جامع' }) as HTMLDialogElement;
   dialog.append(h('form', { method: 'dialog', className: 'dialog__body' },
     h('div', { className: 'dialog__header' }, h('div', {}, h('span', { className: 'eyebrow', text: 'نتیجه پردازش' }), h('h2', { text: 'خلاصه فایل جامع' })), h('button', { className: 'icon-button', value: 'close', 'aria-label': 'بستن' }, icon('close'))),
     entries.length
@@ -123,7 +123,7 @@ function showSummary(job: ImportJob): void {
 
 function showErrors(job: ImportJob): void {
   const errors = (job.errors ?? []).slice(0, 50);
-  const dialog = h('dialog', { className: 'dialog dialog--preview' }) as HTMLDialogElement;
+  const dialog = h('dialog', { className: 'dialog dialog--preview', 'aria-label': 'خطاهای فایل ورودی' }) as HTMLDialogElement;
   dialog.append(h('form', { method: 'dialog', className: 'dialog__body' },
     h('div', { className: 'dialog__header' }, h('div', {}, h('span', { className: 'eyebrow', text: 'خطاهای فایل' }), h('h2', { text: `${formatNumber(job.error_count)} خطا` })), h('button', { className: 'icon-button', value: 'close', 'aria-label': 'بستن' }, icon('close'))),
     errors.length ? h('div', { className: 'table-wrap' }, h('table', { className: 'data-table' },
@@ -215,7 +215,7 @@ async function openUploadDialog(onCreated: () => Promise<void>): Promise<void> {
     if (file.files?.[0]) void refreshPreview();
   });
 
-  const dialog = h('dialog', { className: 'dialog dialog--preview' }) as HTMLDialogElement;
+  const dialog = h('dialog', { className: 'dialog dialog--preview', 'aria-label': 'بارگذاری فایل جامع مدرسه' }) as HTMLDialogElement;
   const form = h('form', { className: 'dialog__body' },
     h('div', { className: 'dialog__header' }, h('div', {}, h('span', { className: 'eyebrow', text: 'تنها مسیر ورود گروهی' }), h('h2', { text: 'بارگذاری فایل جامع مدرسه' })), h('button', { className: 'icon-button', type: 'button', onClick: () => dialog.close(), 'aria-label': 'بستن' }, icon('close'))),
     h('p', { text: 'فقط قالب جامع رسمی پذیرفته می‌شود. فایل می‌تواند رکوردهای جدید را ایجاد و رکوردهای موجود را به‌روزرسانی کند؛ نبودن رکورد در فایل باعث حذف آن نمی‌شود.' }),

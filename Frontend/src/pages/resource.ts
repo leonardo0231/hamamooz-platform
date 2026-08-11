@@ -31,11 +31,11 @@ const resourceMeta: Record<string, ResourceMeta> = {
   'attendance-alerts': { title: 'هشدارهای حضور و غیاب', singular: 'هشدار', icon: 'bell', columns: ['student_name', 'class_title', 'severity', 'status', 'created_at'], createRoles: policyManagementRoles, updateRoles: policyManagementRoles, deleteRoles: policyManagementRoles },
   'attendance-policies': { title: 'سیاست‌های حضور و غیاب', singular: 'سیاست حضور', icon: 'settings', columns: ['school_name', 'academic_year_title', 'warning_absence_percent', 'critical_absence_percent', 'is_active'], createRoles: policyManagementRoles, updateRoles: policyManagementRoles, deleteRoles: policyManagementRoles },
   'attendance-records': { title: 'رکوردهای حضور و غیاب', singular: 'رکورد حضور', icon: 'calendar', columns: ['session_date', 'student_name', 'status', 'late_minutes', 'excuse_status'], createRoles: teacherWriteRoles, updateRoles: teacherWriteRoles, deleteRoles: teacherWriteRoles },
-  'attendance-sessions': { title: 'جلسات حضور و غیاب', singular: 'جلسه حضور', icon: 'calendar', columns: ['session_date', 'class_section', 'course_offering', 'scope', 'status'], createRoles: teacherWriteRoles, updateRoles: teacherWriteRoles, deleteRoles: teacherWriteRoles },
+  'attendance-sessions': { title: 'جلسات حضور و غیاب', singular: 'جلسه حضور', icon: 'calendar', columns: ['session_date', 'class_title', 'subject_title', 'scope', 'status'], createRoles: teacherWriteRoles, updateRoles: teacherWriteRoles, deleteRoles: teacherWriteRoles },
   'calculation-policies': { title: 'سیاست‌های محاسبه نمره', singular: 'سیاست محاسبه', icon: 'settings', columns: ['title', 'organization', 'academic_year', 'version', 'is_active'], createRoles: curriculumManagementRoles, updateRoles: curriculumManagementRoles, deleteRoles: curriculumManagementRoles },
   classes: { title: 'کلاس‌ها', singular: 'کلاس', icon: 'building', columns: ['title', 'school_name', 'academic_year_title', 'grade_title', 'capacity', 'is_active'], createRoles: broadEducationRoles, updateRoles: broadEducationRoles, deleteRoles: broadEducationRoles },
-  'course-offerings': { title: 'ارائه درس‌ها', singular: 'ارائه درس', icon: 'book', columns: ['class_section', 'grade_subject', 'teacher', 'term', 'is_active'], createRoles: broadEducationRoles, updateRoles: broadEducationRoles, deleteRoles: broadEducationRoles },
-  enrollments: { title: 'ثبت‌نام‌ها', singular: 'ثبت‌نام', icon: 'users', columns: ['student', 'school', 'academic_year', 'class_section', 'student_number', 'status'], createRoles: broadEducationRoles, updateRoles: broadEducationRoles, deleteRoles: broadEducationRoles },
+  'course-offerings': { title: 'ارائه درس‌ها', singular: 'ارائه درس', icon: 'book', columns: ['class_title', 'subject_title', 'teacher_name', 'term_title', 'is_active'], createRoles: broadEducationRoles, updateRoles: broadEducationRoles, deleteRoles: broadEducationRoles },
+  enrollments: { title: 'ثبت‌نام‌ها', singular: 'ثبت‌نام', icon: 'users', columns: ['student_name', 'school_name', 'grade_title', 'class_title', 'student_number', 'status'], createRoles: broadEducationRoles, updateRoles: broadEducationRoles, deleteRoles: broadEducationRoles },
   'grade-levels': { title: 'پایه‌های تحصیلی', singular: 'پایه', icon: 'book', columns: ['title', 'code', 'organization', 'order', 'is_active'], createRoles: organizationManagementRoles, updateRoles: organizationManagementRoles, deleteRoles: organizationManagementRoles },
   'grade-subjects': { title: 'درس‌های پایه', singular: 'درس پایه', icon: 'book', columns: ['grade_level', 'subject', 'coefficient', 'is_active'], createRoles: curriculumManagementRoles, updateRoles: curriculumManagementRoles, deleteRoles: curriculumManagementRoles },
   guardians: { title: 'اولیا', singular: 'ولی', icon: 'users', columns: ['first_name', 'last_name', 'phone_primary', 'national_id'], createRoles: broadEducationRoles, updateRoles: broadEducationRoles, deleteRoles: broadEducationRoles },
@@ -96,7 +96,7 @@ function badgeValue(value: unknown): HTMLElement {
 function cellContent(field: string, value: unknown): HTMLElement {
   if (typeof value === 'boolean' || ['status', 'severity', 'scope', 'gender', 'role_display', 'role', 'import_type', 'report_type', 'excuse_status'].includes(field)) return badgeValue(value);
   const text = formatFieldValue(field, value);
-  return h('span', { className: 'cell-value', text, title: text, tabindex: text.length > 35 ? '0' : undefined });
+  return h('span', { className: 'cell-value', text, title: text });
 }
 
 function createFilterControl(parameter: ContractParameter, params: URLSearchParams, onChange: () => void): HTMLElement {
@@ -344,7 +344,7 @@ export async function renderResourcePage(tag: string): Promise<HTMLElement> {
           h('button', { className: 'button button--ghost', type: 'button', disabled: currentPage >= pages, onClick: () => { params.set('page', String(currentPage + 1)); void load(); } }, 'بعدی'),
         ),
       );
-      content.append(h('div', { className: 'table-wrap' }, table), pagination);
+      content.append(h('div', { className: 'table-wrap', role: 'region', tabindex: '0', 'aria-label': `جدول ${meta.title}` }, table), pagination);
       history.replaceState({}, '', `${location.pathname}?${params.toString()}`);
     } catch (error) {
       clear(content);

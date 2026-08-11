@@ -187,11 +187,10 @@ function objectControl(name: string, schema: ContractSchema, initial: unknown, _
     controls.push(child.wrapper);
     if (child.ready) ready.push(child.ready);
   }
-  const marker = h('button', { className: 'fieldset-marker sr-only', type: 'button', name: path, text: labelForField(name, schema) });
-  const fieldset = h('fieldset', { className: 'form-section' }, h('legend', { text: labelForField(name, schema) }), marker, h('div', { className: 'form-grid form-grid--nested' }, ...controls));
+  const fieldset = h('fieldset', { className: 'form-section', name: path, tabindex: '-1' }, h('legend', { text: labelForField(name, schema) }), h('div', { className: 'form-grid form-grid--nested' }, ...controls));
   const control: FieldControl = {
     wrapper: fieldset,
-    input: marker,
+    input: fieldset,
     read: () => Object.fromEntries([...readers].map(([key, reader]) => [key, reader()])),
   };
   if (ready.length) control.ready = Promise.allSettled(ready).then(() => undefined);

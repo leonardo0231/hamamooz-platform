@@ -30,8 +30,9 @@ export function lineChart(options: {
   max?: number;
   valueSuffix?: string;
 }): HTMLElement {
-  const points = options.points.filter(point => point.value !== null && Number.isFinite(point.value));
-  if (points.length < 2) {
+  const entries = options.points.map((point, index) => ({ point, index }));
+  const validPoints = entries.filter(({ point }) => point.value !== null && Number.isFinite(point.value));
+  if (validPoints.length < 2) {
     return h('div', { className: 'chart-empty', role: 'status' },
       h('strong', { text: 'برای رسم روند داده کافی نیست' }),
       h('p', { text: 'حداقل دو نقطه معتبر برای نمایش روند لازم است.' }),
@@ -44,7 +45,7 @@ export function lineChart(options: {
   const paddingX = 42;
   const paddingTop = 24;
   const paddingBottom = 42;
-  const values = points.map(point => point.value ?? 0);
+  const values = validPoints.map(({ point }) => point.value ?? 0);
   const rawMin = Math.min(...values);
   const rawMax = Math.max(...values);
   const min = options.min ?? Math.min(0, rawMin);
@@ -52,7 +53,7 @@ export function lineChart(options: {
   const range = Math.max(max - min, 1);
   const chartWidth = width - paddingX * 2;
   const chartHeight = height - paddingTop - paddingBottom;
-  const x = (index: number): number => paddingX + (points.length === 1 ? chartWidth / 2 : chartWidth * index / (points.length - 1));
+  const x = (index: number): number => paddingX + (options.points.length === 1 ? chartWidth / 2 : chartWidth * index / (options.points.length - 1));
   const y = (value: number): number => paddingTop + chartHeight - ((value - min) / range * chartHeight);
 
   const root = svg('svg', {
@@ -74,12 +75,26 @@ export function lineChart(options: {
     root.append(label);
   }
 
-  const coordinates = points.map((point, index) => `${x(index)},${y(point.value ?? 0)}`).join(' ');
-  root.append(svg('polyline', { points: coordinates, class: 'native-chart__line', fill: 'none' }));
-  points.forEach((point, index) => {
+  const segments: Array<Array<{ point: ChartPoint; index: number }>> = [];
+  let currentSegment: Array<{ point: ChartPoint; index: number }> = [];
+  for (const entry of entries) {
+    if (entry.point.value !== null && Number.isFinite(entry.point.value)) currentSegment.push(entry);
+    else if (currentSegment.length) {
+      segments.push(currentSegment);
+      currentSegment = [];
+    }
+  }
+  if (currentSegment.length) segments.push(currentSegment);
+
+  for (const segment of segments) {
+    if (segment.length < 2) continue;
+    const coordinates = segment.map(({ point, index }) => `${x(index)},${y(point.value ?? 0)}`).join(' ');
+    root.append(svg('polyline', { points: coordinates, class: 'native-chart__line', fill: 'none' }));
+  }
+  validPoints.forEach(({ point, index }) => {
     const cx = x(index);
     const cy = y(point.value ?? 0);
-    const dot = svg('circle', { cx, cy, r: 5, class: 'native-chart__point', tabindex: '0' });
+    const dot = svg('circle', { cx, cy, r: 5, class: 'native-chart__point' });
     const title = svg('title');
     title.textContent = `${point.label}: ${formatNumber(point.value, 2)}${options.valueSuffix ?? ''}`;
     dot.append(title);
@@ -89,7 +104,10 @@ export function lineChart(options: {
     root.append(label);
   });
 
-  return h('figure', { className: 'chart-figure' }, root, h('figcaption', { className: 'sr-only', text: options.title }), accessibleValues(options.points, options.valueSuffix ?? ''));
+  const missingDataNote = options.points.some(point => point.value === null)
+    ? h('p', { className: 'chart-note', text: 'نقاط بدون داده با خط پیوسته به هم وصل نمی‌شوند.' })
+    : null;
+  return h('figure', { className: 'chart-figure' }, root, missingDataNote, h('figcaption', { className: 'sr-only', text: options.title }), accessibleValues(options.points, options.valueSuffix ?? ''));
 }
 
 export function horizontalBarChart(options: {
@@ -191,7 +209,7 @@ export function radarChart(options: {
   root.append(svg('polygon', { points: dataPoints.map(point => point.join(',')).join(' '), class: 'native-chart__radar-area' }));
   dataPoints.forEach(([cx, cy], index) => {
     const point = rows[index]!;
-    const dot = svg('circle', { cx, cy, r: 4.5, class: 'native-chart__point', tabindex: '0' });
+    const dot = svg('circle', { cx, cy, r: 4.5, class: 'native-chart__point' });
     const dotTitle = svg('title');
     dotTitle.textContent = `${point.label}: ${formatNumber(point.value, 2)} از ${formatNumber(max)}`;
     dot.append(dotTitle);
