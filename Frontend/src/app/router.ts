@@ -14,6 +14,7 @@ const routes: RouteDefinition[] = [
   { pattern: /^\/alerts\/?$/, title: 'مرکز هشدارها', private: true, render: routeFactories.alerts },
   { pattern: /^\/attendance\/?$/, title: 'حضور و غیاب', private: true, render: routeFactories.attendance },
   { pattern: /^\/reports\/?$/, title: 'گزارش‌ها', private: true, render: routeFactories.reports },
+  { pattern: /^\/portal\/?$/, title: 'پورتال', private: true, render: routeFactories.portal },
   { pattern: /^\/imports\/?$/, title: 'ورود اطلاعات', private: true, roles: ['system_admin', 'organization_admin', 'school_manager', 'educational_deputy', 'operator'], render: routeFactories.imports },
   { pattern: /^\/manual-entry\/?$/, title: 'ثبت و ویرایش دستی', private: true, render: routeFactories.manualEntry },
   { pattern: /^\/users\/?$/, title: 'کاربران', private: true, roles: administrativeRoles, render: routeFactories.users },

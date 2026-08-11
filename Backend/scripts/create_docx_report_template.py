@@ -35,9 +35,14 @@ def main():
     add_line(document, '{% if "student_identity" in blocks %}')
     add_line(document, "Student: {{ report.student.full_name }}", bold=True)
     add_line(document, "Student number: {{ report.student.student_number }}")
-    add_line(document, "Academic year: {{ report.academic.year }} · Term: {{ report.academic.term }}")
+    add_line(
+        document, "Academic year: {{ report.academic.year }} · Term: {{ report.academic.term }}"
+    )
     add_line(document, "Grade: {{ report.academic.grade }} · Class: {{ report.academic.class }}")
-    add_line(document, "Overall average: {{ report.summary.average }} · Class rank: {{ report.summary.class_rank }}")
+    add_line(
+        document,
+        "Overall average: {{ report.summary.average }} · Class rank: {{ report.summary.class_rank }}",
+    )
     add_line(document, "{% endif %}")
 
     add_line(document, '{% if "academic_summary" in blocks %}')
@@ -46,15 +51,24 @@ def main():
     add_line(document, "{{ overrides.academic_summary }}")
     add_line(document, "{% else %}")
     add_line(document, "{% for subject in report.subjects %}")
-    add_line(document, "{{ subject.title }} — Average: {{ subject.average }} — Status: {{ subject.passed }}")
+    add_line(
+        document,
+        "{{ subject.title }} — Average: {{ subject.average }} — Status: {{ subject.passed }}",
+    )
     add_line(document, "{% endfor %}")
     add_line(document, "{% endif %}")
     add_line(document, "{% endif %}")
 
     add_line(document, '{% if "attendance_summary" in blocks %}')
     document.add_heading("Attendance", level=1)
-    add_line(document, "Finalized sessions: {{ report.product_context.attendance.finalized_session_count }}")
-    add_line(document, "Unexcused absences: {{ report.product_context.attendance.unexcused_absence_count }}")
+    add_line(
+        document,
+        "Finalized sessions: {{ report.product_context.attendance.finalized_session_count }}",
+    )
+    add_line(
+        document,
+        "Unexcused absences: {{ report.product_context.attendance.unexcused_absence_count }}",
+    )
     add_line(document, "{% endif %}")
 
     add_line(document, '{% if "recommendations" in blocks %}')
@@ -62,7 +76,9 @@ def main():
     add_line(document, "{% if overrides.recommendations %}")
     add_line(document, "{{ overrides.recommendations }}")
     add_line(document, "{% else %}")
-    add_line(document, "{% for recommendation in report.product_context.approved_recommendations %}")
+    add_line(
+        document, "{% for recommendation in report.product_context.approved_recommendations %}"
+    )
     add_line(document, "{{ recommendation.approved_text }}")
     add_line(document, "{% endfor %}")
     add_line(document, "{% endif %}")

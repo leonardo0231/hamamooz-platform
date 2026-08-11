@@ -5,9 +5,10 @@ on:
     branches: [main]
     paths:
       - "Backend/**"
-      - "Frontend/Dockerfile"
+      - "Frontend/**"
       - "contracts/**"
       - "docker-compose.yml"
+      - "scripts/docker-integration-smoke.sh"
       - ".github/workflows/backend-ci.yml"
 
   pull_request:
@@ -15,7 +16,10 @@ on:
       - main
     paths:
       - "Backend/**"
+      - "Frontend/**"
       - "contracts/**"
+      - "docker-compose.yml"
+      - "scripts/docker-integration-smoke.sh"
       - ".github/workflows/backend-ci.yml"
 
 permissions:
@@ -234,3 +238,15 @@ jobs:
 
       - name: Build frontend image
         run: docker build --tag hamamooz-frontend-ci ./Frontend
+
+  integration-smoke:
+    name: Integration Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run clean-boot Compose integration smoke
+        run: bash scripts/docker-integration-smoke.sh

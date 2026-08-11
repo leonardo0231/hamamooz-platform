@@ -1,9 +1,9 @@
 import { apiRequest } from '../api/client.js';
 import { actionRequestSchema } from '../api/action-schemas.js';
-import { contract, operationsForTag, resolveSchema, type ContractOperation, type ContractParameter, type ContractSchema } from '../api/contract.js';
+import { contract, operationById, operationsForTag, resolveSchema, type ContractOperation, type ContractParameter, type ContractSchema } from '../api/contract.js';
 import type { Pagination } from '../api/types.js';
 import { navigate } from '../app/router.js';
-import { hasAnyRole, hasWriteScope, administrativeRoles, broadEducationRoles, curriculumManagementRoles, organizationManagementRoles, policyManagementRoles, teacherWriteRoles } from '../app/permissions.js';
+import { hasAnyRole, hasWriteScope, administrativeRoles, broadEducationRoles, counselingRoles, curriculumManagementRoles, guidanceRoles, managementReadRoles, organizationManagementRoles, policyManagementRoles, teacherWriteRoles } from '../app/permissions.js';
 import { onWindowEventWhileConnected, h, clear, debounce } from '../utils/dom.js';
 import { confirmDialog, emptyState, errorState, loadingState, toast } from '../components/feedback.js';
 import { icon } from '../components/icons.js';
@@ -20,6 +20,8 @@ interface ResourceMeta {
   createRoles?: Parameters<typeof hasAnyRole>[0];
   updateRoles?: Parameters<typeof hasAnyRole>[0];
   deleteRoles?: Parameters<typeof hasAnyRole>[0];
+  operationTag?: string;
+  listOperationId?: string;
 }
 
 const resourceMeta: Record<string, ResourceMeta> = {
@@ -49,6 +51,21 @@ const resourceMeta: Record<string, ResourceMeta> = {
   terms: { title: 'نوبت‌های تحصیلی', singular: 'نوبت', icon: 'calendar', columns: ['title', 'academic_year', 'starts_on', 'ends_on', 'is_active'], createRoles: organizationManagementRoles, updateRoles: organizationManagementRoles, deleteRoles: organizationManagementRoles },
   users: { title: 'کاربران', singular: 'کاربر', icon: 'user', columns: ['username', 'first_name', 'last_name', 'email', 'phone', 'is_active'], readRoles: administrativeRoles, createRoles: administrativeRoles },
 };
+
+Object.assign(resourceMeta, {
+  'behavior-events': { title: 'وقایع رفتاری', singular: 'واقعه رفتاری', icon: 'warning', columns: ['student_name', 'event_type_title', 'polarity', 'severity', 'occurred_at', 'status'], readRoles: broadEducationRoles, createRoles: broadEducationRoles, updateRoles: broadEducationRoles, deleteRoles: managementReadRoles },
+  activities: { title: 'فعالیت‌ها', singular: 'فعالیت', icon: 'sparkles', columns: ['title', 'kind', 'school_name', 'starts_at', 'status'], readRoles: broadEducationRoles, createRoles: broadEducationRoles, updateRoles: managementReadRoles, deleteRoles: managementReadRoles },
+  'counseling-cases': { title: 'پرونده‌های مشاوره', singular: 'پرونده مشاوره', icon: 'lock', columns: ['student_name', 'shared_risk_level', 'shared_follow_up_status', 'status', 'opened_at'], readRoles: counselingRoles, createRoles: counselingRoles, operationTag: 'counseling', listOperationId: 'counseling_cases_list' },
+  'counseling-referrals': { title: 'ارجاع‌های مشاوره', singular: 'ارجاع مشاوره', icon: 'chevron', columns: ['target_enrollment', 'target_counselor', 'purpose', 'status', 'created_at'], readRoles: counselingRoles, operationTag: 'counseling', listOperationId: 'counseling_referrals_list' },
+  'guide-teacher-assignments': { title: 'تخصیص‌های معلم راهنما', singular: 'تخصیص معلم راهنما', icon: 'users', columns: ['student_name', 'guide_teacher_name', 'starts_at', 'ends_at'], readRoles: guidanceRoles, createRoles: guidanceRoles, updateRoles: guidanceRoles, deleteRoles: guidanceRoles },
+  'guide-follow-ups': { title: 'پیگیری‌های معلم راهنما', singular: 'پیگیری', icon: 'check', columns: ['student_name', 'title', 'due_at', 'status'], readRoles: guidanceRoles, createRoles: guidanceRoles, updateRoles: guidanceRoles, deleteRoles: guidanceRoles },
+  'analytics-risk-signals': { title: 'سیگنال‌های ریسک', singular: 'سیگنال ریسک', icon: 'warning', columns: ['student_name', 'rule_code', 'rule_version', 'severity', 'state', 'created_at'], readRoles: managementReadRoles, operationTag: 'analytics', listOperationId: 'analytics_risk_signals_list' },
+  'operational-alerts': { title: 'هشدارهای عملیاتی', singular: 'هشدار عملیاتی', icon: 'bell', columns: ['signal', 'status', 'acknowledged_at', 'created_at'], readRoles: managementReadRoles, operationTag: 'analytics', listOperationId: 'analytics_operational_alerts_list' },
+  recommendations: { title: 'توصیه‌ها', singular: 'توصیه', icon: 'sparkles', columns: ['student_name', 'audience', 'priority', 'rule_code', 'status', 'approved_at'], readRoles: managementReadRoles },
+  'my-counselor-recommendations': { title: 'توصیه‌های مشاوره', singular: 'توصیه مشاوره', icon: 'sparkles', columns: ['student_name', 'priority', 'rule_code', 'status', 'approved_at'], readRoles: counselingRoles, operationTag: 'recommendations', listOperationId: 'recommendations_list' },
+  'my-guide-recommendations': { title: 'توصیه‌های cohort', singular: 'توصیه', icon: 'sparkles', columns: ['student_name', 'priority', 'rule_code', 'status', 'approved_at'], readRoles: guidanceRoles, operationTag: 'recommendations', listOperationId: 'recommendations_list' },
+  'report-drafts': { title: 'پیش‌نویس گزارش‌ها', singular: 'پیش‌نویس گزارش', icon: 'file', columns: ['status', 'enrollment', 'class_section', 'created_at', 'reviewed_at'], readRoles: teacherWriteRoles, createRoles: teacherWriteRoles, operationTag: 'reports', listOperationId: 'report_drafts_list' },
+});
 
 const actionLabels: Record<string, string> = {
   approve: 'تأیید', lock: 'قفل', reject: 'رد', submit: 'ارسال', acknowledge: 'مشاهده شد', resolve: 'رفع هشدار', evaluate: 'ارزیابی هشدارها', 'approve-excuse': 'تأیید عذر', correct: 'اصلاح', 'notify-guardians': 'اعلان به اولیا', 'reject-excuse': 'رد عذر', 'submit-excuse': 'ثبت عذر', 'bulk-mark': 'ثبت گروهی', cancel: 'لغو جلسه', finalize: 'نهایی‌سازی', retry: 'تلاش مجدد', 'change-class': 'تغییر کلاس', 'change-status': 'تغییر وضعیت', transfer: 'انتقال', guardians: 'اتصال ولی', 'change_password': 'تغییر رمز', deactivate: 'غیرفعال‌سازی', 'correct-locked': 'اصلاح نمره قفل‌شده', roster: 'فهرست حضور', scores: 'نمرات', results: 'نتایج', download: 'دریافت فایل',
@@ -180,9 +197,14 @@ function actionMenu(
 
 export async function renderResourcePage(tag: string): Promise<HTMLElement> {
   const meta = metaFor(tag);
-  const operations = operationsForTag(tag);
-  const listOperation = operations.find(op => op.method === 'GET' && !op.path.includes('{id}') && !op.path.match(/\/(summary|preview|evaluate|student|class|school)\/$/));
-  const createOperation = operations.find(op => op.method === 'POST' && !op.path.includes('{id}') && op.path.split('/').filter(Boolean).at(-1) === tag);
+  const taggedOperations = operationsForTag(meta.operationTag ?? tag);
+  const listOperation = meta.listOperationId
+    ? operationById(meta.listOperationId)
+    : taggedOperations.find(op => op.method === 'GET' && !op.path.includes('{id}') && !op.path.match(/\/(summary|preview|evaluate|student|class|school)\/$/));
+  const operations = listOperation
+    ? taggedOperations.filter(op => op.path === listOperation.path || op.path.startsWith(`${listOperation.path}{id}/`))
+    : taggedOperations;
+  const createOperation = operations.find(op => op.method === 'POST' && op.path === listOperation?.path);
   const retrieveOperation = operations.find(op => op.method === 'GET' && /\{id\}\/$/.test(op.path));
   const updateOperation = operations.find(op => op.method === 'PATCH' && /\{id\}\/$/.test(op.path));
   const deleteOperation = operations.find(op => op.method === 'DELETE' && /\{id\}\/$/.test(op.path));

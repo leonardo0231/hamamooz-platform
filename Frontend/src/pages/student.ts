@@ -1,180 +1,484 @@
-import { apiRequest } from '../api/client.js';
-import { endpoints } from '../api/endpoints.js';
-import { operationById } from '../api/contract.js';
 import { actionRequestSchema } from '../api/action-schemas.js';
+import { operationById } from '../api/contract.js';
+import {
+  student360Api,
+  type Student360Academics,
+  type Student360Activities,
+  type Student360Attendance,
+  type Student360Behavior,
+  type Student360Evaluations,
+  type Student360Recommendations,
+  type Student360Reports,
+  type Student360Risks,
+  type Student360Summary,
+  type StudentEvaluationAnalytics,
+} from '../api/student-360.js';
+import { studentsApi } from '../api/students.js';
 import { navigate } from '../app/router.js';
 import { broadEducationRoles, hasAnyRole, hasWriteScope } from '../app/permissions.js';
-import type { Pagination } from '../api/types.js';
-import { h, clear, formatDate, formatNumber, initials, safeText } from '../utils/dom.js';
 import { errorState, loadingState, toast } from '../components/feedback.js';
 import { icon } from '../components/icons.js';
 import { openSchemaDialog, schemaHasBinary } from '../components/schema-form.js';
+import { clear, formatDate, formatNumber, h, initials, safeText } from '../utils/dom.js';
 
-interface GuardianRelation {
-  id?: string;
-  guardian?: string;
-  guardian_name?: string;
-  relationship?: string;
-  is_primary?: boolean;
-  can_pick_up?: boolean;
-  [key: string]: unknown;
+type Student360TabId =
+  | 'summary'
+  | 'academics'
+  | 'attendance'
+  | 'evaluations'
+  | 'behavior'
+  | 'activities'
+  | 'risks'
+  | 'recommendations'
+  | 'reports';
+
+interface Student360Tab {
+  id: Student360TabId;
+  label: string;
+  load: () => Promise<HTMLElement>;
 }
 
-interface Student {
-  id: string;
-  organization: string;
-  organization_name: string;
-  national_id: string;
-  first_name: string;
-  last_name: string;
-  full_name: string;
-  birth_date: string;
-  gender: string;
-  status: string;
-  photo?: string | null;
-  notes?: string;
-  guardians: GuardianRelation[];
-  created_at: string;
-  updated_at: string;
+function emptySection(message: string, glyph = 'chart'): HTMLElement {
+  return h('div', { className: 'inline-empty' }, icon(glyph), h('p', { text: message }));
 }
 
-interface DomainScore {
-  code: string;
-  title: string;
-  weight: number;
-  score: string | number | null;
-  completed_metrics: number;
+function renderSummary(summary: Student360Summary): HTMLElement {
+  const enrollment = summary.current_enrollment;
+  return h(
+    'div',
+    { className: 'student-360-panel__content' },
+    h(
+      'div',
+      { className: 'card-header' },
+      h('div', {}, h('h2', { text: 'خلاصه پرونده' }), h('p', { text: 'ترکیب فقط‌خواندنی از داده‌های مجاز دانش‌آموز' })),
+      h('span', { className: 'card-icon' }, icon('user')),
+    ),
+    enrollment
+      ? h(
+        'dl',
+        { className: 'detail-grid' },
+        h('div', {}, h('dt', { text: 'شماره دانش‌آموزی' }), h('dd', { text: enrollment.student_number })),
+        h('div', {}, h('dt', { text: 'مدرسه' }), h('dd', { text: enrollment.school })),
+        h('div', {}, h('dt', { text: 'سال تحصیلی' }), h('dd', { text: enrollment.academic_year })),
+        h('div', {}, h('dt', { text: 'پایه و کلاس' }), h('dd', { text: `${enrollment.grade} · ${enrollment.class_section}` })),
+      )
+      : emptySection('برای این دانش‌آموز ثبت‌نام قابل مشاهده‌ای وجود ندارد.', 'user'),
+  );
 }
 
-interface MonthlyEvaluation {
-  id: string;
-  enrollment: string;
-  month_no: number;
-  academic_year_title: string;
-  class_title: string;
-  overall_score: string | number | null;
-  completion_percent: string | number;
-  domain_scores: DomainScore[];
-  note: string;
-  updated_at: string;
+function renderAcademics(academics: Student360Academics): HTMLElement {
+  const termTable = academics.term_results.length
+    ? h(
+      'div',
+      { className: 'table-wrap' },
+      h(
+        'table',
+        { className: 'data-table' },
+        h('thead', {}, h('tr', {}, ...['نوبت', 'میانگین', 'رتبه کلاس', 'وضعیت'].map(label => h('th', { scope: 'col', text: label })))),
+        h(
+          'tbody',
+          {},
+          ...academics.term_results.map(result => h(
+            'tr',
+            {},
+            h('td', { dataset: { label: 'نوبت' }, text: result.term.title }),
+            h('td', { dataset: { label: 'میانگین' }, text: result.average == null ? '—' : formatNumber(result.average) }),
+            h('td', { dataset: { label: 'رتبه کلاس' }, text: result.class_rank == null ? '—' : formatNumber(result.class_rank) }),
+            h('td', { dataset: { label: 'وضعیت' }, text: result.passed ? 'قبول' : 'نیازمند پیگیری' }),
+          )),
+        ),
+      ),
+    )
+    : emptySection('هنوز نتیجه نوبت تحصیلی قابل مشاهده‌ای ثبت نشده است.');
+  const subjectTable = academics.subject_results.length
+    ? h(
+      'div',
+      { className: 'table-wrap' },
+      h(
+        'table',
+        { className: 'data-table' },
+        h('thead', {}, h('tr', {}, ...['درس', 'میانگین', 'وضعیت', 'نسخه فرمول'].map(label => h('th', { scope: 'col', text: label })))),
+        h(
+          'tbody',
+          {},
+          ...academics.subject_results.map(result => h(
+            'tr',
+            {},
+            h('td', { dataset: { label: 'درس' }, text: result.subject }),
+            h('td', { dataset: { label: 'میانگین' }, text: result.average == null ? '—' : formatNumber(result.average) }),
+            h('td', { dataset: { label: 'وضعیت' }, text: result.passed ? 'قبول' : 'نیازمند پیگیری' }),
+            h('td', { dataset: { label: 'نسخه فرمول' }, text: result.formula_version }),
+          )),
+        ),
+      ),
+    )
+    : emptySection('هنوز نتیجه درس قابل مشاهده‌ای ثبت نشده است.');
+  return h(
+    'div',
+    { className: 'student-360-panel__content' },
+    h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'وضعیت تحصیلی' }), h('p', { text: 'نتایج محاسبه‌شده و نسخه‌دار نوبت و درس‌ها' })), h('span', { className: 'card-icon' }, icon('chart'))),
+    h('h3', { text: 'نتایج نوبت' }),
+    termTable,
+    h('h3', { text: 'نتایج درس' }),
+    subjectTable,
+  );
 }
 
-interface AnalyticsDomain {
-  code: string;
-  title: string;
-  score: number | null;
+function renderAttendance(attendance: Student360Attendance): HTMLElement {
+  if (!attendance.metrics) return emptySection('برای بازه تحصیلی قابل مشاهده، داده حضور و غیاب نهایی وجود ندارد.', 'check');
+  const metrics = [
+    ['جلسه ثبت‌شده', attendance.metrics.total_sessions],
+    ['غیبت', attendance.metrics.absence_count],
+    ['غیبت غیرموجه', attendance.metrics.unexcused_absence_count],
+    ['تأخیر', attendance.metrics.late_count],
+  ] as const;
+  return h(
+    'div',
+    { className: 'student-360-panel__content' },
+    h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'حضور و غیاب' }), h('p', { text: `${formatDate(attendance.date_from)} تا ${formatDate(attendance.date_to)}` })), h('span', { className: 'card-icon' }, icon('check'))),
+    h(
+      'div',
+      { className: 'metric-grid' },
+      ...metrics.map(([label, value]) => h('div', { className: 'metric-card metric-card--border-blue' }, h('small', { text: label }), h('strong', { text: formatNumber(value) }))),
+      h('div', { className: 'metric-card metric-card--border-orange' }, h('small', { text: 'درصد غیبت' }), h('strong', { text: `${formatNumber(attendance.metrics.absence_percent)}٪` })),
+    ),
+  );
 }
 
-interface StudentEvaluationAnalytics {
-  completion_status: 'provisional' | 'final';
-  completion_percent: number;
-  overall_score: number | null;
-  performance_level: string | null;
-  first_month: number | null;
-  last_month: number | null;
-  change: number | null;
-  trend_label: string;
-  strongest_domain: AnalyticsDomain | null;
-  weakest_domain: AnalyticsDomain | null;
-  recommendation: string | null;
-  completion_warning: string | null;
-  rank: number | null;
-  ranked_count: number;
+function renderAnalytics(analytics: StudentEvaluationAnalytics): HTMLElement {
+  return h(
+    'article',
+    { className: 'evaluation-analytics-card' },
+    h('div', { className: 'card-header' }, h('div', {}, h('h3', { text: 'روند ارزیابی‌های نهایی' }), h('p', { text: analytics.completion_status === 'final' ? 'داده نهایی' : 'داده موقت' })), h('span', { className: 'card-icon' }, icon('chart'))),
+    h(
+      'div',
+      { className: 'metric-grid' },
+      h('div', { className: 'metric-card metric-card--border-purple' }, h('small', { text: 'امتیاز نهایی' }), h('strong', { text: analytics.overall_score == null ? '—' : `${formatNumber(analytics.overall_score)} از ۲۰` })),
+      h('div', { className: 'metric-card metric-card--border-green' }, h('small', { text: 'درصد تکمیل' }), h('strong', { text: `${formatNumber(analytics.completion_percent)}٪` })),
+      h('div', { className: 'metric-card metric-card--border-orange' }, h('small', { text: 'روند' }), h('strong', { text: analytics.trend_label })),
+      h('div', { className: 'metric-card metric-card--border-blue' }, h('small', { text: 'رتبه در کلاس' }), h('strong', { text: analytics.rank == null ? '—' : `${formatNumber(analytics.rank)} از ${formatNumber(analytics.ranked_count)}` })),
+    ),
+    analytics.recommendation ? h('div', { className: 'student-notes' }, h('h4', { text: 'یادداشت تحلیلی' }), h('p', { text: analytics.recommendation })) : null,
+  );
+}
+
+function renderEvaluations(evaluations: Student360Evaluations, analytics: StudentEvaluationAnalytics | null): HTMLElement {
+  const table = evaluations.evaluations.length
+    ? h(
+      'div',
+      { className: 'table-wrap' },
+      h(
+        'table',
+        { className: 'data-table' },
+        h('thead', {}, h('tr', {}, ...['ماه', 'امتیاز', 'تکمیل', 'شاخص‌های ثبت‌شده', 'آخرین تغییر'].map(label => h('th', { scope: 'col', text: label })))),
+        h(
+          'tbody',
+          {},
+          ...evaluations.evaluations.map(evaluation => h(
+            'tr',
+            {},
+            h('td', { dataset: { label: 'ماه' }, text: formatNumber(evaluation.month_no) }),
+            h('td', { dataset: { label: 'امتیاز' }, text: evaluation.overall_score == null ? '—' : `${formatNumber(evaluation.overall_score)} از ۲۰` }),
+            h('td', { dataset: { label: 'تکمیل' }, text: `${formatNumber(evaluation.completion_percent)}٪` }),
+            h('td', { dataset: { label: 'شاخص‌های ثبت‌شده' }, text: formatNumber(evaluation.metric_scores.length) }),
+            h('td', { dataset: { label: 'آخرین تغییر' }, text: formatDate(evaluation.updated_at, true) }),
+          )),
+        ),
+      ),
+    )
+    : emptySection('هنوز ارزیابی ماهانه‌ای برای این دانش‌آموز ثبت نشده است.');
+  return h(
+    'div',
+    { className: 'student-360-panel__content' },
+    h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: '۷۴ شاخص ارزیابی' }), h('p', { text: `نسخه چارچوب ${evaluations.framework_version}` })), h('span', { className: 'card-icon' }, icon('chart'))),
+    ...(analytics ? [renderAnalytics(analytics)] : []),
+    table,
+  );
+}
+
+function renderReports(reports: Student360Reports): HTMLElement {
+  if (!reports.reports.length) return emptySection('گزارش رسمی دانش‌آموز در این حوزه وجود ندارد.', 'check');
+  return h(
+    'div',
+    { className: 'student-360-panel__content' },
+    h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'گزارش‌های رسمی' }), h('p', { text: 'فقط آرشیوهای اختصاصی همین دانش‌آموز' })), h('span', { className: 'card-icon' }, icon('check'))),
+    h(
+      'div',
+      { className: 'table-wrap' },
+      h(
+        'table',
+        { className: 'data-table' },
+        h('thead', {}, h('tr', {}, ...['نوع', 'وضعیت', 'نسخه فرمول', 'ایجاد', 'دریافت'].map(label => h('th', { scope: 'col', text: label })))),
+        h(
+          'tbody',
+          {},
+          ...reports.reports.map(report => h(
+            'tr',
+            {},
+            h('td', { dataset: { label: 'نوع' }, text: safeText(report.report_type) }),
+            h('td', { dataset: { label: 'وضعیت' }, text: safeText(report.status) }),
+            h('td', { dataset: { label: 'نسخه فرمول' }, text: report.formula_version || '—' }),
+            h('td', { dataset: { label: 'ایجاد' }, text: formatDate(report.created_at, true) }),
+            h('td', { dataset: { label: 'دریافت' } }, report.download_url ? h('a', { className: 'button button--secondary', href: report.download_url, text: 'دریافت' }) : '—'),
+          )),
+        ),
+      ),
+    ),
+  );
+}
+
+function renderBehavior(behavior: Student360Behavior): HTMLElement {
+  if (!behavior.events.length) return emptySection('No visible behavior event has been recorded.', 'check');
+  return h(
+    'div',
+    { className: 'student-360-panel__content' },
+    h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'Behavior events' }), h('p', { text: 'Recorded facts only; no evaluation score or confidential note.' })), h('span', { className: 'card-icon' }, icon('check'))),
+    h('div', { className: 'table-wrap' }, h(
+      'table',
+      { className: 'data-table' },
+      h('thead', {}, h('tr', {}, ...['Type', 'Polarity', 'Severity', 'Status'].map(label => h('th', { scope: 'col', text: label })))),
+      h('tbody', {}, ...behavior.events.map(event => h(
+        'tr',
+        {},
+        h('td', { dataset: { label: 'Type' }, text: safeText(event.event_type) }),
+        h('td', { dataset: { label: 'Polarity' }, text: safeText(event.polarity) }),
+        h('td', { dataset: { label: 'Severity' }, text: safeText(event.severity) }),
+        h('td', { dataset: { label: 'Status' }, text: safeText(event.status) }),
+      ))),
+    )),
+  );
+}
+
+function renderActivities(activities: Student360Activities): HTMLElement {
+  if (!activities.participations.length) return emptySection('No activity participation has been recorded.', 'chart');
+  return h(
+    'div',
+    { className: 'student-360-panel__content' },
+    h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'Activities and achievements' }), h('p', { text: 'Cultural, research, sport, and arts participation.' })), h('span', { className: 'card-icon' }, icon('chart'))),
+    h('div', { className: 'table-wrap' }, h(
+      'table',
+      { className: 'data-table' },
+      h('thead', {}, h('tr', {}, ...['Activity', 'Kind', 'Role', 'Result', 'Placement', 'Status'].map(label => h('th', { scope: 'col', text: label })))),
+      h('tbody', {}, ...activities.participations.map(participation => h(
+        'tr',
+        {},
+        h('td', { dataset: { label: 'Activity' }, text: safeText(participation.activity) }),
+        h('td', { dataset: { label: 'Kind' }, text: safeText(participation.kind) }),
+        h('td', { dataset: { label: 'Role' }, text: safeText(participation.participation_role) }),
+        h('td', { dataset: { label: 'Result' }, text: safeText(participation.result) }),
+        h('td', { dataset: { label: 'Placement' }, text: participation.placement == null ? '—' : formatNumber(participation.placement) }),
+        h('td', { dataset: { label: 'Status' }, text: safeText(participation.status) }),
+      ))),
+    )),
+  );
+}
+
+function renderRisks(risks: Student360Risks): HTMLElement {
+  if (!risks.signals.length) return emptySection('No active risk signal exists for this student.', 'chart');
+  return h(
+    'div',
+    { className: 'student-360-panel__content' },
+    h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'Risk signals' }), h('p', { text: 'Versioned, deterministic, explainable rule output.' })), h('span', { className: 'card-icon' }, icon('chart'))),
+    h('div', { className: 'table-wrap' }, h(
+      'table',
+      { className: 'data-table' },
+      h('thead', {}, h('tr', {}, ...['Rule', 'Version', 'Severity', 'Explanation', 'Created'].map(label => h('th', { scope: 'col', text: label })))),
+      h('tbody', {}, ...risks.signals.map(signal => h(
+        'tr',
+        {},
+        h('td', { dataset: { label: 'Rule' }, text: safeText(signal.rule_code) }),
+        h('td', { dataset: { label: 'Version' }, text: formatNumber(signal.rule_version) }),
+        h('td', { dataset: { label: 'Severity' }, text: safeText(signal.severity) }),
+        h('td', { dataset: { label: 'Explanation' }, text: safeText(signal.explanation) }),
+        h('td', { dataset: { label: 'Created' }, text: formatDate(signal.created_at, true) }),
+      ))),
+    )),
+  );
+}
+
+function renderRecommendations(recommendations: Student360Recommendations): HTMLElement {
+  if (!recommendations.recommendations.length) return emptySection('No recommendation has been recorded for this student.', 'check');
+  return h(
+    'div',
+    { className: 'student-360-panel__content' },
+    h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'Recommendations' }), h('p', { text: 'Recommendations carry a state, audience, and rule version.' })), h('span', { className: 'card-icon' }, icon('check'))),
+    h('div', { className: 'table-wrap' }, h(
+      'table',
+      { className: 'data-table' },
+      h('thead', {}, h('tr', {}, ...['Audience', 'Priority', 'Status', 'Rule', 'Text'].map(label => h('th', { scope: 'col', text: label })))),
+      h('tbody', {}, ...recommendations.recommendations.map(recommendation => h(
+        'tr',
+        {},
+        h('td', { dataset: { label: 'Audience' }, text: safeText(recommendation.audience) }),
+        h('td', { dataset: { label: 'Priority' }, text: safeText(recommendation.priority) }),
+        h('td', { dataset: { label: 'Status' }, text: safeText(recommendation.status) }),
+        h('td', { dataset: { label: 'Rule' }, text: `${safeText(recommendation.rule_code)} v${formatNumber(recommendation.rule_version)}` }),
+        h('td', { dataset: { label: 'Text' }, text: safeText(recommendation.approved_text || recommendation.generated_text) }),
+      ))),
+    )),
+  );
 }
 
 export async function renderStudentPage(id: string): Promise<HTMLElement> {
   const page = h('section', { className: 'page student-profile-page' });
   const content = h('div');
-  page.append(h('div', { className: 'page-heading' }, h('div', {}, h('button', { className: 'back-link', type: 'button', onClick: () => navigate('/students') }, icon('chevron'), 'دانش‌آموزان'), h('h1', { text: 'پرونده دانش‌آموز' }), h('p', { text: 'اطلاعات پرونده و ارتباط با اولیا براساس API رسمی' }))), content);
+  page.append(
+    h(
+      'div',
+      { className: 'page-heading' },
+      h(
+        'div',
+        {},
+        h('button', { className: 'back-link', type: 'button', onClick: () => navigate('/students') }, icon('chevron'), 'دانش‌آموزان'),
+        h('h1', { text: 'Student 360' }),
+        h('p', { text: 'نمای یکپارچه و بخش‌بندی‌شده پرونده دانش‌آموز بر پایه قرارداد رسمی API' }),
+      ),
+    ),
+    content,
+  );
 
   async function load(): Promise<void> {
-    clear(content); content.append(loadingState());
+    clear(content);
+    content.append(loadingState());
     try {
-      const [student, evaluations] = await Promise.all([
-        apiRequest<Student>(endpoints.students.detail(id)),
-        apiRequest<Pagination<MonthlyEvaluation>>(endpoints.monthlyEvaluations.list, {
-          query: { enrollment__student: id, page_size: 24, ordering: '-month_no' },
-        }),
-      ]);
-      const analytics = evaluations.results[0]
-        ? await apiRequest<StudentEvaluationAnalytics>(endpoints.monthlyEvaluations.analytics, {
-          query: { enrollment: evaluations.results[0].enrollment, rank_scope: 'class' },
-        })
-        : null;
+      const [student, summary] = await Promise.all([studentsApi.detail(id), student360Api.summary(id)]);
       clear(content);
-      const editOperation = operationById('students_partial_update');
-      const guardianOperation = operationById('students_guardians_create');
       const canWrite = hasAnyRole(broadEducationRoles);
       const writeScopeReady = hasWriteScope();
+      const editOperation = operationById('students_partial_update');
+      const guardianOperation = operationById('students_guardians_create');
       const edit = (): void => {
         if (!editOperation) return;
         openSchemaDialog({
-          title: 'ویرایش پرونده دانش‌آموز', schema: editOperation.requestSchema, initial: { ...student } as Record<string, unknown>, multipart: editOperation.requestMime === 'multipart/form-data' || schemaHasBinary(editOperation.requestSchema), submitLabel: 'ذخیره پرونده',
-          onSubmit: async payload => { await apiRequest(endpoints.students.update(id), { method: 'PATCH', body: payload }); toast('پرونده دانش‌آموز به‌روزرسانی شد.', 'success'); await load(); },
+          title: 'ویرایش پرونده دانش‌آموز',
+          schema: editOperation.requestSchema,
+          initial: { ...student } as Record<string, unknown>,
+          multipart: editOperation.requestMime === 'multipart/form-data' || schemaHasBinary(editOperation.requestSchema),
+          submitLabel: 'ذخیره پرونده',
+          onSubmit: async payload => {
+            await studentsApi.update(id, payload);
+            toast('پرونده دانش‌آموز به‌روزرسانی شد.', 'success');
+            await load();
+          },
         });
       };
       const attachGuardian = (): void => {
         if (!guardianOperation) return;
         openSchemaDialog({
-          title: 'اتصال ولی به دانش‌آموز', schema: actionRequestSchema(guardianOperation), submitLabel: 'ثبت ارتباط',
-          onSubmit: async payload => { await apiRequest(endpoints.students.guardians(id), { method: 'POST', body: payload }); toast('ارتباط ولی ثبت شد.', 'success'); await load(); },
+          title: 'اتصال ولی به دانش‌آموز',
+          schema: actionRequestSchema(guardianOperation),
+          submitLabel: 'ثبت ارتباط',
+          onSubmit: async payload => {
+            await studentsApi.linkGuardian(id, payload);
+            toast('ارتباط ولی ثبت شد.', 'success');
+            await load();
+          },
         });
       };
       const avatar = student.photo
         ? h('img', { className: 'student-avatar-image', src: student.photo, alt: `تصویر ${student.full_name}` })
         : h('span', { className: 'student-avatar-image student-avatar-image--initials', text: initials(student.full_name) });
-      const hero = h('article', { className: 'student-hero card' }, avatar,
+      const hero = h(
+        'article',
+        { className: 'student-hero card' },
+        avatar,
         h('div', { className: 'student-hero__identity' }, h('span', { className: `badge badge--${student.status === 'active' ? 'success' : 'neutral'}`, text: student.status === 'active' ? 'فعال' : student.status }), h('h2', { text: student.full_name }), h('p', { text: `کد ملی ${student.national_id}` })),
-        canWrite ? h('div', { className: 'student-hero__actions' },
-          h('button', { className: 'button button--secondary', type: 'button', disabled: !writeScopeReady, title: writeScopeReady ? 'ویرایش پرونده' : 'ابتدا حوزه فعال را انتخاب کنید', onClick: edit }, icon('edit'), 'ویرایش پرونده'),
-          h('button', { className: 'button button--primary', type: 'button', disabled: !writeScopeReady, title: writeScopeReady ? 'اتصال ولی' : 'ابتدا حوزه فعال را انتخاب کنید', onClick: attachGuardian }, icon('plus'), 'اتصال ولی'),
-        ) : null,
+        canWrite ? h('div', { className: 'student-hero__actions' }, h('button', { className: 'button button--secondary', type: 'button', disabled: !writeScopeReady, title: writeScopeReady ? 'ویرایش پرونده' : 'ابتدا حوزه فعال را انتخاب کنید', onClick: edit }, icon('edit'), 'ویرایش پرونده'), h('button', { className: 'button button--primary', type: 'button', disabled: !writeScopeReady, title: writeScopeReady ? 'اتصال ولی' : 'ابتدا حوزه فعال را انتخاب کنید', onClick: attachGuardian }, icon('plus'), 'اتصال ولی')) : null,
       );
-      const info = h('article', { className: 'card student-info-card' }, h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'اطلاعات هویتی' }), h('p', { text: 'اطلاعات ثبت‌شده در پرونده مرکزی' })), h('span', { className: 'card-icon' }, icon('user'))),
-        h('dl', { className: 'detail-grid' },
-          h('div', {}, h('dt', { text: 'نام' }), h('dd', { text: student.first_name })), h('div', {}, h('dt', { text: 'نام خانوادگی' }), h('dd', { text: student.last_name })),
-          h('div', {}, h('dt', { text: 'تاریخ تولد' }), h('dd', { text: formatDate(student.birth_date) })), h('div', {}, h('dt', { text: 'جنسیت' }), h('dd', { text: student.gender === 'female' ? 'دختر' : 'پسر' })),
-          h('div', {}, h('dt', { text: 'مجموعه' }), h('dd', { text: student.organization_name })), h('div', {}, h('dt', { text: 'آخرین تغییر' }), h('dd', { text: formatDate(student.updated_at, true) })),
-        ), student.notes ? h('div', { className: 'student-notes' }, h('h3', { text: 'یادداشت پرونده' }), h('p', { text: student.notes })) : null);
-      const guardians = h('article', { className: 'card guardians-card' }, h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'اولیا و ارتباط‌ها' }), h('p', { text: `${student.guardians.length.toLocaleString('fa-IR')} ارتباط ثبت‌شده` })), h('span', { className: 'card-icon' }, icon('users'))),
-        student.guardians.length ? h('div', { className: 'guardian-list' }, ...student.guardians.map(item => h('div', { className: 'guardian-item' }, h('span', { className: 'avatar avatar--soft', text: initials(String(item.guardian_name ?? 'ولی')) }), h('div', {}, h('strong', { text: safeText(item.guardian_name ?? item.guardian) }), h('small', { text: safeText(item.relationship) })), h('div', { className: 'guardian-flags' }, item.is_primary ? h('span', { className: 'badge badge--success', text: 'ولی اصلی' }) : null, item.can_pick_up ? h('span', { className: 'badge badge--neutral', text: 'مجاز به تحویل' }) : null))))
-          : h('div', { className: 'inline-empty' }, icon('users'), h('p', { text: 'هنوز ولی‌ای به این پرونده متصل نشده است.' }), canWrite ? h('button', { className: 'button button--secondary', type: 'button', disabled: !writeScopeReady, title: writeScopeReady ? 'اتصال ولی' : 'ابتدا حوزه فعال را انتخاب کنید', onClick: attachGuardian }, icon('plus'), 'اتصال ولی') : null));
-      const evaluationSection = h('article', { className: 'card' },
-        h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'ارزیابی جامع ماهانه' }), h('p', { text: `${formatNumber(evaluations.count)} ارزیابی ذخیره‌شده` })), h('span', { className: 'card-icon' }, icon('chart'))),
-        evaluations.results.length
-          ? h('div', { className: 'table-wrap' }, h('table', { className: 'data-table' },
-            h('thead', {}, h('tr', {}, ...['سال/کلاس', 'ماه', 'امتیاز نهایی', 'تکمیل', 'امتیاز حیطه‌ها', 'آخرین تغییر'].map(label => h('th', { scope: 'col', text: label })))),
-            h('tbody', {}, ...evaluations.results.map(evaluation => h('tr', {},
-              h('td', { dataset: { label: 'سال/کلاس' }, text: `${evaluation.academic_year_title} · ${evaluation.class_title}` }),
-              h('td', { dataset: { label: 'ماه' }, text: formatNumber(evaluation.month_no) }),
-              h('td', { dataset: { label: 'امتیاز نهایی' }, text: evaluation.overall_score == null ? '—' : `${formatNumber(evaluation.overall_score)} از ۲۰` }),
-              h('td', { dataset: { label: 'تکمیل' }, text: `${formatNumber(evaluation.completion_percent)}٪` }),
-              h('td', { dataset: { label: 'حیطه‌ها' }, text: evaluation.domain_scores.filter(item => item.score != null).map(item => `${item.title}: ${formatNumber(item.score)}`).join(' | ') || '—' }),
-              h('td', { dataset: { label: 'آخرین تغییر' }, text: formatDate(evaluation.updated_at, true) }),
-            ))),
-          ))
-          : h('div', { className: 'inline-empty' }, icon('chart'), h('p', { text: 'هنوز ارزیابی ماهانه‌ای برای این دانش‌آموز ثبت نشده است.' })),
+      const info = h(
+        'article',
+        { className: 'card student-info-card' },
+        h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'اطلاعات هویتی' }), h('p', { text: 'داده ثبت‌شده در پرونده مرکزی' })), h('span', { className: 'card-icon' }, icon('user'))),
+        h('dl', { className: 'detail-grid' }, h('div', {}, h('dt', { text: 'نام' }), h('dd', { text: student.first_name })), h('div', {}, h('dt', { text: 'نام خانوادگی' }), h('dd', { text: student.last_name })), h('div', {}, h('dt', { text: 'تاریخ تولد' }), h('dd', { text: formatDate(student.birth_date) })), h('div', {}, h('dt', { text: 'جنسیت' }), h('dd', { text: student.gender === 'female' ? 'دختر' : 'پسر' })), h('div', {}, h('dt', { text: 'مجموعه' }), h('dd', { text: student.organization_name })), h('div', {}, h('dt', { text: 'آخرین تغییر' }), h('dd', { text: formatDate(student.updated_at, true) }))),
+        student.notes ? h('div', { className: 'student-notes' }, h('h3', { text: 'یادداشت پرونده' }), h('p', { text: student.notes })) : null,
       );
-      const analyticsSection = analytics ? h('article', { className: 'card evaluation-analytics-card' },
-        h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'روند پیشرفت' }), h('p', { text: 'تحلیل محاسبه‌شده از ارزیابی‌های نهایی' })), h('span', { className: 'card-icon' }, icon('chart'))),
-        h('div', { className: 'metric-grid' },
-          h('div', { className: 'metric-card metric-card--border-purple' }, h('span', { className: 'metric-card__icon metric-card__icon--purple' }, icon('chart')), h('div', {}, h('small', { text: 'میانگین نهایی' }), h('strong', { text: analytics.overall_score == null ? '—' : `${formatNumber(analytics.overall_score)} از ۲۰` }), h('span', { text: analytics.performance_level ?? 'اطلاعات ناقص' }))),
-          h('div', { className: 'metric-card metric-card--border-green' }, h('span', { className: 'metric-card__icon metric-card__icon--green' }, icon('check')), h('div', {}, h('small', { text: 'درصد تکمیل' }), h('strong', { text: `${formatNumber(analytics.completion_percent)}٪` }), h('span', { text: analytics.completion_status === 'final' ? 'نهایی' : 'موقت' }))),
-          h('div', { className: 'metric-card metric-card--border-orange' }, h('span', { className: 'metric-card__icon metric-card__icon--orange' }, icon('chart')), h('div', {}, h('small', { text: 'روند' }), h('strong', { text: analytics.trend_label }), h('span', { text: analytics.change == null ? 'داده ناکافی' : `${analytics.change >= 0 ? '+' : ''}${formatNumber(analytics.change)} امتیاز` }))),
-          h('div', { className: 'metric-card metric-card--border-purple' }, h('span', { className: 'metric-card__icon metric-card__icon--blue' }, icon('users')), h('div', {}, h('small', { text: 'رتبه در کلاس' }), h('strong', { text: analytics.rank == null ? '—' : `${formatNumber(analytics.rank)} از ${formatNumber(analytics.ranked_count)}` }), h('span', { text: analytics.rank == null ? 'فقط نتایج نهایی رتبه‌بندی می‌شوند' : 'براساس نتایج نهایی' }))),
-        ),
-        h('dl', { className: 'detail-grid' },
-          h('div', {}, h('dt', { text: 'اولین تا آخرین ماه' }), h('dd', { text: analytics.first_month == null ? '—' : `${formatNumber(analytics.first_month)} تا ${formatNumber(analytics.last_month)}` })),
-          h('div', {}, h('dt', { text: 'قوی‌ترین حیطه' }), h('dd', { text: analytics.strongest_domain ? `${analytics.strongest_domain.title}: ${formatNumber(analytics.strongest_domain.score)}` : '—' })),
-          h('div', {}, h('dt', { text: 'ضعیف‌ترین حیطه' }), h('dd', { text: analytics.weakest_domain ? `${analytics.weakest_domain.title}: ${formatNumber(analytics.weakest_domain.score)}` : '—' })),
-          h('div', {}, h('dt', { text: 'وضعیت نتیجه' }), h('dd', { text: analytics.completion_warning ?? 'اطلاعات کامل است.' })),
-        ),
-        analytics.recommendation ? h('div', { className: 'student-notes' }, h('h3', { text: 'پیشنهاد مداخله' }), h('p', { text: analytics.recommendation })) : null,
-      ) : null;
-      const contractNotice = h('article', { className: 'contract-notice' }, icon('check'), h('div', {}, h('strong', { text: 'داده مستقیم و قابل ردیابی' }), h('p', { text: 'ارزیابی‌های ماهانه از فایل معتبر ذخیره می‌شوند و امتیاز حیطه‌ها و نمره نهایی توسط Backend محاسبه می‌شود.' })));
-      content.append(hero, h('div', { className: 'student-content-grid' }, info, guardians), ...(analyticsSection ? [analyticsSection] : []), evaluationSection, contractNotice);
-    } catch (error) { clear(content); content.append(errorState(error, () => void load())); }
+      const guardians = h(
+        'article',
+        { className: 'card guardians-card' },
+        h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'اولیا و ارتباط‌ها' }), h('p', { text: `${student.guardians.length.toLocaleString('fa-IR')} ارتباط ثبت‌شده` })), h('span', { className: 'card-icon' }, icon('users'))),
+        student.guardians.length
+          ? h('div', { className: 'guardian-list' }, ...student.guardians.map(item => h('div', { className: 'guardian-item' }, h('span', { className: 'avatar avatar--soft', text: initials(String(item.guardian_name ?? 'ولی')) }), h('div', {}, h('strong', { text: safeText(item.guardian_name ?? item.guardian) }), h('small', { text: safeText(item.relationship) })), h('div', { className: 'guardian-flags' }, item.is_primary ? h('span', { className: 'badge badge--success', text: 'ولی اصلی' }) : null, item.can_pick_up ? h('span', { className: 'badge badge--neutral', text: 'مجاز به تحویل' }) : null))))
+          : h('div', { className: 'inline-empty' }, icon('users'), h('p', { text: 'هنوز ولی‌ای به این پرونده متصل نشده است.' }), canWrite ? h('button', { className: 'button button--secondary', type: 'button', disabled: !writeScopeReady, title: writeScopeReady ? 'اتصال ولی' : 'ابتدا حوزه فعال را انتخاب کنید', onClick: attachGuardian }, icon('plus'), 'اتصال ولی') : null),
+      );
+
+      const tabPanel = h('div', { className: 'card student-360-panel', id: 'student-360-panel', role: 'tabpanel', tabindex: 0, 'aria-live': 'polite' });
+      const tabList = h('div', { className: 'section-tabs', role: 'tablist', 'aria-label': 'بخش‌های پرونده دانش‌آموز' });
+      const cachedPanels: Partial<Record<Student360TabId, HTMLElement>> = {};
+      const tabButtons = new Map<Student360TabId, HTMLButtonElement>();
+      let activeTab: Student360TabId = 'summary';
+      let requestSequence = 0;
+      const tabs: Student360Tab[] = [
+        { id: 'summary', label: 'خلاصه', load: async () => renderSummary(summary) },
+        { id: 'academics', label: 'تحصیلی', load: async () => renderAcademics(await student360Api.academics(id)) },
+        { id: 'attendance', label: 'حضور و غیاب', load: async () => renderAttendance(await student360Api.attendance(id)) },
+        {
+          id: 'evaluations',
+          label: '۷۴ شاخص',
+          load: async () => {
+            const evaluations = await student360Api.evaluations(id);
+            const latest = evaluations.evaluations[0];
+            const analytics = latest ? await student360Api.evaluationAnalytics(latest.enrollment) : null;
+            return renderEvaluations(evaluations, analytics);
+          },
+        },
+        { id: 'behavior', label: 'رفتار', load: async () => renderBehavior(await student360Api.behavior(id)) },
+        { id: 'activities', label: 'فعالیت‌ها', load: async () => renderActivities(await student360Api.activities(id)) },
+        { id: 'risks', label: 'ریسک', load: async () => renderRisks(await student360Api.risks(id)) },
+        { id: 'recommendations', label: 'توصیه‌ها', load: async () => renderRecommendations(await student360Api.recommendations(id)) },
+        { id: 'reports', label: 'گزارش‌ها', load: async () => renderReports(await student360Api.reports(id)) },
+      ];
+      const renderActiveTab = (tabId: Student360TabId): void => {
+        for (const [candidateId, button] of tabButtons) {
+          const selected = candidateId === tabId;
+          button.classList.toggle('is-active', selected);
+          button.setAttribute('aria-selected', selected ? 'true' : 'false');
+          button.tabIndex = selected ? 0 : -1;
+        }
+        tabPanel.setAttribute('aria-labelledby', `student-360-tab-${tabId}`);
+      };
+      const activateTab = async (tabId: Student360TabId): Promise<void> => {
+        activeTab = tabId;
+        renderActiveTab(tabId);
+        const token = ++requestSequence;
+        const cached = cachedPanels[tabId];
+        if (cached) {
+          clear(tabPanel);
+          tabPanel.append(cached);
+          return;
+        }
+        clear(tabPanel);
+        tabPanel.append(loadingState());
+        const tab = tabs.find(candidate => candidate.id === tabId);
+        if (!tab) return;
+        try {
+          const panel = await tab.load();
+          cachedPanels[tabId] = panel;
+          if (activeTab === tabId && requestSequence === token) {
+            clear(tabPanel);
+            tabPanel.append(panel);
+          }
+        } catch (error) {
+          if (activeTab === tabId && requestSequence === token) {
+            clear(tabPanel);
+            tabPanel.append(errorState(error, () => void activateTab(tabId)));
+          }
+        }
+      };
+      for (const tab of tabs) {
+        const button = h('button', { className: 'section-tab', type: 'button', id: `student-360-tab-${tab.id}`, role: 'tab', 'aria-controls': 'student-360-panel', 'aria-selected': tab.id === activeTab ? 'true' : 'false', tabindex: tab.id === activeTab ? 0 : -1, onClick: () => void activateTab(tab.id) });
+        button.textContent = tab.label;
+        tabButtons.set(tab.id, button);
+        tabList.append(button);
+      }
+      const student360 = h('article', { className: 'card student-360-card' }, h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'Student 360' }), h('p', { text: 'هر بخش تنها هنگام انتخاب بارگذاری می‌شود.' })), h('span', { className: 'card-icon' }, icon('chart'))), tabList, tabPanel);
+      content.append(hero, h('div', { className: 'student-content-grid' }, info, guardians), student360);
+      await activateTab('summary');
+    } catch (error) {
+      clear(content);
+      content.append(errorState(error, () => void load()));
+    }
   }
+
   await load();
   return page;
 }

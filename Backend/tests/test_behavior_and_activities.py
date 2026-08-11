@@ -2,6 +2,7 @@ import pytest
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
+from hamamooz.apps.accounts.models import Role, RoleAssignment, User
 from hamamooz.apps.activities.models import Activity, ActivityParticipation
 from hamamooz.apps.behavior.models import BehaviorEvent, BehaviorEventType
 from hamamooz.apps.behavior.services import transition_event
@@ -192,3 +193,84 @@ def test_student_360_activities_returns_scoped_participation_facts(api_client, b
             "placement": 2,
         }
     ]
+
+
+@pytest.mark.django_db
+def test_student_affairs_has_whole_school_behavior_activity_and_student_read_scope(
+    api_client, base_data
+):
+    """This domain role is broad only for its defined student-facing domains."""
+
+    deputy = User.objects.create_user(
+        username="student-affairs",
+        email="student-affairs@example.com",
+        password="Strong-pass-123",
+    )
+    RoleAssignment.objects.create(
+        user=deputy,
+        organization=base_data["organization"],
+        school=base_data["school1"],
+        role=Role.STUDENT_AFFAIRS_DEPUTY,
+    )
+    event_type = BehaviorEventType.objects.create(
+        organization=base_data["organization"],
+        code="student-affairs-scope",
+        title="Student affairs scope",
+        default_polarity=BehaviorEventType.Polarity.NEGATIVE,
+        default_severity=BehaviorEventType.Severity.LOW,
+    )
+    headers = {"HTTP_X_SCHOOL_ID": str(base_data["school1"].id)}
+    api_client.force_authenticate(deputy)
+
+    created_event = api_client.post(
+        "/api/v1/behavior-events/",
+        {
+            "organization": str(base_data["organization"].id),
+            "school": str(base_data["school1"].id),
+            "academic_year": str(base_data["year"].id),
+            "enrollment": str(base_data["enrollments"][0].id),
+            "event_type": str(event_type.id),
+            "polarity": BehaviorEvent.Polarity.NEGATIVE,
+            "severity": BehaviorEvent.Severity.LOW,
+            "occurred_at": timezone.now().isoformat(),
+            "description": "Recorded by the student-affairs deputy.",
+        },
+        format="json",
+        **headers,
+    )
+    assert created_event.status_code == 201
+    assert api_client.get("/api/v1/behavior-events/", **headers).data["count"] == 1
+
+    activity = api_client.post(
+        "/api/v1/activities/",
+        {
+            "organization": str(base_data["organization"].id),
+            "school": str(base_data["school1"].id),
+            "academic_year": str(base_data["year"].id),
+            "title": "Student affairs activity",
+            "kind": Activity.Kind.CULTURAL,
+            "starts_at": timezone.now().isoformat(),
+        },
+        format="json",
+        **headers,
+    )
+    assert activity.status_code == 201
+    participation = api_client.post(
+        "/api/v1/activity-participations/",
+        {"activity": activity.data["id"], "enrollment": str(base_data["enrollments"][0].id)},
+        format="json",
+        **headers,
+    )
+    assert participation.status_code == 201
+
+    student = api_client.get(
+        f"/api/v1/students/{base_data['enrollments'][0].student_id}/360/summary/", **headers
+    )
+    assert student.status_code == 200
+    assert student.data["current_enrollment"]["id"] == str(base_data["enrollments"][0].id)
+    assert (
+        api_client.get(
+            "/api/v1/behavior-events/", HTTP_X_SCHOOL_ID=str(base_data["school2"].id)
+        ).status_code
+        == 403
+    )

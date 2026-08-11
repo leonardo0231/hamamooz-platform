@@ -17,8 +17,8 @@ function operation(id) {
 }
 
 test('generated API catalog has the expected contract size', () => {
-  assert.equal(catalog.operations.length, 173);
-  assert.equal(Object.keys(catalog.schemas).length, 170);
+  assert.equal(catalog.operations.length, 331);
+  assert.equal(Object.keys(catalog.schemas).length, 325);
 });
 
 test('import create contract only exposes the comprehensive school workbook type', () => {

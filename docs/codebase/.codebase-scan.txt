@@ -74,6 +74,15 @@ Backend\docs\11-CONFIGURATION_FA.md
 Backend\docs\12-DEVELOPMENT_FA.md
 Backend\docs\13-RUNBOOK_FA.md
 Backend\docs\14-BACKEND_REVIEW_FA.md
+Backend\docs\15-FULL_PRODUCT_SCOPE_FA.md
+Backend\docs\16-STUDENT_360_FA.md
+Backend\docs\17-BEHAVIOR_ACTIVITIES_FA.md
+Backend\docs\18-COUNSELING_GUIDANCE_FA.md
+Backend\docs\19-ANALYTICS_RISK_FA.md
+Backend\docs\20-RECOMMENDATIONS_FA.md
+Backend\docs\21-REPORTING_PLATFORM_FA.md
+Backend\docs\22-PORTALS_FA.md
+Backend\docs\23-PRODUCTION_READINESS_FA.md
 Backend\docs\api-client-integration.md
 Backend\docs\api.md
 Backend\docs\API_REFERENCE_FA.md
@@ -88,6 +97,12 @@ Backend\docs\decisions\0001-modular-monolith.md
 Backend\docs\decisions\0002-email-jwt-authentication.md
 Backend\docs\decisions\0003-primary-keys.md
 Backend\docs\decisions\0004-object-storage.md
+Backend\docs\decisions\0017-student-360-read-composition.md
+Backend\docs\decisions\0018-counseling-confidentiality-boundary.md
+Backend\docs\decisions\0019-code-versioned-analytics-rules.md
+Backend\docs\decisions\0020-relationship-based-portal-authorization.md
+Backend\docs\decisions\0021-report-template-allowlist.md
+Backend\docs\decisions\0022-official-report-snapshots.md
 Backend\docs\deployment.md
 Backend\docs\DEPLOYMENT_HARDENING_FA.md
 Backend\docs\erd.md
@@ -178,28 +193,13 @@ Backend\tests\test_reports_dashboard_core.py
 Backend\tests\test_scores_and_calculations.py
 Backend\tests\test_security_regressions.py
 Backend\uv.lock
+CONTEXT.md
 contracts
 contracts\API_CHANGELOG.md
 contracts\openapi.yaml
 contracts\README.md
 docker-compose.yml
 docs
-docs\API_CHANGE_TEMPLATE.md
-docs\codebase
-docs\codebase\.codebase-scan.txt
-docs\codebase\ARCHITECTURE.md
-docs\codebase\CONCERNS.md
-docs\codebase\CONVENTIONS.md
-docs\codebase\INTEGRATIONS.md
-docs\codebase\STACK.md
-docs\codebase\STRUCTURE.md
-docs\codebase\TESTING.md
-docs\DOCKER_LOCAL_FA.md
-docs\DOCKER_REVIEW_FA.md
-docs\FRONTEND_HANDOFF_FA.md
-docs\INTEGRATION_MATRIX.md
-docs\PRODUCT_COMPLETION_REVIEW_2026-07-26_FA.md
-Frontend
 
 === STACK DETECTION (manifest files) ===
 No recognized manifest files found in project root.
@@ -254,6 +254,9 @@ Frontend\scripts\lint.mjs:11: if (/\b(TODO|FIXME)\b/i.test(text)) failures.push(
 Frontend\scripts\lint.mjs:11: if (/\b(TODO|FIXME)\b/i.test(text)) failures.push(`${path}: unfinished marker`);
 
 === GIT RECENT COMMITS (last 20) ===
+6ad6bdb ci: derive integration credentials per run
+2c89a02 test: align import API workflow with comprehensive uploads
+6e28ac2 docs: add verified codebase knowledge
 822bcd4 ci: validate integrated main platform
 1433cd6 merge: integrate responsive frontend MVP
 71cf2bb merge: integrate backend MVP hardening
@@ -271,13 +274,10 @@ c7cee09 style(frontend): load product dashboard styles
 9ab7a6a style(frontend): polish role dashboards charts and forms
 1f34689 feat(frontend): route overview to role-aware dashboard
 6d027ba feat(frontend): implement role-aware analytical dashboards
-fdcd467 feat(frontend): add accessible evaluation heatmap
-2b12fc9 feat(frontend): expose analytics filter endpoints
-f22e2b3 feat(frontend): add accessible native dashboard charts
 
 === HIGH-CHURN FILES (last 90 days, top 20) ===
+  14 .github/workflows/backend-ci.yml
   14 Backend/config/settings/base.py
-  13 .github/workflows/backend-ci.yml
    9 README.md
    9 Backend/docker-compose.yml
    8 .github/workflows/frontend-ci.yml
@@ -301,11 +301,11 @@ f22e2b3 feat(frontend): add accessible native dashboard charts
 No monorepo signals detected.
 
 === CODE METRICS ===
-Total files scanned: 1063
+Total files scanned: 1170
 Total lines of code: 27001
 
 Files by language:
-  Other: 859
+  Other: 966
   Python: 167
   TypeScript: 37
 
@@ -318,8 +318,8 @@ Backend\docs\import_templates\comprehensive_school_template.xlsx: 526.2KB
 Backend\.test-media\imports\2026\08\comprehensive_school_GNgJMqp.xlsx: 504.9KB
 Backend\.test-media\imports\2026\08\comprehensive_school_ZEwFpXf.xlsx: 504.9KB
 Backend\.test-media\imports\2026\08\comprehensive_school_CLUtLkd.xlsx: 504.9KB
+Backend\.test-media\imports\2026\08\comprehensive_school_Rtj1nLq.xlsx: 504.9KB
 Backend\.test-media\imports\2026\08\comprehensive_school_SpQglrF.xlsx: 504.9KB
-Backend\.test-media\imports\2026\08\comprehensive_school_89jxcZW.xlsx: 504.9KB
 
 === CI/CD PIPELINES ===
 CI/CD: GitHub Actions

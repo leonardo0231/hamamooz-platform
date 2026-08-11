@@ -95,3 +95,39 @@ Schema باید از code همان Commit تولید شود. فایل static ب�
 وضعیت: پذیرفته‌شده
 
 داده عملیاتی قابل غیرفعال‌سازی است، اما Audit، revision، event و Snapshot برای حفظ سابقه فیزیکی حذف نمی‌شوند.
+
+## ADR-017: Student 360 یک Read Composition است
+
+وضعیت: پذیرفته‌شده
+
+پروندهٔ دانش‌آموز از selectorهای scoped و endpointهای کوچک تشکیل می‌شود؛ model مستقل یا payload عمومی Counseling ندارد. جزئیات: `decisions/0017-student-360-read-composition.md`.
+
+## ADR-018: Counseling مرز محرمانگی مستقل دارد
+
+وضعیت: پذیرفته‌شده
+
+Private Note فقط در scope مشاور است و انتقال شعبه مجوز خودکار خواندن نمی‌دهد. جزئیات: `decisions/0018-counseling-confidentiality-boundary.md`.
+
+## ADR-019: Rule تحلیلی در code versioned می‌ماند
+
+وضعیت: پذیرفته‌شده
+
+پیکربندی فقط parameter را تغییر می‌دهد؛ algorithm و version با code review و golden test کنترل می‌شوند. جزئیات: `decisions/0019-code-versioned-analytics-rules.md`.
+
+## ADR-020: Portal authorization رابطه‌محور است
+
+وضعیت: پذیرفته‌شده
+
+Guardian/Student relationship server-side scope را می‌سازد و role یا ID ارسالی client کافی نیست. جزئیات: `decisions/0020-relationship-based-portal-authorization.md`.
+
+## ADR-021: Report template allowlisted است
+
+وضعیت: پذیرفته‌شده
+
+مدیر blockهای امن را تنظیم می‌کند و Jinja/Python دلخواه اجرا نمی‌شود. جزئیات: `decisions/0021-report-template-allowlist.md`.
+
+## ADR-022: Report رسمی snapshot immutable دارد
+
+وضعیت: پذیرفته‌شده
+
+خروجی رسمی با داده و versionهای زمان صدور نگهداری می‌شود. جزئیات: `decisions/0022-official-report-snapshots.md`.

@@ -64,6 +64,29 @@ Healthcheck اصلی:
 curl http://localhost:5173/api/v1/health/ready/
 ```
 
+## Smoke یکپارچه و ایزوله
+
+برای بررسی clean boot بدون استفاده از `.env`، volume یا پورت‌های اجرای محلی، از
+smoke زیر استفاده کنید:
+
+```bash
+bash scripts/docker-integration-smoke.sh
+```
+
+این فرمان imageها را می‌سازد و سپس health، login، dashboard، students، import
+فایل جامع XLSX و preview گزارش را از مسیر HTTP عمومی می‌سنجد. در پایان فقط
+containerها و volumeهای project موقت خود را پاک می‌کند.
+
+در WSL که `docker` به Docker Desktop متصل نیست اما Docker Desktop ویندوز در
+دسترس است:
+
+```bash
+DOCKER_BIN=docker.exe bash scripts/docker-integration-smoke.sh
+```
+
+برای نگه‌داشتن منابع فقط جهت debug می‌توان `KEEP_SMOKE_CONTAINERS=true` تنظیم
+کرد؛ در حالت عادی cleanup اجباری است.
+
 ## بازسازی یا پاک‌سازی
 
 ```bash

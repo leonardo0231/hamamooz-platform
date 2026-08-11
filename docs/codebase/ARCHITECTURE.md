@@ -14,6 +14,8 @@ Browser -> Frontend/Nginx -> /api proxy -> Django views -> app services/models -
 
 The frontend central client resolves API routes from the generated catalog. Django routes dispatch to app viewsets, which call services/models. The backend generates `contracts/openapi.yaml`; the frontend catalog generator derives its artifacts from that file.
 
+The root integration smoke starts the production-like Compose topology in an isolated project name and exercises health, token authentication, dashboard/student reads, the comprehensive import workflow and report preview through public HTTP routes. It is a baseline verification path, not a second runtime architecture.
+
 ## Layer/Module Responsibilities
 
 | Module | Owns | Must not own | Evidence |
@@ -42,3 +44,4 @@ The frontend central client resolves API routes from the generated catalog. Djan
 - `docker-compose.yml`
 - `Backend/config/urls.py`
 - `Frontend/scripts/generate_contract.py`
+- `scripts/docker-integration-smoke.sh`

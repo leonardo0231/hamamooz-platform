@@ -43,14 +43,15 @@ test('imports upload uses the multipart field required by the API contract', asy
   }
 });
 
-test('student profile consumes the official evaluation analytics endpoint', async () => {
+test('Student 360 profile consumes the official evaluation analytics endpoint through its API adapter', async () => {
   const [source, endpoints] = await Promise.all([
     readFile(new URL('../src/pages/student.ts', import.meta.url), 'utf8'),
     readFile(new URL('../src/api/endpoints.ts', import.meta.url), 'utf8'),
   ]);
   assert.match(endpoints, /monthly_evaluations_analytics_retrieve/);
-  assert.match(source, /monthlyEvaluations\.analytics/);
-  assert.match(source, /روند پیشرفت/);
+  assert.match(source, /student360Api\.evaluations/);
+  assert.match(source, /student360Api\.evaluationAnalytics/);
+  assert.match(source, /روند ارزیابی‌های نهایی/);
   assert.match(source, /رتبه در کلاس/);
   assert.match(source, /student\.organization_name/);
 });

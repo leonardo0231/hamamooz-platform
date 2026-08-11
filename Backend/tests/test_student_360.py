@@ -4,9 +4,11 @@ from decimal import Decimal
 import pytest
 
 from hamamooz.apps.academics.models import SubjectResult, TermResult
+from hamamooz.apps.analytics.models import AnalyticsRun, StudentRiskSignal
 from hamamooz.apps.attendance.models import AttendanceRecord, AttendanceSession
 from hamamooz.apps.attendance.services import bulk_record_attendance, finalize_attendance_session
 from hamamooz.apps.evaluations.models import MetricScore, MonthlyEvaluation
+from hamamooz.apps.recommendations.models import Recommendation
 from hamamooz.apps.reports.models import ReportArchive
 
 
@@ -224,3 +226,54 @@ def test_student_360_does_not_disclose_a_student_to_another_school(api_client, b
     )
 
     assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_student_360_exposes_scoped_explainable_risks_and_recommendations(api_client, base_data):
+    enrollment = base_data["enrollments"][0]
+    run = AnalyticsRun.objects.create(
+        organization=base_data["organization"],
+        school=base_data["school1"],
+        enrollment=enrollment,
+        status=AnalyticsRun.Status.COMPLETED,
+    )
+    signal = StudentRiskSignal.objects.create(
+        run=run,
+        organization=base_data["organization"],
+        school=base_data["school1"],
+        enrollment=enrollment,
+        rule_code="academic_drop",
+        rule_version=1,
+        severity="high",
+        evidence={"drop": 3.2},
+        explanation="Explained drop",
+        window={"terms": 2},
+    )
+    Recommendation.objects.create(
+        organization=base_data["organization"],
+        school=base_data["school1"],
+        enrollment=enrollment,
+        source_signal=signal,
+        audience=Recommendation.Audience.GUIDE_TEACHER,
+        rule_code="signal_support",
+        rule_version=1,
+        priority="high",
+        reason_snapshot={"source": "signal"},
+        generated_text="Review",
+        status=Recommendation.Status.PENDING_REVIEW,
+    )
+    api_client.force_authenticate(base_data["manager"])
+    risks = api_client.get(
+        f"/api/v1/students/{enrollment.student_id}/360/risks/",
+        HTTP_X_SCHOOL_ID=str(base_data["school1"].id),
+    )
+    recommendations = api_client.get(
+        f"/api/v1/students/{enrollment.student_id}/360/recommendations/",
+        HTTP_X_SCHOOL_ID=str(base_data["school1"].id),
+    )
+
+    assert risks.status_code == 200
+    assert risks.data["signals"][0]["evidence"] == {"drop": 3.2}
+    assert risks.data["signals"][0]["explanation"] == "Explained drop"
+    assert recommendations.status_code == 200
+    assert recommendations.data["recommendations"][0]["status"] == "pending_review"

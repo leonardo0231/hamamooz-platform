@@ -7,9 +7,9 @@
 | `Backend/` | Django API, apps, tests, settings and image | `Backend/manage.py`, `Backend/pyproject.toml` |
 | `Frontend/` | TypeScript browser application, tests and Nginx image | `Frontend/package.json`, `Frontend/src/` |
 | `contracts/` | Generated OpenAPI contract and changelog | `contracts/README.md` |
-| `docs/` | Shared project documentation | `docs/README.md` |
+| `docs/` | Shared product, Docker and codebase documentation | `docs/product/`, `docs/DOCKER_LOCAL_FA.md` |
 | `.github/workflows/` | Backend, frontend and Docker CI | workflow files |
-| `scripts/` | Root Docker smoke scripts | `scripts/docker-smoke.ps1` |
+| `scripts/` | Root Compose smoke scripts | `scripts/docker-smoke.ps1`, `scripts/docker-integration-smoke.sh` |
 
 ## Entry Points
 
@@ -35,3 +35,4 @@ Python is organized by domain app with snake_case modules. Frontend source uses 
 - `README.md`
 - `Backend/config/urls.py`
 - `Frontend/src/app/routes.ts`
+- `docs/product/README.md`

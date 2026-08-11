@@ -29,6 +29,15 @@
 | تنظیم `.env` | `11-CONFIGURATION_FA.md` |
 | توسعه قابلیت جدید | `12-DEVELOPMENT_FA.md` |
 | نتیجه بازبینی فنی | `14-BACKEND_REVIEW_FA.md` |
+| محدوده محصول کامل و phaseها | `15-FULL_PRODUCT_SCOPE_FA.md` |
+| Student 360 | `16-STUDENT_360_FA.md` |
+| Behavior و Activities | `17-BEHAVIOR_ACTIVITIES_FA.md` |
+| Counseling و Guidance | `18-COUNSELING_GUIDANCE_FA.md` |
+| Analytics و Risk | `19-ANALYTICS_RISK_FA.md` |
+| Recommendation engine | `20-RECOMMENDATIONS_FA.md` |
+| Reporting platform | `21-REPORTING_PLATFORM_FA.md` |
+| Parent/Student portal | `22-PORTALS_FA.md` |
+| production readiness | `23-PRODUCTION_READINESS_FA.md` |
 | جزئیات Attendance | `ARCHITECTURE_FA.md` و `API_REFERENCE_FA.md` |
 
 ## قواعد نگهداری
@@ -36,6 +45,7 @@
 - هر Endpoint جدید باید هم‌زمان در View، تست، Schema تولیدشده و `04-API_FA.md` دیده شود.
 - هر متغیر محیطی جدید باید در `.env.example` یا `.env.production.example` و `11-CONFIGURATION_FA.md` ثبت شود.
 - هر state machine یا constraint جدید باید در `03-DATA_MODEL_FA.md` و تست مربوط ثبت شود.
+- هر domain محصول کامل باید سند شماره‌دار 16 تا 23، traceability محصول و ADRهای مرتبط را به‌روزرسانی کند.
 - هر تغییر استقرار باید `docker-compose.yml`، `06-OPERATIONS_FA.md` و `09-OFFLINE_DEPLOYMENT_FA.md` را هم‌زمان به‌روزرسانی کند.
 - نتیجه تست ثابت داخل متن نگهداری نمی‌شود؛ CI همان Commit منبع نتیجه است.
 - گزارش‌های تاریخی مانند `FIX_REPORT_*.md` و `VALIDATION_REPORT_FA.md` با تاریخ خود خوانده می‌شوند و جای وضعیت جاری را نمی‌گیرند.

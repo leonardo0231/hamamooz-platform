@@ -69,6 +69,13 @@ INSTALLED_APPS = [
     "hamamooz.apps.reports",
     "hamamooz.apps.dashboard",
     "hamamooz.apps.attendance",
+    "hamamooz.apps.behavior",
+    "hamamooz.apps.activities",
+    "hamamooz.apps.guidance",
+    "hamamooz.apps.counseling",
+    "hamamooz.apps.analytics",
+    "hamamooz.apps.recommendations",
+    "hamamooz.apps.portal",
 ]
 
 MIDDLEWARE = [
@@ -202,6 +209,16 @@ SPECTACULAR_SETTINGS = {
             ("email", "ایمیل"),
             ("sms", "پیامک"),
         ],
+        # These choice sets are deliberately shared by several bounded contexts.
+        # Naming them explicitly keeps the checked-in OpenAPI contract stable and
+        # removes generator warnings caused by generic field names such as status.
+        "PolarityEnum": "hamamooz.apps.behavior.models.BehaviorEvent.Polarity",
+        "SeverityEnum": "hamamooz.apps.analytics.models.StudentRiskSignal.Severity",
+        "BehaviorEventStatusEnum": "hamamooz.apps.behavior.models.BehaviorEvent.Status",
+        "FollowUpStatusEnum": "hamamooz.apps.behavior.models.BehaviorAction.Status",
+        "AsyncJobStatusEnum": "hamamooz.apps.reports.models.ReportArchive.Status",
+        "ImportJobStatusEnum": "hamamooz.apps.imports.models.ImportJob.Status",
+        "ReportOutputFormatEnum": "hamamooz.apps.reports.models.ReportArchive.OutputFormat",
     },
 }
 
@@ -229,6 +246,7 @@ CELERY_TASK_ROUTES = {
     "hamamooz.apps.academics.tasks.*": {"queue": "calculations"},
     "hamamooz.apps.attendance.tasks.dispatch_parent_notification": {"queue": "notifications"},
     "hamamooz.apps.attendance.tasks.evaluate_attendance_alerts": {"queue": "calculations"},
+    "hamamooz.apps.analytics.tasks.*": {"queue": "calculations"},
 }
 CELERY_TASK_ALWAYS_EAGER = env_bool("CELERY_TASK_ALWAYS_EAGER", False)
 CELERY_TASK_EAGER_PROPAGATES = True
@@ -269,7 +287,11 @@ CELERY_BEAT_SCHEDULE = {
     "evaluate-attendance-alerts-daily": {
         "task": "hamamooz.apps.attendance.tasks.evaluate_attendance_alerts",
         "schedule": crontab(hour=ATTENDANCE_ALERT_HOUR, minute=ATTENDANCE_ALERT_MINUTE),
-    }
+    },
+    "reconcile-analytics-nightly": {
+        "task": "hamamooz.apps.analytics.tasks.reconcile_analytics",
+        "schedule": crontab(hour=2, minute=15),
+    },
 }
 
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")

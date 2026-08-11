@@ -5,7 +5,8 @@
 | Severity | Concern | Evidence | Impact | Suggested action |
 |---|---|---|---|---|
 | High | Full local backend coverage run exceeds five minutes | local verification output | Complete suite status is not yet available locally | Run it in CI or investigate slow tests |
-| Medium | Docker daemon unavailable locally | Docker API pipe error | Image builds could not be run locally | Start Docker Desktop; CI builds images |
+| High | New Compose integration smoke has no recorded green remote run yet | `.github/workflows/backend-ci.yml`, `scripts/docker-integration-smoke.sh` | F0 cannot be accepted without runtime evidence | Require the `integration-smoke` check on the next PR/push |
+| Medium | Bash/WSL ممکن است Docker Desktop integration نداشته باشد | نخستین اجرای smoke با `docker` در WSL شکست خورد؛ اجرای `DOCKER_BIN=docker.exe` green شد | developer محلی ممکن است smoke را با binary نادرست اجرا کند | در WSL از `DOCKER_BIN=docker.exe` استفاده شود یا Docker Desktop WSL integration فعال شود |
 | Medium | Frontend response interfaces are local rather than generated | `Frontend/src/pages/dashboard-v2.ts` | Contract drift risk | Adopt generated operation types/runtime validation |
 
 ## Technical Debt
