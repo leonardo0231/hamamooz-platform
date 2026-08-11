@@ -113,6 +113,36 @@ class StudentGuardian(TimeStampedUUIDModel):
             raise ValidationError("دانش‌آموز و ولی باید متعلق به یک مجموعه باشند.")
 
 
+class GuardianAccount(TimeStampedUUIDModel):
+    """A login relationship, not a staff role, for a verified guardian."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="guardian_account"
+    )
+    guardian = models.OneToOneField(
+        Guardian, on_delete=models.PROTECT, related_name="portal_account"
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["guardian", "is_active"])]
+
+
+class StudentAccount(TimeStampedUUIDModel):
+    """A login relationship for the student themselves, never an arbitrary id."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="student_account"
+    )
+    student = models.OneToOneField(Student, on_delete=models.PROTECT, related_name="portal_account")
+    verified_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["student", "is_active"])]
+
+
 class Enrollment(SoftDeleteModel):
     class Status(models.TextChoices):
         ACTIVE = "active", "فعال"
