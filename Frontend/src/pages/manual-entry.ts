@@ -27,6 +27,7 @@ interface ManualResource {
 }
 
 interface ManualGroup {
+  id: 'structure' | 'students' | 'education' | 'attendance' | 'access';
   title: string;
   description: string;
   resources: ManualResource[];
@@ -130,6 +131,7 @@ const fieldHints: Record<string, string> = {
 
 const groups: ManualGroup[] = [
   {
+    id: 'structure',
     title: '۱. ساختار مدرسه',
     description: 'این موارد معمولاً یک‌بار در شروع سال تنظیم می‌شوند. ابتدا مجموعه، سال و پایه را بسازید و بعد کلاس‌ها را ثبت کنید.',
     resources: [
@@ -142,6 +144,7 @@ const groups: ManualGroup[] = [
     ],
   },
   {
+    id: 'students',
     title: '۲. دانش‌آموز و خانواده',
     description: 'برای ثبت یک دانش‌آموز جدید، اول خود دانش‌آموز را بسازید؛ سپس ولی و در پایان ثبت‌نام او را به کلاس وصل کنید.',
     resources: [
@@ -151,6 +154,7 @@ const groups: ManualGroup[] = [
     ],
   },
   {
+    id: 'education',
     title: '۳. برنامه درسی و ارزیابی',
     description: 'درس‌ها را تعریف کنید، آن‌ها را به پایه و کلاس ارائه دهید و سپس ارزیابی و نمره ثبت کنید.',
     resources: [
@@ -165,6 +169,7 @@ const groups: ManualGroup[] = [
     ],
   },
   {
+    id: 'attendance',
     title: '۴. حضور و غیاب',
     description: 'ابتدا سیاست حضور را تنظیم کنید، سپس جلسه بسازید و وضعیت هر دانش‌آموز را ثبت کنید.',
     resources: [
@@ -174,6 +179,7 @@ const groups: ManualGroup[] = [
     ],
   },
   {
+    id: 'access',
     title: '۵. کاربران و دسترسی',
     description: 'کاربر را ایجاد کنید و سپس نقش او را در مجموعه یا شعبه مناسب تخصیص دهید.',
     resources: [
@@ -505,34 +511,46 @@ function resourceCard(resource: ManualResource): HTMLElement {
 
 export async function renderManualEntryPage(): Promise<HTMLElement> {
   const page = h('section', { className: 'page' });
+  const requestedTask = new URLSearchParams(location.search).get('task');
   const visibleGroups = groups
     .map(group => ({ ...group, resources: group.resources.filter(resource => hasAnyRole(resource.roles)) }))
     .filter(group => group.resources.length > 0);
+  const taskGroups = requestedTask === 'students' || requestedTask === 'education' || requestedTask === 'attendance'
+    ? visibleGroups.filter(group => group.id === requestedTask)
+    : [];
+  const groupView = (group: ManualGroup): HTMLElement => h(
+    'section',
+    { className: 'manual-entry-group' },
+    h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: group.title }), h('p', { text: group.description }))),
+    h('div', { className: 'import-guide-grid' }, ...group.resources.map(resourceCard)),
+  );
 
   page.append(
     h('div', { className: 'page-heading' },
       h('div', {},
-        h('span', { className: 'eyebrow', text: 'ثبت مستقیم در سامانه' }),
-        h('h1', { text: 'ثبت و ویرایش دستی اطلاعات' }),
-        h('p', { text: 'بدون UUID و بدون فرم‌های مبهم شروع کنید: بخش موردنظر را انتخاب کنید، توضیح کنار هر فیلد را بخوانید و برای تغییرات بعدی از «مشاهده و ویرایش» استفاده کنید.' }),
+        h('span', { className: 'eyebrow', text: 'ابزار پیشرفته مرکز داده' }),
+        h('h1', { text: 'اصلاح پیشرفته داده' }),
+        h('p', { text: 'این ابزار برای اصلاح‌های کنترل‌شده و استثناهاست. کارهای روزانه را از فضای دانش‌آموزان، آموزش و حضور و غیاب آغاز کنید.' }),
       ),
       hasAnyRole(broadEducationRoles) ? h('button', { className: 'button button--secondary', type: 'button', onClick: () => navigate('/imports') }, icon('upload'), 'ورود از فایل جامع') : null,
     ),
     h('div', { className: 'card' },
-      h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'قبل از ثبت دستی' }), h('p', { text: 'سه نکته جلوی بیشتر خطاهای ثبت را می‌گیرد.' }))),
+      h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'مسیر مناسب را انتخاب کنید' }), h('p', { text: 'به جای ساخت موجودیت‌های جداگانه، از زمینه کار دانش‌آموز یا کلاس شروع کنید.' }))),
       h('div', { className: 'metric-grid' },
-        h('article', { className: 'metric-card' }, h('span', { text: '۱' }), h('strong', { text: 'حوزه درست را انتخاب کنید' }), h('small', { text: 'مجموعه یا مدرسه فعال باید همان جایی باشد که داده به آن تعلق دارد.' })),
-        h('article', { className: 'metric-card' }, h('span', { text: '۲' }), h('strong', { text: 'شناسه فنی وارد نکنید' }), h('small', { text: 'UUIDها توسط سامانه ساخته می‌شوند؛ روابط را با نام و کد انتخاب کنید.' })),
-        h('article', { className: 'metric-card' }, h('span', { text: '۳' }), h('strong', { text: 'تاریخچه را حذف نکنید' }), h('small', { text: 'برای ثبت‌نام، ارزیابی و داده‌های نهایی از عملیات تغییر وضعیت، انتقال یا حذف منطقی استفاده کنید.' })),
+        h('button', { className: 'metric-card metric-card--border-blue', type: 'button', onClick: () => navigate('/students') }, h('span', { className: 'metric-card__icon metric-card__icon--blue' }, icon('users')), h('div', {}, h('strong', { text: 'دانش‌آموز و خانواده' }), h('small', { text: 'پرونده دانش‌آموز را جست‌وجو و در context آن پیگیری کنید.' }))),
+        h('button', { className: 'metric-card metric-card--border-purple', type: 'button', onClick: () => navigate('/education') }, h('span', { className: 'metric-card__icon metric-card__icon--purple' }, icon('book')), h('div', {}, h('strong', { text: 'آموزش و نمره' }), h('small', { text: 'از کلاس و ارزیابی آغاز کنید، نه از رکوردهای خام.' }))),
+        h('button', { className: 'metric-card metric-card--border-orange', type: 'button', onClick: () => navigate('/attendance') }, h('span', { className: 'metric-card__icon metric-card__icon--orange' }, icon('calendar')), h('div', {}, h('strong', { text: 'حضور و غیاب' }), h('small', { text: 'جلسه، سوابق و هشدارها را در یک workspace ببینید.' }))),
       ),
     ),
   );
 
-  for (const group of visibleGroups) {
+  if (taskGroups.length) {
+    page.append(...taskGroups.map(groupView));
+  } else {
     page.append(
-      h('section', { className: 'manual-entry-group' },
-        h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: group.title }), h('p', { text: group.description }))),
-        h('div', { className: 'import-guide-grid' }, ...group.resources.map(resourceCard)),
+      h('details', { className: 'card manual-entry-advanced' },
+        h('summary', {}, icon('edit'), h('span', {}, h('strong', { text: 'نمایش ابزارهای ثبت و اصلاح پیشرفته' }), h('small', { text: 'همه فرم‌های فعلی برای عملیات، پشتیبانی و اصلاح داده حفظ شده‌اند.' }))),
+        h('div', { className: 'manual-entry-advanced__body' }, ...visibleGroups.map(groupView)),
       ),
     );
   }

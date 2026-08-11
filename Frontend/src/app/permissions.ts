@@ -21,6 +21,17 @@ export function hasAnyRole(roles?: Role[]): boolean {
   return current.includes('system_admin') || roles.some(role => current.includes(role));
 }
 
+/**
+ * Check an explicit role boundary without the system-admin convenience
+ * override. This is used for confidential domains whose backend permission
+ * model intentionally does not grant global administration access.
+ */
+export function hasExactRole(roles?: Role[]): boolean {
+  if (!roles?.length) return true;
+  const current = activeRoles();
+  return roles.some(role => current.includes(role));
+}
+
 export function hasWriteScope(): boolean {
   return isSystemAdmin() || Boolean(store.state.scope.schoolId || store.state.scope.organizationId);
 }

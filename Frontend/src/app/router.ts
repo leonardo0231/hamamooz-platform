@@ -1,31 +1,42 @@
-import { administrativeRoles, hasAnyRole } from './permissions.js';
+import { administrativeRoles, hasAnyRole, teacherWriteRoles } from './permissions.js';
 import { routeFactories, type RouteDefinition } from './routes.js';
 import { ensureUser } from './auth.js';
 import { store } from './store.js';
 import { createShell } from '../components/shell.js';
+import { createPortalShell } from '../components/portal-shell.js';
 import { h } from '../utils/dom.js';
 import { loadingState } from '../components/feedback.js';
+import { administrationWorkspaceRoles, attendanceWorkspaceRoles, dataCenterWorkspaceRoles, educationWorkspaceRoles, followUpWorkspaceRoles, reportWorkspaceRoles, studentWorkspaceRoles } from './workspaces.js';
 
 const routes: RouteDefinition[] = [
   { pattern: /^\/login\/?$/, title: 'ورود', private: false, render: routeFactories.login },
   { pattern: /^\/?$/, title: 'داشبورد', private: true, render: routeFactories.dashboard },
-  { pattern: /^\/students\/?$/, title: 'دانش‌آموزان', private: true, render: routeFactories.students },
-  { pattern: /^\/students\/(?<id>[^/]+)\/?$/, title: 'پرونده دانش‌آموز', private: true, render: routeFactories.student },
+  { pattern: /^\/students\/?$/, title: 'دانش‌آموزان', private: true, roles: studentWorkspaceRoles, render: routeFactories.students },
+  { pattern: /^\/students\/(?<id>[^/]+)\/?$/, title: 'پرونده دانش‌آموز', private: true, roles: studentWorkspaceRoles, render: routeFactories.student },
   { pattern: /^\/alerts\/?$/, title: 'مرکز هشدارها', private: true, render: routeFactories.alerts },
-  { pattern: /^\/attendance\/?$/, title: 'حضور و غیاب', private: true, render: routeFactories.attendance },
-  { pattern: /^\/reports\/?$/, title: 'گزارش‌ها', private: true, render: routeFactories.reports },
-  { pattern: /^\/portal\/?$/, title: 'پورتال', private: true, render: routeFactories.portal },
-  { pattern: /^\/imports\/?$/, title: 'ورود اطلاعات', private: true, roles: ['system_admin', 'organization_admin', 'school_manager', 'educational_deputy', 'operator'], render: routeFactories.imports },
-  { pattern: /^\/manual-entry\/?$/, title: 'ثبت و ویرایش دستی', private: true, render: routeFactories.manualEntry },
+  { pattern: /^\/education\/?$/, title: 'آموزش', private: true, roles: educationWorkspaceRoles, render: routeFactories.education },
+  { pattern: /^\/attendance\/?$/, title: 'حضور و غیاب', private: true, roles: attendanceWorkspaceRoles, render: routeFactories.attendance },
+  { pattern: /^\/attendance\/(?<tab>sessions|records|alerts|notifications)\/?$/, title: 'حضور و غیاب', private: true, roles: attendanceWorkspaceRoles, render: routeFactories.attendance },
+  { pattern: /^\/follow-up\/?$/, title: 'رشد و پیگیری', private: true, roles: followUpWorkspaceRoles, render: routeFactories.followUp },
+  { pattern: /^\/reports\/?$/, title: 'گزارش‌ها', private: true, roles: reportWorkspaceRoles, render: routeFactories.reports },
+  { pattern: /^\/portal\/?$/, title: 'پورتال', private: true, shell: 'portal', render: routeFactories.portal },
+  { pattern: /^\/data-center\/?$/, title: 'مرکز داده', private: true, roles: dataCenterWorkspaceRoles, render: routeFactories.dataCenter },
+  { pattern: /^\/imports\/?$/, title: 'ورود اطلاعات', private: true, roles: dataCenterWorkspaceRoles, render: routeFactories.imports },
+  { pattern: /^\/manual-entry\/?$/, title: 'ثبت و ویرایش دستی', private: true, roles: teacherWriteRoles, render: routeFactories.manualEntry },
   { pattern: /^\/users\/?$/, title: 'کاربران', private: true, roles: administrativeRoles, render: routeFactories.users },
   { pattern: /^\/roles\/?$/, title: 'نقش‌ها', private: true, roles: administrativeRoles, render: routeFactories.roles },
   { pattern: /^\/profile\/?$/, title: 'پروفایل', private: true, render: routeFactories.profile },
-  { pattern: /^\/settings\/?$/, title: 'تنظیمات', private: true, render: routeFactories.settings },
+  { pattern: /^\/administration\/?$/, title: 'مدیریت سامانه', private: true, roles: administrationWorkspaceRoles, render: routeFactories.settings },
+  { pattern: /^\/settings\/?$/, title: 'مدیریت سامانه', private: true, roles: administrationWorkspaceRoles, render: routeFactories.settings },
   { pattern: /^\/forbidden\/?$/, title: 'عدم دسترسی', private: true, render: routeFactories.forbidden },
   { pattern: /^\/resources\/(?<tag>[a-z0-9-]+)\/?$/, title: 'مدیریت اطلاعات', private: true, render: routeFactories.resource },
 ];
 
 let renderVersion = 0;
+
+function wrapPrivatePage(route: RouteDefinition, page: HTMLElement): HTMLElement {
+  return route.shell === 'portal' ? createPortalShell(page) : createShell(page);
+}
 
 export function navigate(path: string, replace = false): void {
   if (replace) history.replaceState({}, '', path);
@@ -85,14 +96,14 @@ export async function renderRoute(): Promise<void> {
     if (version !== renderVersion) return;
     document.title = `${route.title} | هم‌آموز`;
     document.body.classList.toggle('is-login', !route.private);
-    root.replaceChildren(route.private ? createShell(page) : page);
+    root.replaceChildren(route.private ? wrapPrivatePage(route, page) : page);
     queueMicrotask(() => document.querySelector<HTMLElement>('#page-content')?.focus({ preventScroll: true }));
   } catch (error) {
     if (version !== renderVersion) return;
     const failure = h('section', { className: 'error-page' }, h('h1', { text: 'بارگذاری صفحه ناموفق بود' }), h('p', { text: error instanceof Error ? error.message : 'خطای ناشناخته' }), h('button', { className: 'button button--primary', type: 'button', onClick: () => void renderRoute() }, 'تلاش دوباره'));
     document.title = 'بارگذاری صفحه ناموفق بود | هم‌آموز';
     document.body.classList.toggle('is-login', !route.private);
-    root.replaceChildren(route.private ? createShell(failure) : h('main', { id: 'page-content', tabindex: '-1' }, failure));
+    root.replaceChildren(route.private ? wrapPrivatePage(route, failure) : h('main', { id: 'page-content', tabindex: '-1' }, failure));
     queueMicrotask(() => document.querySelector<HTMLElement>('#page-content')?.focus({ preventScroll: true }));
   }
 }

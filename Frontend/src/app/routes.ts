@@ -1,10 +1,13 @@
 import type { Role } from '../api/types.js';
 
+export type RouteShell = 'staff' | 'portal';
+
 export interface RouteDefinition {
   pattern: RegExp;
   title: string;
   private: boolean;
   roles?: Role[];
+  shell?: RouteShell;
   render: (params: Record<string, string>) => Promise<HTMLElement>;
 }
 
@@ -14,7 +17,10 @@ export const routeFactories = {
   students: async (): Promise<HTMLElement> => (await import('../pages/resource.js')).renderResourcePage('students'),
   student: async (params: Record<string, string>): Promise<HTMLElement> => (await import('../pages/student.js')).renderStudentPage(params.id ?? ''),
   alerts: async (): Promise<HTMLElement> => (await import('../pages/alerts.js')).renderAlertsPage(),
-  attendance: async (): Promise<HTMLElement> => (await import('../pages/attendance.js')).renderAttendancePage(),
+  attendance: async (params: Record<string, string>): Promise<HTMLElement> => (await import('../pages/attendance.js')).renderAttendancePage(params.tab),
+  education: async (): Promise<HTMLElement> => (await import('../pages/education.js')).renderEducationWorkspacePage(),
+  followUp: async (): Promise<HTMLElement> => (await import('../pages/follow-up.js')).renderFollowUpWorkspacePage(),
+  dataCenter: async (): Promise<HTMLElement> => (await import('../pages/data-center.js')).renderDataCenterWorkspacePage(),
   reports: async (): Promise<HTMLElement> => (await import('../pages/reports.js')).renderReportsPage(),
   portal: async (): Promise<HTMLElement> => (await import('../pages/portal.js')).renderPortalPage(),
   imports: async (): Promise<HTMLElement> => (await import('../pages/imports-simple.js')).renderImportsPage(),

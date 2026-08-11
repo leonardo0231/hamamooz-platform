@@ -27,6 +27,7 @@ const valueLabels: Record<string, string> = {
   draft: 'پیش‌نویس', submitted: 'ارسال‌شده', approved: 'تأییدشده', rejected: 'ردشده', locked: 'قفل‌شده',
   open: 'باز', acknowledged: 'در حال بررسی', resolved: 'رفع‌شده', warning: 'مهم', critical: 'بحرانی',
   low: 'کم', medium: 'متوسط', high: 'زیاد',
+  positive: 'مثبت', negative: 'منفی', neutral: 'خنثی',
   queued: 'در صف', processing: 'در حال پردازش', completed: 'تکمیل‌شده', failed: 'ناموفق', cancelled: 'لغوشده',
   present: 'حاضر', absent_unexcused: 'غیبت غیرموجه', excused_absent: 'غیبت موجه', unexcused_absent: 'غیبت غیرموجه', not_entered: 'ثبت‌نشده', finalized: 'نهایی‌شده',
   daily: 'روزانه', period: 'زنگ درسی', provisional: 'موقت', final: 'نهایی', transferred: 'منتقل‌شده', withdrawn: 'ترک‌تحصیل', graduated: 'فارغ‌التحصیل',

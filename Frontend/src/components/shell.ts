@@ -1,40 +1,16 @@
 import { apiRequest } from '../api/client.js';
 import { endpoints } from '../api/endpoints.js';
-import type { Pagination, Role } from '../api/types.js';
-import { activeRoles, administrativeRoles, broadEducationRoles, counselingRoles, guidanceRoles, managementReadRoles, roleLabel, teacherWriteRoles } from '../app/permissions.js';
+import type { Pagination } from '../api/types.js';
+import { activeRoles, roleLabel } from '../app/permissions.js';
 import { store } from '../app/store.js';
 import { navigate } from '../app/router.js';
+import { isStaffWorkspaceActive, staffNavigationForRoles, type StaffWorkspace } from '../app/workspaces.js';
+import { primaryRole } from '../ui/role-experience.js';
 import { h, initials, onWindowEventWhileConnected } from '../utils/dom.js';
 import { icon } from './icons.js';
 import { toast } from './feedback.js';
 
 interface NamedItem { id: string; name?: string; title?: string; organization?: string; }
-interface NavigationItem { href: string; label: string; icon: string; roles?: Role[]; }
-
-const navigation: NavigationItem[] = [
-  { href: '/', label: 'نمای کلی', icon: 'home' },
-  { href: '/students', label: 'دانش‌آموزان', icon: 'users' },
-  { href: '/resources/assessments', label: 'آموزش و ارزیابی', icon: 'chart' },
-  { href: '/attendance', label: 'حضور و غیاب', icon: 'calendar' },
-  { href: '/resources/course-offerings', label: 'کلاس‌ها و برنامه درسی', icon: 'book' },
-  { href: '/resources/behavior-events', label: 'وقایع رفتاری', icon: 'warning', roles: broadEducationRoles },
-  { href: '/resources/activities', label: 'فعالیت‌ها', icon: 'sparkles', roles: broadEducationRoles },
-  { href: '/resources/guide-teacher-assignments', label: 'راهنمایی', icon: 'users', roles: guidanceRoles },
-  { href: '/resources/my-guide-recommendations', label: 'توصیه‌های cohort', icon: 'sparkles', roles: guidanceRoles },
-  { href: '/resources/counseling-cases', label: 'مشاوره محرمانه', icon: 'lock', roles: counselingRoles },
-  { href: '/resources/my-counselor-recommendations', label: 'توصیه‌های مشاوره', icon: 'sparkles', roles: counselingRoles },
-  { href: '/resources/analytics-risk-signals', label: 'تحلیل و ریسک', icon: 'chart', roles: managementReadRoles },
-  { href: '/resources/recommendations', label: 'توصیه‌ها', icon: 'sparkles', roles: managementReadRoles },
-  { href: '/alerts', label: 'مرکز هشدارها', icon: 'bell' },
-  { href: '/reports', label: 'گزارش‌ها و کارنامه‌ها', icon: 'file' },
-  { href: '/portal', label: 'پورتال خانواده و دانش‌آموز', icon: 'user' },
-  { href: '/imports', label: 'ورود اطلاعات', icon: 'upload', roles: broadEducationRoles },
-  { href: '/manual-entry', label: 'ثبت و ویرایش دستی', icon: 'edit', roles: teacherWriteRoles },
-  { href: '/users', label: 'کاربران', icon: 'user', roles: administrativeRoles },
-  { href: '/roles', label: 'نقش‌ها و دسترسی', icon: 'settings', roles: administrativeRoles },
-  { href: '/settings', label: 'تنظیمات سامانه', icon: 'settings' },
-];
-
 function shouldHandleNavigation(event: MouseEvent): boolean {
   const anchor = event.currentTarget as HTMLAnchorElement;
   return !event.defaultPrevented
@@ -48,15 +24,16 @@ function shouldHandleNavigation(event: MouseEvent): boolean {
     && anchor.origin === location.origin;
 }
 
-function isNavigationItemActive(item: NavigationItem, pathname = location.pathname): boolean {
-  return item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+function isNavigationItemActive(item: StaffWorkspace, pathname = location.pathname): boolean {
+  return isStaffWorkspaceActive(item, pathname);
 }
 
 export function createShell(content: HTMLElement): HTMLElement {
   const user = store.state.user;
   const fullName = `${user?.first_name ?? ''} ${user?.last_name ?? ''}`.trim() || user?.username || 'کاربر';
   const roles = activeRoles();
-  const visibleNavigation = navigation.filter(item => !item.roles || item.roles.some(role => roles.includes(role)));
+  const visibleNavigation = staffNavigationForRoles(roles);
+  const contextRole = roles.length ? primaryRole(roles) : null;
   const mobileQuery = window.matchMedia('(max-width: 1080px)');
   const focusableSelector = 'a[href], button:not([disabled]), select:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -125,7 +102,7 @@ export function createShell(content: HTMLElement): HTMLElement {
     h('span', { className: 'avatar avatar--accent', text: initials(fullName) }),
     h('span', { className: 'sidebar__profile-copy' },
       h('strong', { text: fullName }),
-      h('small', { text: roles[0] ? roleLabel(roles[0]) : 'کاربر' }),
+      h('small', { text: contextRole ? roleLabel(contextRole) : 'کاربر' }),
     ),
     ),
     h('button', {
@@ -288,7 +265,7 @@ export function createShell(content: HTMLElement): HTMLElement {
       h('span', { className: 'avatar', text: initials(fullName) }),
       h('span', { className: 'user-menu__copy' },
         h('strong', { text: fullName }),
-        h('small', { text: roles[0] ? roleLabel(roles[0]) : '' }),
+        h('small', { text: contextRole ? roleLabel(contextRole) : '' }),
       ),
       ),
     ),

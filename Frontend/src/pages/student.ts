@@ -19,6 +19,7 @@ import { broadEducationRoles, hasAnyRole, hasWriteScope } from '../app/permissio
 import { errorState, loadingState, toast } from '../components/feedback.js';
 import { icon } from '../components/icons.js';
 import { openSchemaDialog, schemaHasBinary } from '../components/schema-form.js';
+import { labelForValue } from '../ui/presentation.js';
 import { clear, formatDate, formatNumber, h, initials, safeText } from '../utils/dom.js';
 
 type Student360TabId =
@@ -228,92 +229,92 @@ function renderReports(reports: Student360Reports): HTMLElement {
 }
 
 function renderBehavior(behavior: Student360Behavior): HTMLElement {
-  if (!behavior.events.length) return emptySection('No visible behavior event has been recorded.', 'check');
+  if (!behavior.events.length) return emptySection('رویداد رفتاری قابل مشاهده‌ای برای این دانش‌آموز ثبت نشده است.', 'check');
   return h(
     'div',
     { className: 'student-360-panel__content' },
-    h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'Behavior events' }), h('p', { text: 'Recorded facts only; no evaluation score or confidential note.' })), h('span', { className: 'card-icon' }, icon('check'))),
-    h('div', { className: 'table-wrap' }, h(
+    h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'رویدادهای رفتاری' }), h('p', { text: 'فقط واقعیت‌های ثبت‌شده نمایش داده می‌شوند؛ نمره ارزشیابی یا یادداشت محرمانه در این بخش نیست.' })), h('span', { className: 'card-icon' }, icon('check'))),
+    h('div', { className: 'table-wrap', role: 'region', tabindex: '0', 'aria-label': 'جدول رویدادهای رفتاری' }, h(
       'table',
       { className: 'data-table' },
-      h('thead', {}, h('tr', {}, ...['Type', 'Polarity', 'Severity', 'Status'].map(label => h('th', { scope: 'col', text: label })))),
+      h('thead', {}, h('tr', {}, ...['نوع', 'قطبیت', 'شدت', 'وضعیت'].map(label => h('th', { scope: 'col', text: label })))),
       h('tbody', {}, ...behavior.events.map(event => h(
         'tr',
         {},
-        h('td', { dataset: { label: 'Type' }, text: safeText(event.event_type) }),
-        h('td', { dataset: { label: 'Polarity' }, text: safeText(event.polarity) }),
-        h('td', { dataset: { label: 'Severity' }, text: safeText(event.severity) }),
-        h('td', { dataset: { label: 'Status' }, text: safeText(event.status) }),
+        h('td', { dataset: { label: 'نوع' }, text: labelForValue(event.event_type) }),
+        h('td', { dataset: { label: 'قطبیت' }, text: labelForValue(event.polarity) }),
+        h('td', { dataset: { label: 'شدت' }, text: labelForValue(event.severity) }),
+        h('td', { dataset: { label: 'وضعیت' }, text: labelForValue(event.status) }),
       ))),
     )),
   );
 }
 
 function renderActivities(activities: Student360Activities): HTMLElement {
-  if (!activities.participations.length) return emptySection('No activity participation has been recorded.', 'chart');
+  if (!activities.participations.length) return emptySection('مشارکت فعالیتی برای این دانش‌آموز ثبت نشده است.', 'chart');
   return h(
     'div',
     { className: 'student-360-panel__content' },
-    h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'Activities and achievements' }), h('p', { text: 'Cultural, research, sport, and arts participation.' })), h('span', { className: 'card-icon' }, icon('chart'))),
-    h('div', { className: 'table-wrap' }, h(
+    h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'فعالیت‌ها و دستاوردها' }), h('p', { text: 'مشارکت‌های فرهنگی، پژوهشی، ورزشی و هنری.' })), h('span', { className: 'card-icon' }, icon('chart'))),
+    h('div', { className: 'table-wrap', role: 'region', tabindex: '0', 'aria-label': 'جدول فعالیت‌ها و دستاوردها' }, h(
       'table',
       { className: 'data-table' },
-      h('thead', {}, h('tr', {}, ...['Activity', 'Kind', 'Role', 'Result', 'Placement', 'Status'].map(label => h('th', { scope: 'col', text: label })))),
+      h('thead', {}, h('tr', {}, ...['فعالیت', 'نوع', 'نقش', 'نتیجه', 'رتبه', 'وضعیت'].map(label => h('th', { scope: 'col', text: label })))),
       h('tbody', {}, ...activities.participations.map(participation => h(
         'tr',
         {},
-        h('td', { dataset: { label: 'Activity' }, text: safeText(participation.activity) }),
-        h('td', { dataset: { label: 'Kind' }, text: safeText(participation.kind) }),
-        h('td', { dataset: { label: 'Role' }, text: safeText(participation.participation_role) }),
-        h('td', { dataset: { label: 'Result' }, text: safeText(participation.result) }),
-        h('td', { dataset: { label: 'Placement' }, text: participation.placement == null ? '—' : formatNumber(participation.placement) }),
-        h('td', { dataset: { label: 'Status' }, text: safeText(participation.status) }),
+        h('td', { dataset: { label: 'فعالیت' }, text: labelForValue(participation.activity) }),
+        h('td', { dataset: { label: 'نوع' }, text: labelForValue(participation.kind) }),
+        h('td', { dataset: { label: 'نقش' }, text: labelForValue(participation.participation_role) }),
+        h('td', { dataset: { label: 'نتیجه' }, text: labelForValue(participation.result) }),
+        h('td', { dataset: { label: 'رتبه' }, text: participation.placement == null ? '—' : formatNumber(participation.placement) }),
+        h('td', { dataset: { label: 'وضعیت' }, text: labelForValue(participation.status) }),
       ))),
     )),
   );
 }
 
 function renderRisks(risks: Student360Risks): HTMLElement {
-  if (!risks.signals.length) return emptySection('No active risk signal exists for this student.', 'chart');
+  if (!risks.signals.length) return emptySection('سیگنال ریسک فعالی برای این دانش‌آموز وجود ندارد.', 'chart');
   return h(
     'div',
     { className: 'student-360-panel__content' },
-    h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'Risk signals' }), h('p', { text: 'Versioned, deterministic, explainable rule output.' })), h('span', { className: 'card-icon' }, icon('chart'))),
-    h('div', { className: 'table-wrap' }, h(
+    h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'سیگنال‌های ریسک' }), h('p', { text: 'خروجی قانون نسخه‌دار، قطعی و قابل توضیح.' })), h('span', { className: 'card-icon' }, icon('chart'))),
+    h('div', { className: 'table-wrap', role: 'region', tabindex: '0', 'aria-label': 'جدول سیگنال‌های ریسک' }, h(
       'table',
       { className: 'data-table' },
-      h('thead', {}, h('tr', {}, ...['Rule', 'Version', 'Severity', 'Explanation', 'Created'].map(label => h('th', { scope: 'col', text: label })))),
+      h('thead', {}, h('tr', {}, ...['قانون', 'نسخه', 'شدت', 'توضیح', 'ایجاد'].map(label => h('th', { scope: 'col', text: label })))),
       h('tbody', {}, ...risks.signals.map(signal => h(
         'tr',
         {},
-        h('td', { dataset: { label: 'Rule' }, text: safeText(signal.rule_code) }),
-        h('td', { dataset: { label: 'Version' }, text: formatNumber(signal.rule_version) }),
-        h('td', { dataset: { label: 'Severity' }, text: safeText(signal.severity) }),
-        h('td', { dataset: { label: 'Explanation' }, text: safeText(signal.explanation) }),
-        h('td', { dataset: { label: 'Created' }, text: formatDate(signal.created_at, true) }),
+        h('td', { dataset: { label: 'قانون' }, text: labelForValue(signal.rule_code) }),
+        h('td', { dataset: { label: 'نسخه' }, text: formatNumber(signal.rule_version) }),
+        h('td', { dataset: { label: 'شدت' }, text: labelForValue(signal.severity) }),
+        h('td', { dataset: { label: 'توضیح' }, text: safeText(signal.explanation) }),
+        h('td', { dataset: { label: 'ایجاد' }, text: formatDate(signal.created_at, true) }),
       ))),
     )),
   );
 }
 
 function renderRecommendations(recommendations: Student360Recommendations): HTMLElement {
-  if (!recommendations.recommendations.length) return emptySection('No recommendation has been recorded for this student.', 'check');
+  if (!recommendations.recommendations.length) return emptySection('توصیه‌ای برای این دانش‌آموز ثبت نشده است.', 'check');
   return h(
     'div',
     { className: 'student-360-panel__content' },
-    h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'Recommendations' }), h('p', { text: 'Recommendations carry a state, audience, and rule version.' })), h('span', { className: 'card-icon' }, icon('check'))),
-    h('div', { className: 'table-wrap' }, h(
+    h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'توصیه‌ها' }), h('p', { text: 'هر توصیه دارای وضعیت، مخاطب و نسخه قانون است.' })), h('span', { className: 'card-icon' }, icon('check'))),
+    h('div', { className: 'table-wrap', role: 'region', tabindex: '0', 'aria-label': 'جدول توصیه‌ها' }, h(
       'table',
       { className: 'data-table' },
-      h('thead', {}, h('tr', {}, ...['Audience', 'Priority', 'Status', 'Rule', 'Text'].map(label => h('th', { scope: 'col', text: label })))),
+      h('thead', {}, h('tr', {}, ...['مخاطب', 'اولویت', 'وضعیت', 'قانون', 'متن'].map(label => h('th', { scope: 'col', text: label })))),
       h('tbody', {}, ...recommendations.recommendations.map(recommendation => h(
         'tr',
         {},
-        h('td', { dataset: { label: 'Audience' }, text: safeText(recommendation.audience) }),
-        h('td', { dataset: { label: 'Priority' }, text: safeText(recommendation.priority) }),
-        h('td', { dataset: { label: 'Status' }, text: safeText(recommendation.status) }),
-        h('td', { dataset: { label: 'Rule' }, text: `${safeText(recommendation.rule_code)} v${formatNumber(recommendation.rule_version)}` }),
-        h('td', { dataset: { label: 'Text' }, text: safeText(recommendation.approved_text || recommendation.generated_text) }),
+        h('td', { dataset: { label: 'مخاطب' }, text: labelForValue(recommendation.audience) }),
+        h('td', { dataset: { label: 'اولویت' }, text: labelForValue(recommendation.priority) }),
+        h('td', { dataset: { label: 'وضعیت' }, text: labelForValue(recommendation.status) }),
+        h('td', { dataset: { label: 'قانون' }, text: `${labelForValue(recommendation.rule_code)} v${formatNumber(recommendation.rule_version)}` }),
+        h('td', { dataset: { label: 'متن' }, text: safeText(recommendation.approved_text || recommendation.generated_text) }),
       ))),
     )),
   );
@@ -330,7 +331,7 @@ export async function renderStudentPage(id: string): Promise<HTMLElement> {
         'div',
         {},
         h('button', { className: 'back-link', type: 'button', onClick: () => navigate('/students') }, icon('chevron'), 'دانش‌آموزان'),
-        h('h1', { text: 'Student 360' }),
+        h('h1', { text: 'نمای ۳۶۰ دانش‌آموز' }),
         h('p', { text: 'نمای یکپارچه و بخش‌بندی‌شده پرونده دانش‌آموز بر پایه قرارداد رسمی API' }),
       ),
     ),
@@ -470,7 +471,7 @@ export async function renderStudentPage(id: string): Promise<HTMLElement> {
         tabButtons.set(tab.id, button);
         tabList.append(button);
       }
-      const student360 = h('article', { className: 'card student-360-card' }, h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'Student 360' }), h('p', { text: 'هر بخش تنها هنگام انتخاب بارگذاری می‌شود.' })), h('span', { className: 'card-icon' }, icon('chart'))), tabList, tabPanel);
+      const student360 = h('article', { className: 'card student-360-card' }, h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'نمای ۳۶۰ دانش‌آموز' }), h('p', { text: 'هر بخش تنها هنگام انتخاب بارگذاری می‌شود.' })), h('span', { className: 'card-icon' }, icon('chart'))), tabList, tabPanel);
       content.append(hero, h('div', { className: 'student-content-grid' }, info, guardians), student360);
       await activateTab('summary');
     } catch (error) {

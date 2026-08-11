@@ -3,7 +3,7 @@ import { actionRequestSchema } from '../api/action-schemas.js';
 import { contract, operationById, operationsForTag, resolveSchema, type ContractOperation, type ContractParameter, type ContractSchema } from '../api/contract.js';
 import type { Pagination } from '../api/types.js';
 import { navigate } from '../app/router.js';
-import { hasAnyRole, hasWriteScope, administrativeRoles, broadEducationRoles, counselingRoles, curriculumManagementRoles, guidanceRoles, managementReadRoles, organizationManagementRoles, policyManagementRoles, teacherWriteRoles } from '../app/permissions.js';
+import { hasAnyRole, hasExactRole, hasWriteScope, administrativeRoles, broadEducationRoles, counselingRoles, curriculumManagementRoles, guidanceRoles, managementReadRoles, organizationManagementRoles, policyManagementRoles, teacherWriteRoles } from '../app/permissions.js';
 import { onWindowEventWhileConnected, h, clear, debounce } from '../utils/dom.js';
 import { confirmDialog, emptyState, errorState, loadingState, toast } from '../components/feedback.js';
 import { icon } from '../components/icons.js';
@@ -17,6 +17,8 @@ interface ResourceMeta {
   icon: string;
   columns?: string[];
   readRoles?: Parameters<typeof hasAnyRole>[0];
+  /** Roles that must match directly, without the system-admin override. */
+  exactReadRoles?: Parameters<typeof hasExactRole>[0];
   createRoles?: Parameters<typeof hasAnyRole>[0];
   updateRoles?: Parameters<typeof hasAnyRole>[0];
   deleteRoles?: Parameters<typeof hasAnyRole>[0];
@@ -55,14 +57,14 @@ const resourceMeta: Record<string, ResourceMeta> = {
 Object.assign(resourceMeta, {
   'behavior-events': { title: 'وقایع رفتاری', singular: 'واقعه رفتاری', icon: 'warning', columns: ['student_name', 'event_type_title', 'polarity', 'severity', 'occurred_at', 'status'], readRoles: broadEducationRoles, createRoles: broadEducationRoles, updateRoles: broadEducationRoles, deleteRoles: managementReadRoles },
   activities: { title: 'فعالیت‌ها', singular: 'فعالیت', icon: 'sparkles', columns: ['title', 'kind', 'school_name', 'starts_at', 'status'], readRoles: broadEducationRoles, createRoles: broadEducationRoles, updateRoles: managementReadRoles, deleteRoles: managementReadRoles },
-  'counseling-cases': { title: 'پرونده‌های مشاوره', singular: 'پرونده مشاوره', icon: 'lock', columns: ['student_name', 'shared_risk_level', 'shared_follow_up_status', 'status', 'opened_at'], readRoles: counselingRoles, createRoles: counselingRoles, operationTag: 'counseling', listOperationId: 'counseling_cases_list' },
-  'counseling-referrals': { title: 'ارجاع‌های مشاوره', singular: 'ارجاع مشاوره', icon: 'chevron', columns: ['target_enrollment', 'target_counselor', 'purpose', 'status', 'created_at'], readRoles: counselingRoles, operationTag: 'counseling', listOperationId: 'counseling_referrals_list' },
+  'counseling-cases': { title: 'پرونده‌های مشاوره', singular: 'پرونده مشاوره', icon: 'lock', columns: ['student_name', 'shared_risk_level', 'shared_follow_up_status', 'status', 'opened_at'], exactReadRoles: counselingRoles, createRoles: counselingRoles, operationTag: 'counseling', listOperationId: 'counseling_cases_list' },
+  'counseling-referrals': { title: 'ارجاع‌های مشاوره', singular: 'ارجاع مشاوره', icon: 'chevron', columns: ['target_enrollment', 'target_counselor', 'purpose', 'status', 'created_at'], exactReadRoles: counselingRoles, operationTag: 'counseling', listOperationId: 'counseling_referrals_list' },
   'guide-teacher-assignments': { title: 'تخصیص‌های معلم راهنما', singular: 'تخصیص معلم راهنما', icon: 'users', columns: ['student_name', 'guide_teacher_name', 'starts_at', 'ends_at'], readRoles: guidanceRoles, createRoles: guidanceRoles, updateRoles: guidanceRoles, deleteRoles: guidanceRoles },
   'guide-follow-ups': { title: 'پیگیری‌های معلم راهنما', singular: 'پیگیری', icon: 'check', columns: ['student_name', 'title', 'due_at', 'status'], readRoles: guidanceRoles, createRoles: guidanceRoles, updateRoles: guidanceRoles, deleteRoles: guidanceRoles },
   'analytics-risk-signals': { title: 'سیگنال‌های ریسک', singular: 'سیگنال ریسک', icon: 'warning', columns: ['student_name', 'rule_code', 'rule_version', 'severity', 'state', 'created_at'], readRoles: managementReadRoles, operationTag: 'analytics', listOperationId: 'analytics_risk_signals_list' },
   'operational-alerts': { title: 'هشدارهای عملیاتی', singular: 'هشدار عملیاتی', icon: 'bell', columns: ['signal', 'status', 'acknowledged_at', 'created_at'], readRoles: managementReadRoles, operationTag: 'analytics', listOperationId: 'analytics_operational_alerts_list' },
   recommendations: { title: 'توصیه‌ها', singular: 'توصیه', icon: 'sparkles', columns: ['student_name', 'audience', 'priority', 'rule_code', 'status', 'approved_at'], readRoles: managementReadRoles },
-  'my-counselor-recommendations': { title: 'توصیه‌های مشاوره', singular: 'توصیه مشاوره', icon: 'sparkles', columns: ['student_name', 'priority', 'rule_code', 'status', 'approved_at'], readRoles: counselingRoles, operationTag: 'recommendations', listOperationId: 'recommendations_list' },
+  'my-counselor-recommendations': { title: 'توصیه‌های مشاوره', singular: 'توصیه مشاوره', icon: 'sparkles', columns: ['student_name', 'priority', 'rule_code', 'status', 'approved_at'], exactReadRoles: counselingRoles, operationTag: 'recommendations', listOperationId: 'recommendations_list' },
   'my-guide-recommendations': { title: 'توصیه‌های cohort', singular: 'توصیه', icon: 'sparkles', columns: ['student_name', 'priority', 'rule_code', 'status', 'approved_at'], readRoles: guidanceRoles, operationTag: 'recommendations', listOperationId: 'recommendations_list' },
   'report-drafts': { title: 'پیش‌نویس گزارش‌ها', singular: 'پیش‌نویس گزارش', icon: 'file', columns: ['status', 'enrollment', 'class_section', 'created_at', 'reviewed_at'], readRoles: teacherWriteRoles, createRoles: teacherWriteRoles, operationTag: 'reports', listOperationId: 'report_drafts_list' },
 });
@@ -210,7 +212,7 @@ export async function renderResourcePage(tag: string): Promise<HTMLElement> {
   const deleteOperation = operations.find(op => op.method === 'DELETE' && /\{id\}\/$/.test(op.path));
   const itemActions = operations.filter(op => op.path.includes('{id}') && !/\{id\}\/$/.test(op.path));
   const page = h('section', { className: 'page' });
-  if (!hasAnyRole(meta.readRoles)) {
+  if (!(meta.exactReadRoles ? hasExactRole(meta.exactReadRoles) : hasAnyRole(meta.readRoles))) {
     page.append(h('div', { className: 'error-page' }, icon('lock'), h('h1', { text: 'دسترسی به این بخش مجاز نیست' }), h('p', { text: 'نقش فعال شما اجازه مشاهده این منبع مدیریتی را نمی‌دهد.' }), h('button', { className: 'button button--primary', type: 'button', onClick: () => navigate('/') }, 'بازگشت به داشبورد')));
     return page;
   }

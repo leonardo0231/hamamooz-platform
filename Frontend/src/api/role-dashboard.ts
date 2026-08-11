@@ -38,16 +38,16 @@ function operationPath(id: string): string {
  * into the page layer, so the generated contract remains the one source of truth.
  */
 export const roleDashboardDrillDownRoutes: Record<string, string> = {
-  [operationPath('analytics_operational_alerts_list')]: '/resources/operational-alerts',
-  [operationPath('analytics_risk_signals_list')]: '/resources/analytics-risk-signals',
-  [operationPath('assessments_list')]: '/resources/assessments',
-  [operationPath('attendance_sessions_list')]: '/resources/attendance-sessions',
-  [operationPath('behavior_events_list')]: '/resources/behavior-events',
-  [operationPath('counseling_cases_list')]: '/resources/counseling-cases',
-  [operationPath('counseling_referrals_list')]: '/resources/counseling-referrals',
-  [operationPath('guide_teacher_assignments_list')]: '/resources/guide-teacher-assignments',
-  [operationPath('guide_follow_ups_list')]: '/resources/guide-follow-ups',
-  [operationPath('reports_drafts_list')]: '/resources/report-drafts',
+  [operationPath('analytics_operational_alerts_list')]: '/follow-up?view=operational-alerts',
+  [operationPath('analytics_risk_signals_list')]: '/follow-up?view=risks',
+  [operationPath('assessments_list')]: '/education?view=assessments',
+  [operationPath('attendance_sessions_list')]: '/attendance?view=sessions',
+  [operationPath('behavior_events_list')]: '/follow-up?view=behavior',
+  [operationPath('counseling_cases_list')]: '/follow-up?view=counseling-cases',
+  [operationPath('counseling_referrals_list')]: '/follow-up?view=counseling-referrals',
+  [operationPath('guide_teacher_assignments_list')]: '/follow-up?view=guide-assignments',
+  [operationPath('guide_follow_ups_list')]: '/follow-up?view=guide-follow-ups',
+  [operationPath('reports_drafts_list')]: '/reports?view=drafts',
 };
 
 export const roleDashboardApi = {

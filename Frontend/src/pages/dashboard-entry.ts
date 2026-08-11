@@ -1,23 +1,31 @@
 import type { Role } from '../api/types.js';
 import { activeRoles } from '../app/permissions.js';
+import { primaryRole } from '../ui/role-experience.js';
 import { renderDashboardPage } from './dashboard-v2.js';
 import { renderRoleDashboardPage } from './role-dashboard.js';
 import type { RoleDashboardKind } from '../api/role-dashboard.js';
 
-const directDashboardRoles: Array<[Role, RoleDashboardKind]> = [
-  ['counselor', 'counselor'],
-  ['guide_teacher', 'guideTeacher'],
-  ['student_affairs_deputy', 'studentAffairs'],
-];
+const dashboardByPrimaryRole: Partial<Record<Role, RoleDashboardKind>> = {
+  organization_admin: 'manager',
+  school_manager: 'manager',
+  educational_deputy: 'educational',
+  student_affairs_deputy: 'studentAffairs',
+  counselor: 'counselor',
+  guide_teacher: 'guideTeacher',
+  teacher: 'teacher',
+};
+
+export function dashboardKindForRoles(roles: Role[]): RoleDashboardKind | null {
+  return dashboardByPrimaryRole[primaryRole(roles)] ?? null;
+}
 
 /**
- * Confidential and cohort-limited roles use their dedicated read models.
- * Existing manager, educational, and teacher dashboards retain the richer
- * established dashboard while their additive API endpoints remain available
- * to clients and integrations.
+ * Role dashboards use their dedicated aggregate read models when the backend
+ * supports them. System administration and data operations retain the generic
+ * operational dashboard because their cross-organization work has no single
+ * role-specific aggregate.
  */
 export async function renderDashboardEntryPage(): Promise<HTMLElement> {
-  const roles = activeRoles();
-  const direct = directDashboardRoles.find(([role]) => roles.includes(role));
-  return direct ? renderRoleDashboardPage(direct[1]) : renderDashboardPage();
+  const kind = dashboardKindForRoles(activeRoles());
+  return kind ? renderRoleDashboardPage(kind) : renderDashboardPage();
 }

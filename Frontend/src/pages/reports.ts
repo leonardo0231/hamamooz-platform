@@ -53,6 +53,7 @@ async function downloadReport(report: ReportArchive): Promise<void> {
 export async function renderReportsPage(): Promise<HTMLElement> {
   const page = h('section', { className: 'page' });
   const list = h('div', { className: 'card report-list' });
+  const focusDrafts = new URLSearchParams(location.search).get('view') === 'drafts';
   const createOperation = operationById('reports_create');
   const previewOperation = operationById('reports_preview_create');
   const openForm = (preview: boolean): void => {
@@ -76,15 +77,16 @@ export async function renderReportsPage(): Promise<HTMLElement> {
     });
   };
   page.append(h('div', { className: 'page-heading' }, h('div', {}, h('span', { className: 'eyebrow', text: 'خروجی رسمی' }), h('h1', { text: 'گزارش‌ها و کارنامه‌ها' }), h('p', { text: 'پیش‌نمایش و تولید گزارش براساس داده‌های قفل‌شده و قرارداد Backend' })), h('div', { className: 'page-actions' }, h('button', { className: 'button button--secondary', type: 'button', disabled: !hasWriteScope(), title: hasWriteScope() ? 'پیش‌نمایش گزارش' : 'ابتدا حوزه فعال را انتخاب کنید', onClick: () => openForm(true) }, icon('eye'), 'پیش‌نمایش'), h('button', { className: 'button button--primary', type: 'button', disabled: !hasWriteScope(), title: hasWriteScope() ? 'تولید گزارش' : 'ابتدا حوزه فعال را انتخاب کنید', onClick: () => openForm(false) }, icon('plus'), 'تولید گزارش'))),
-    h('article', { className: 'report-banner report-banner--top' }, h('span', { className: 'report-banner__visual' }, icon('file')), h('div', {}, h('h2', { text: 'گزارش‌های قابل استناد' }), h('p', { text: 'نسخه فرمول، Snapshot و وضعیت پردازش هر خروجی در آرشیو Backend نگهداری می‌شود.' })), h('span', { className: 'badge badge--success', text: 'API واقعی' })), list);
+    h('article', { className: 'report-banner report-banner--top' }, h('span', { className: 'report-banner__visual' }, icon('file')), h('div', {}, h('h2', { text: focusDrafts ? 'پیش‌نویس‌های نیازمند پیگیری' : 'گزارش‌های قابل استناد' }), h('p', { text: focusDrafts ? 'فهرست روی پیش‌نویس‌ها و گزارش‌های منتظر تأیید متمرکز شده است.' : 'نسخه فرمول، Snapshot و وضعیت پردازش هر خروجی در آرشیو Backend نگهداری می‌شود.' })), h('span', { className: `badge badge--${focusDrafts ? 'warning' : 'success'}`, text: focusDrafts ? 'نمای فیلترشده' : 'API واقعی' })), list);
 
   async function load(): Promise<void> {
     clear(list); list.append(loadingState());
     try {
       const response = await apiRequest<Pagination<ReportArchive>>(endpoints.reports.list, { query: { page_size: 100, ordering: '-created_at' } });
       clear(list);
-      if (!response.results.length) { list.append(emptyState('گزارشی تولید نشده است', 'از دکمه تولید گزارش برای ساخت کارنامه دانش‌آموز یا کلاس استفاده کنید.')); return; }
-      list.append(h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: 'آرشیو گزارش‌ها' }), h('p', { text: `${formatNumber(response.count)} خروجی ثبت‌شده` })), h('span', { className: 'card-icon' }, icon('file'))), h('div', { className: 'report-grid' }, ...response.results.map(report => h('article', { className: 'report-item' },
+      const results = focusDrafts ? response.results.filter(report => report.status === 'draft' || report.status === 'submitted') : response.results;
+      if (!results.length) { list.append(emptyState(focusDrafts ? 'پیش‌نویس نیازمند پیگیری وجود ندارد' : 'گزارشی تولید نشده است', focusDrafts ? 'همه گزارش‌های قابل مشاهده نهایی شده‌اند یا در صف پیگیری نیستند.' : 'از دکمه تولید گزارش برای ساخت کارنامه دانش‌آموز یا کلاس استفاده کنید.')); return; }
+      list.append(h('div', { className: 'card-header' }, h('div', {}, h('h2', { text: focusDrafts ? 'پیش‌نویس‌های گزارش' : 'آرشیو گزارش‌ها' }), h('p', { text: `${formatNumber(results.length)} خروجی قابل مشاهده` })), h('span', { className: 'card-icon' }, icon('file'))), h('div', { className: 'report-grid' }, ...results.map(report => h('article', { className: 'report-item' },
         h('span', { className: 'report-item__icon' }, icon('file')),
         h('div', { className: 'report-item__body' }, h('div', {}, h('strong', { text: report.report_type === 'student_report_card' ? 'کارنامه دانش‌آموز' : 'کارنامه‌های کلاس' }), h('span', { className: `badge badge--${report.status === 'completed' ? 'success' : report.status === 'failed' ? 'danger' : 'warning'}`, text: report.status_display || report.status })), h('p', { text: `درخواست‌دهنده: ${report.requested_by_name || '—'}` }), h('small', { text: `${formatDate(report.created_at, true)} · ${report.school_name || '—'} · ${(report.output_format || 'pdf').toUpperCase()} · فرمول ${report.formula_version || '—'}` }), report.error_message ? h('div', { className: 'inline-error', text: report.error_message }) : null),
         h('button', { className: 'button button--secondary', type: 'button', disabled: report.status !== 'completed', onClick: () => void downloadReport(report) }, icon('download'), 'دانلود'),
