@@ -2,10 +2,12 @@ import { store } from './store.js';
 import type { Role } from '../api/types.js';
 
 export const administrativeRoles: Role[] = ['system_admin', 'organization_admin', 'school_manager'];
-export const managementReadRoles: Role[] = [...administrativeRoles, 'educational_deputy'];
+export const managementReadRoles: Role[] = [...administrativeRoles, 'educational_deputy', 'student_affairs_deputy'];
 export const organizationManagementRoles: Role[] = ['system_admin', 'organization_admin'];
-export const policyManagementRoles: Role[] = ['system_admin', 'organization_admin', 'school_manager', 'educational_deputy'];
-export const broadEducationRoles: Role[] = ['system_admin', 'organization_admin', 'school_manager', 'educational_deputy', 'operator'];
+export const policyManagementRoles: Role[] = ['system_admin', 'organization_admin', 'school_manager', 'educational_deputy', 'student_affairs_deputy'];
+export const broadEducationRoles: Role[] = ['system_admin', 'organization_admin', 'school_manager', 'educational_deputy', 'student_affairs_deputy', 'operator'];
+export const counselingRoles: Role[] = ['counselor'];
+export const guidanceRoles: Role[] = [...broadEducationRoles, 'guide_teacher'];
 export const teacherWriteRoles: Role[] = [...broadEducationRoles, 'teacher'];
 export const curriculumManagementRoles: Role[] = ['system_admin', 'organization_admin', 'educational_deputy'];
 
@@ -35,6 +37,9 @@ export function roleLabel(role: Role): string {
     educational_deputy: 'معاون آموزشی',
     operator: 'اپراتور',
     teacher: 'دبیر',
+    student_affairs_deputy: 'معاون امور دانش‌آموزی',
+    counselor: 'مشاور',
+    guide_teacher: 'معلم راهنما',
   };
   return labels[role];
 }

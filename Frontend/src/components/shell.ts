@@ -1,7 +1,7 @@
 import { apiRequest } from '../api/client.js';
 import { endpoints } from '../api/endpoints.js';
 import type { Pagination, Role } from '../api/types.js';
-import { activeRoles, administrativeRoles, broadEducationRoles, roleLabel, teacherWriteRoles } from '../app/permissions.js';
+import { activeRoles, administrativeRoles, broadEducationRoles, counselingRoles, guidanceRoles, managementReadRoles, roleLabel, teacherWriteRoles } from '../app/permissions.js';
 import { store } from '../app/store.js';
 import { navigate } from '../app/router.js';
 import { h, initials, onWindowEventWhileConnected } from '../utils/dom.js';
@@ -17,8 +17,17 @@ const navigation: NavigationItem[] = [
   { href: '/resources/assessments', label: 'آموزش و ارزیابی', icon: 'chart' },
   { href: '/attendance', label: 'حضور و غیاب', icon: 'calendar' },
   { href: '/resources/course-offerings', label: 'کلاس‌ها و برنامه درسی', icon: 'book' },
+  { href: '/resources/behavior-events', label: 'وقایع رفتاری', icon: 'warning', roles: broadEducationRoles },
+  { href: '/resources/activities', label: 'فعالیت‌ها', icon: 'sparkles', roles: broadEducationRoles },
+  { href: '/resources/guide-teacher-assignments', label: 'راهنمایی', icon: 'users', roles: guidanceRoles },
+  { href: '/resources/my-guide-recommendations', label: 'توصیه‌های cohort', icon: 'sparkles', roles: guidanceRoles },
+  { href: '/resources/counseling-cases', label: 'مشاوره محرمانه', icon: 'lock', roles: counselingRoles },
+  { href: '/resources/my-counselor-recommendations', label: 'توصیه‌های مشاوره', icon: 'sparkles', roles: counselingRoles },
+  { href: '/resources/analytics-risk-signals', label: 'تحلیل و ریسک', icon: 'chart', roles: managementReadRoles },
+  { href: '/resources/recommendations', label: 'توصیه‌ها', icon: 'sparkles', roles: managementReadRoles },
   { href: '/alerts', label: 'مرکز هشدارها', icon: 'bell' },
   { href: '/reports', label: 'گزارش‌ها و کارنامه‌ها', icon: 'file' },
+  { href: '/portal', label: 'پورتال خانواده و دانش‌آموز', icon: 'user' },
   { href: '/imports', label: 'ورود اطلاعات', icon: 'upload', roles: broadEducationRoles },
   { href: '/manual-entry', label: 'ثبت و ویرایش دستی', icon: 'edit', roles: teacherWriteRoles },
   { href: '/users', label: 'کاربران', icon: 'user', roles: administrativeRoles },

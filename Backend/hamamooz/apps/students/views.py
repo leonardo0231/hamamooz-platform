@@ -4,7 +4,11 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from hamamooz.apps.accounts.access import allowed_class_ids, selected_school_ids, user_has_role
+from hamamooz.apps.accounts.access import (
+    allowed_class_ids_for_roles,
+    selected_school_ids,
+    user_has_role,
+)
 from hamamooz.apps.accounts.models import Role
 from hamamooz.apps.core.services import record_audit
 from hamamooz.apps.core.viewsets import AuditedModelViewSet
@@ -50,6 +54,18 @@ STUDENT_WRITERS = [
 ]
 
 
+def student_read_class_ids(user, school_ids):
+    """Keep student-affairs visibility explicit and read-only.
+
+    Student affairs has a whole-school student-cohort scope for behavior,
+    welfare, analytics, and follow-up work. It is not added to the generic
+    academic broad-access helper, so this exception cannot spill into every
+    unrelated academic endpoint.
+    """
+
+    return allowed_class_ids_for_roles(user, school_ids, [Role.STUDENT_AFFAIRS_DEPUTY])
+
+
 class StudentViewSet(AuditedModelViewSet):
     queryset = Student.objects.none()
     serializer_class = StudentSerializer
@@ -68,7 +84,7 @@ class StudentViewSet(AuditedModelViewSet):
 
     def get_queryset(self):
         school_ids = selected_school_ids(self.request)
-        class_ids = allowed_class_ids(self.request.user, school_ids)
+        class_ids = student_read_class_ids(self.request.user, school_ids)
         return (
             Student.objects.filter(
                 enrollments__school_id__in=school_ids,
@@ -84,7 +100,7 @@ class StudentViewSet(AuditedModelViewSet):
     def student_360_summary(self, request, pk=None):
         student = self.get_object()
         school_ids = selected_school_ids(request)
-        class_ids = allowed_class_ids(request.user, school_ids)
+        class_ids = student_read_class_ids(request.user, school_ids)
         summary = build_student_360_summary(
             student=student,
             school_ids=school_ids,
@@ -97,7 +113,7 @@ class StudentViewSet(AuditedModelViewSet):
     def student_360_academics(self, request, pk=None):
         student = self.get_object()
         school_ids = selected_school_ids(request)
-        class_ids = allowed_class_ids(request.user, school_ids)
+        class_ids = student_read_class_ids(request.user, school_ids)
         academics = build_student_360_academics(
             student=student,
             school_ids=school_ids,
@@ -110,7 +126,7 @@ class StudentViewSet(AuditedModelViewSet):
     def student_360_attendance(self, request, pk=None):
         student = self.get_object()
         school_ids = selected_school_ids(request)
-        class_ids = allowed_class_ids(request.user, school_ids)
+        class_ids = student_read_class_ids(request.user, school_ids)
         attendance = build_student_360_attendance(
             student=student,
             school_ids=school_ids,
@@ -123,7 +139,7 @@ class StudentViewSet(AuditedModelViewSet):
     def student_360_evaluations(self, request, pk=None):
         student = self.get_object()
         school_ids = selected_school_ids(request)
-        class_ids = allowed_class_ids(request.user, school_ids)
+        class_ids = student_read_class_ids(request.user, school_ids)
         evaluations = build_student_360_evaluations(
             student=student,
             school_ids=school_ids,
@@ -136,7 +152,7 @@ class StudentViewSet(AuditedModelViewSet):
     def student_360_reports(self, request, pk=None):
         student = self.get_object()
         school_ids = selected_school_ids(request)
-        class_ids = allowed_class_ids(request.user, school_ids)
+        class_ids = student_read_class_ids(request.user, school_ids)
         reports = build_student_360_reports(
             student=student,
             school_ids=school_ids,
@@ -149,7 +165,7 @@ class StudentViewSet(AuditedModelViewSet):
     def student_360_behavior(self, request, pk=None):
         student = self.get_object()
         school_ids = selected_school_ids(request)
-        class_ids = allowed_class_ids(request.user, school_ids)
+        class_ids = student_read_class_ids(request.user, school_ids)
         behavior = build_student_360_behavior(
             student=student,
             school_ids=school_ids,
@@ -162,7 +178,7 @@ class StudentViewSet(AuditedModelViewSet):
     def student_360_activities(self, request, pk=None):
         student = self.get_object()
         school_ids = selected_school_ids(request)
-        class_ids = allowed_class_ids(request.user, school_ids)
+        class_ids = student_read_class_ids(request.user, school_ids)
         activities = build_student_360_activities(
             student=student,
             school_ids=school_ids,
@@ -177,7 +193,7 @@ class StudentViewSet(AuditedModelViewSet):
         risks = build_student_360_risks(
             student=student,
             school_ids=selected_school_ids(request),
-            class_ids=allowed_class_ids(request.user, selected_school_ids(request)),
+            class_ids=student_read_class_ids(request.user, selected_school_ids(request)),
         )
         return Response(Student360RisksSerializer(risks).data)
 
@@ -188,7 +204,7 @@ class StudentViewSet(AuditedModelViewSet):
         recommendations = build_student_360_recommendations(
             student=student,
             school_ids=selected_school_ids(request),
-            class_ids=allowed_class_ids(request.user, selected_school_ids(request)),
+            class_ids=student_read_class_ids(request.user, selected_school_ids(request)),
         )
         return Response(Student360RecommendationsSerializer(recommendations).data)
 
@@ -231,7 +247,7 @@ class GuardianViewSet(AuditedModelViewSet):
 
     def get_queryset(self):
         school_ids = selected_school_ids(self.request)
-        class_ids = allowed_class_ids(self.request.user, school_ids)
+        class_ids = student_read_class_ids(self.request.user, school_ids)
         return (
             Guardian.objects.filter(
                 student_links__student__enrollments__school_id__in=school_ids,
@@ -265,7 +281,7 @@ class EnrollmentViewSet(AuditedModelViewSet):
 
     def get_queryset(self):
         school_ids = selected_school_ids(self.request)
-        class_ids = allowed_class_ids(self.request.user, school_ids)
+        class_ids = student_read_class_ids(self.request.user, school_ids)
         return (
             Enrollment.objects.filter(school_id__in=school_ids, class_section_id__in=class_ids)
             .select_related(

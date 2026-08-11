@@ -143,6 +143,35 @@ def allowed_class_ids(user, school_ids):
     return list(set(broad_classes) | set(teacher_classes))
 
 
+def allowed_class_ids_for_roles(user, school_ids, additional_broad_roles):
+    """Return normal class scope plus whole-school access for named domain roles.
+
+    ``allowed_class_ids`` is deliberately conservative for the academic
+    domains: a teacher is limited to their offerings and broad academic roles
+    can see an entire school.  Some new domains have their own legitimate
+    whole-school role (currently student affairs) without making that role a
+    broad academic administrator.  Keeping the exception explicit at each
+    caller avoids silently widening access to unrelated domains.
+    """
+
+    class_ids = set(allowed_class_ids(user, school_ids))
+    if not additional_broad_roles:
+        return list(class_ids)
+
+    extra_school_ids = [
+        school_id
+        for school_id in school_ids
+        if user_has_role(user, additional_broad_roles, school_id=school_id)
+    ]
+    if extra_school_ids:
+        from hamamooz.apps.organizations.models import ClassSection
+
+        class_ids.update(
+            ClassSection.objects.filter(school_id__in=extra_school_ids).values_list("id", flat=True)
+        )
+    return list(class_ids)
+
+
 def broad_access_school_ids(user, school_ids):
     if is_system_admin(user):
         return list(school_ids)

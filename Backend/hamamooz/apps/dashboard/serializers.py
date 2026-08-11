@@ -49,3 +49,16 @@ class DashboardSummarySerializer(serializers.Serializer):
     assessment_workflow = serializers.DictField(child=serializers.IntegerField(min_value=0))
     latest_activities = DashboardActivitySerializer(many=True)
     quick_links = DashboardQuickLinksSerializer()
+
+
+class RoleDashboardSerializer(serializers.Serializer):
+    """Small, role-specific read model used by the operational dashboards.
+
+    It intentionally contains aggregate metrics and drill-down paths only.  The
+    detailed domains retain their own selectors and authorization boundaries.
+    """
+
+    dashboard = serializers.CharField()
+    scope_school_ids = serializers.ListField(child=serializers.UUIDField())
+    metrics = serializers.DictField(child=serializers.IntegerField(min_value=0))
+    drill_down = serializers.DictField(child=serializers.CharField())

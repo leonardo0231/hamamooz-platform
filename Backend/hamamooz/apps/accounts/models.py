@@ -24,6 +24,9 @@ class Role(models.TextChoices):
     EDUCATIONAL_DEPUTY = "educational_deputy", "معاون آموزشی"
     OPERATOR = "operator", "اپراتور"
     TEACHER = "teacher", "دبیر"
+    STUDENT_AFFAIRS_DEPUTY = "student_affairs_deputy", "معاون امور دانش‌آموزی"
+    COUNSELOR = "counselor", "مشاور"
+    GUIDE_TEACHER = "guide_teacher", "معلم راهنما"
 
 
 class RoleAssignment(SoftDeleteModel):

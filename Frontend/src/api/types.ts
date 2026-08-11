@@ -27,7 +27,10 @@ export type Role =
   | 'school_manager'
   | 'educational_deputy'
   | 'operator'
-  | 'teacher';
+  | 'teacher'
+  | 'student_affairs_deputy'
+  | 'counselor'
+  | 'guide_teacher';
 
 export interface User {
   id: number;
