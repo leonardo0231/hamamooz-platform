@@ -240,7 +240,7 @@ def test_guide_teacher_student_directory_and_360_are_limited_to_their_assignment
 
     assert directory.status_code == 200
     assert [row["id"] for row in directory.data["results"]] == [
-        str(base_data["students"][0].id)
+        str(base_data["students"][0].id),
     ]
     assert visible.status_code == 200
     assert visible.data["student"]["id"] == str(base_data["students"][0].id)
@@ -272,7 +272,7 @@ def test_counselor_student_directory_and_360_are_limited_to_owned_cases(
 
     assert directory.status_code == 200
     assert [row["id"] for row in directory.data["results"]] == [
-        str(base_data["students"][0].id)
+        str(base_data["students"][0].id),
     ]
     assert visible.status_code == 200
     assert hidden.status_code == 404
@@ -312,7 +312,7 @@ def test_incoming_counseling_referral_grants_only_its_target_student(
 
     assert directory.status_code == 200
     assert [row["id"] for row in directory.data["results"]] == [
-        str(base_data["students"][0].id)
+        str(base_data["students"][0].id),
     ]
     assert visible.status_code == 200
     assert hidden.status_code == 404
