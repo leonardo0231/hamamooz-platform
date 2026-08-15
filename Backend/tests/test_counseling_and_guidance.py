@@ -211,7 +211,9 @@ def test_guide_teacher_student_directory_and_360_are_limited_to_their_assignment
     api_client, base_data
 ):
     guide_teacher = User.objects.create_user(
-        username="guide-student-access", email="guide-student-access@example.com", password="Strong-pass-123"
+        username="guide-student-access",
+        email="guide-student-access@example.com",
+        password="Strong-pass-123",
     )
     RoleAssignment.objects.create(
         user=guide_teacher,
@@ -237,14 +239,18 @@ def test_guide_teacher_student_directory_and_360_are_limited_to_their_assignment
     )
 
     assert directory.status_code == 200
-    assert [row["id"] for row in directory.data["results"]] == [str(base_data["students"][0].id)]
+    assert [row["id"] for row in directory.data["results"]] == [
+        str(base_data["students"][0].id)
+    ]
     assert visible.status_code == 200
     assert visible.data["student"]["id"] == str(base_data["students"][0].id)
     assert hidden.status_code == 404
 
 
 @pytest.mark.django_db
-def test_counselor_student_directory_and_360_are_limited_to_owned_cases(api_client, base_data):
+def test_counselor_student_directory_and_360_are_limited_to_owned_cases(
+    api_client, base_data
+):
     counselor = make_counselor(base_data, username="counselor-student-access")
     CounselingCase.objects.create(
         organization=base_data["organization"],
@@ -265,13 +271,17 @@ def test_counselor_student_directory_and_360_are_limited_to_owned_cases(api_clie
     )
 
     assert directory.status_code == 200
-    assert [row["id"] for row in directory.data["results"]] == [str(base_data["students"][0].id)]
+    assert [row["id"] for row in directory.data["results"]] == [
+        str(base_data["students"][0].id)
+    ]
     assert visible.status_code == 200
     assert hidden.status_code == 404
 
 
 @pytest.mark.django_db
-def test_incoming_counseling_referral_grants_only_its_target_student(api_client, base_data):
+def test_incoming_counseling_referral_grants_only_its_target_student(
+    api_client, base_data
+):
     source_counselor = make_counselor(base_data, username="source-referral")
     target_counselor = make_counselor(base_data, username="target-referral")
     source_case = CounselingCase.objects.create(
@@ -301,7 +311,9 @@ def test_incoming_counseling_referral_grants_only_its_target_student(api_client,
     )
 
     assert directory.status_code == 200
-    assert [row["id"] for row in directory.data["results"]] == [str(base_data["students"][0].id)]
+    assert [row["id"] for row in directory.data["results"]] == [
+        str(base_data["students"][0].id)
+    ]
     assert visible.status_code == 200
     assert hidden.status_code == 404
 
