@@ -1,62 +1,119 @@
 # راهنمای اتصال Frontend به Backend هم‌آموز
 
-این سند قرارداد اجرایی بین Frontend و Backend را مشخص می‌کند. هدف آن جلوگیری از پیاده‌سازی حدسی Endpointها، پراکندگی Headerها، ناسازگاری Typeها و اختلاف رفتار در مدیریت خطا است.
+این سند قرارداد اجرایی Frontend و Backend است. نسخه حاضر در تاریخ **2026-08-08** با `backend/comprehensive-manual-hardening` / PR #4 همگام شده و جایگزین راهنمای قدیمی مبتنی بر `backend/mvp-bootstrap` می‌شود.
 
-## 1. منبع حقیقت قرارداد
+هدف اصلی: Frontend نباید Endpoint، Payload، Response، Enum، Scope یا Permission را حدس بزند و نباید امنیت Tenant/School را با فیلتر سمت مرورگر پیاده‌سازی کند.
 
-ترتیب مرجع برای پیاده‌سازی Frontend:
+## 1. Source of Truth
 
-1. فایل Commit‌شده‌ی `contracts/openapi.yaml`
-2. Schema زنده‌ی Backend در `/api/v1/schema/`
-3. Swagger در `/api/v1/docs/`
-4. ReDoc در `/api/v1/redoc/`
-5. سابقه‌ی تغییرات در `contracts/API_CHANGELOG.md`
+ترتیب مرجع:
 
-تا پیش از ادغام Backend در `main`، قرارداد جاری از این مسیر خوانده می‌شود:
+1. کد جاری
+2. Testها و Migrationها
+3. Schema زنده/تولیدشده OpenAPI
+4. `contracts/openapi.yaml`
+5. Architecture/decision docs
+6. README
+7. Assumption
 
-- [`contracts/openapi.yaml` در backend/mvp-bootstrap](https://github.com/leonardo0231/hamamooz-platform/blob/backend/mvp-bootstrap/contracts/openapi.yaml)
+Contract ماشین‌خوان Commit‌شده:
 
-اگر Schema زنده و فایل Commit‌شده با هم متفاوت باشند، Integration متوقف می‌شود تا Backend قرارداد را مجدداً تولید و Commit کند. Frontend نباید یکی از دو نسخه را به‌صورت سلیقه‌ای انتخاب کند.
+```text
+contracts/openapi.yaml
+```
 
-فایل OpenAPI نباید دستی اصلاح شود.
+Changelog:
 
-## 2. Base URL
+```text
+contracts/API_CHANGELOG.md
+```
 
-محیط توسعه‌ی محلی:
+در Snapshot فعلی این فایل‌ها با Feature Branch `backend/comprehensive-manual-hardening` و commit `c30d0a57d1d05c77b295797dae4e652295174e4e` همگام شده‌اند.
+
+اگر Schema تولیدشده Backend با `contracts/openapi.yaml` اختلاف داشته باشد، Integration باید متوقف شود. CI این Drift را Fail می‌کند.
+
+**OpenAPI را دستی ویرایش نکنید.**
+
+## 2. Generated API Catalog
+
+Frontend یک catalog تولیدشده از OpenAPI دارد:
+
+```text
+Frontend/src/api/generated/catalog.json
+Frontend/src/api/generated/catalog.ts
+```
+
+فرمان تولید:
+
+```bash
+cd Frontend
+npm run generate:api
+```
+
+آخرین خروجی CI بررسی‌شده:
+
+```text
+173 operations
+170 schemas
+```
+
+CI بعد از regenerate این مسیر را بررسی می‌کند:
+
+```bash
+git diff --exit-code -- src/api/generated
+```
+
+هر Diff یعنی Contract یا catalog Commit‌شده قدیمی است.
+
+## 3. Endpoint Registry مرکزی
+
+صفحات و Componentها نباید path literal را مستقیماً به `apiRequest` بدهند. Registry مرکزی فعلی:
+
+```text
+Frontend/src/api/endpoints.ts
+```
+
+Operation pathها با Operation ID قرارداد resolve می‌شوند. مثال عملیات جدید ارزیابی ماهانه:
+
+```text
+monthly_evaluations_catalog_retrieve
+monthly_evaluations_manual_create
+monthly_evaluations_manual_destroy
+```
+
+قاعده:
+
+```text
+OpenAPI -> generated catalog -> endpoint registry -> page/component
+```
+
+نه:
+
+```text
+page -> hard-coded /api/v1/...
+```
+
+تست Frontend بررسی می‌کند Registry فقط به Operation IDهای موجود در OpenAPI اشاره کند و صفحات literal endpoint به `apiRequest` ندهند.
+
+## 4. Base URL
+
+Local backend direct:
 
 ```text
 http://localhost:8000/api/v1/
 ```
 
-Base URL باید از Environment Configuration دریافت شود و داخل Component، Hook، Store یا Service هاردکد نشود.
-
-نمونه‌ی مفهومی:
+Local through frontend/Nginx:
 
 ```text
-API_BASE_URL=http://localhost:8000/api/v1/
+http://localhost:5173/api/v1/
 ```
 
-نام دقیق متغیر محیطی به تکنولوژی Frontend بستگی دارد، اما باید فقط یک منبع مرکزی داشته باشد.
+Base URL باید فقط از Configuration مرکزی گرفته شود. Component، Store یا Page نباید Base URL بسازد.
 
-## 3. API Client مرکزی
+## 5. Authentication
 
-تمام درخواست‌ها باید از یک API Client مشترک عبور کنند. Componentها نباید مستقیماً Token، Scope Header، Refresh Token یا Error Mapping را مدیریت کنند.
-
-API Client مرکزی مسئول موارد زیر است:
-
-- افزودن `Authorization`
-- افزودن Scope فعال
-- افزودن `X-Request-ID`
-- مدیریت Refresh Token
-- جلوگیری از Refresh هم‌زمان تکراری
-- Parse کردن Pagination
-- Normalize کردن Error Response
-- لغو Requestهای بلااستفاده در صورت نیاز
-- ثبت Log فنی بدون افشای Token یا اطلاعات حساس
-
-## 4. جریان Authentication
-
-### دریافت Token
+### Login
 
 ```http
 POST /api/v1/auth/token/
@@ -65,81 +122,78 @@ Content-Type: application/json
 
 ```json
 {
-  "username": "teacher1",
-  "password": "password"
+  "username": "...",
+  "password": "..."
 }
 ```
 
-### دریافت اطلاعات کاربر
+### Current user
 
 ```http
 GET /api/v1/auth/me/
 Authorization: Bearer <access-token>
 ```
 
-Frontend باید نقش‌ها، سازمان‌ها، شعب مجاز و اطلاعات کاربر را از این Endpoint دریافت کند و نباید آن‌ها را از محتوای ظاهری Token یا داده‌ی Hardcode شده استنتاج کند.
+Role و Scope باید از پاسخ معتبر Backend/Session state گرفته شوند؛ UI نباید آن‌ها را حدس بزند.
 
-### تمدید Token
+### Refresh
 
 ```http
 POST /api/v1/auth/token/refresh/
-Content-Type: application/json
 ```
 
-اگر چند Request هم‌زمان پاسخ `401` دریافت کردند، فقط یک Refresh Request اجرا می‌شود. سایر Requestها تا نتیجه‌ی همان عملیات منتظر می‌مانند و پس از موفقیت تکرار می‌شوند.
+Client مرکزی باید shared refresh داشته باشد تا چند 401 هم‌زمان چند Refresh Request موازی نسازند.
 
 ### Logout
 
 ```http
 POST /api/v1/auth/logout/
-Authorization: Bearer <access-token>
 ```
 
-پس از Logout، Access Token، Refresh Token، اطلاعات کاربر و Scope انتخاب‌شده باید از State مربوط به Session پاک شوند. Tokenها نباید در Log، Error Monitoring یا پیام‌های UI نمایش داده شوند.
+Access token نباید در browser storage پایدار شود. Test فعلی Frontend این invariant را بررسی می‌کند.
 
-## 5. Headerهای عمومی
+## 6. Roleها
 
-### Authorization
+Roleهای Backend فعلی:
 
-```http
-Authorization: Bearer <access-token>
+```text
+system_admin
+organization_admin
+school_manager
+educational_deputy
+operator
+teacher
 ```
 
-### Scope شعبه
+Frontend می‌تواند برای UX Card/Button را بر اساس Role مخفی کند، اما این رفتار **Authorization نیست**. Backend باید همان دسترسی را مستقل enforce کند.
+
+## 7. Scope Headerها
+
+Headerهای مهم:
 
 ```http
+Authorization: Bearer <token>
 X-School-ID: <school-uuid>
-```
-
-### Scope مجموعه
-
-```http
 X-Organization-ID: <organization-uuid>
-```
-
-### شناسه‌ی رهگیری
-
-```http
 X-Request-ID: <uuid>
 ```
 
-قواعد Scope:
+قواعد:
 
-- برای عملیات Write، کاربران غیر `system_admin` باید Scope صریح ارسال کنند.
-- `X-School-ID` و `X-Organization-ID` نباید بدون نیاز هم‌زمان ارسال شوند.
-- UUID نامعتبر یا Scope غیرمجاز می‌تواند پاسخ `403` ایجاد کند.
-- Scope فعال باید در State مرکزی نگهداری شود.
-- Componentها نباید Headerهای Scope را به‌صورت جداگانه بسازند.
-- با تغییر Organization یا School، Cache و Queryهای وابسته باید Invalidated شوند.
+- Scope فعال باید در Session/Application state مرکزی باشد.
+- Component نباید Scope header را خودش بسازد.
+- با تغییر Scope، Query/Cache وابسته باید invalidate شود.
+- School یا Organization خارج از دسترسی کاربر نباید با Frontend filtering «امن» فرض شود.
+- UUID در payload می‌تواند از کاربر مخفی باشد، اما Backend باید Object Scope آن را validate کند.
 
-## 6. Pagination
+## 8. Pagination
 
-قالب استاندارد پاسخ List Endpointها:
+List response استاندارد:
 
 ```json
 {
   "count": 120,
-  "next": "http://localhost:8000/api/v1/students/?page=2",
+  "next": "...",
   "previous": null,
   "results": []
 }
@@ -154,171 +208,405 @@ search
 ordering
 ```
 
-Frontend باید آیتم‌ها را از `results` بخواند و `count` را برای تعداد کل استفاده کند. وجود `next` و `previous` باید براساس قرارداد همان Endpoint بررسی شود، نه براساس حدس مشترک برای همه‌ی APIها.
+هر Endpoint ممکن است filterهای Domain-specific دیگری هم داشته باشد؛ فقط از Contract بخوانید.
 
-## 7. قالب خطا
+## 9. Error Handling
 
-قالب استاندارد خطا:
+قالب wrapper عمومی Backend:
 
 ```json
 {
   "error": {
     "code": "validation_error",
-    "detail": {
-      "field": [
-        "message"
-      ]
-    },
-    "request_id": "uuid"
+    "detail": {},
+    "request_id": "..."
   }
 }
 ```
 
-Frontend باید حداقل این رفتارها را داشته باشد:
+رفتار UI مورد انتظار:
 
-| Status | رفتار مورد انتظار |
+| Status | رفتار |
 |---|---|
-| `400` | نمایش خطای Validation و نگاشت خطاهای Field |
-| `401` | اجرای Refresh و انتقال به Login در صورت شکست |
-| `403` | نمایش عدم دسترسی یا Scope نامعتبر |
-| `404` | نمایش نبود داده یا خارج بودن داده از Scope |
-| `409` | نمایش تعارض داده، State یا Workflow |
-| `429` | توقف Retry سریع و رعایت محدودیت درخواست |
-| `503` | نمایش عدم آمادگی موقت سرویس و امکان Retry |
-| Network Error | حفظ داده‌ی فرم و ارائه‌ی Retry |
+| `400` | Field validation / workflow error را واضح نمایش بده |
+| `401` | shared refresh؛ در شکست Session را خاتمه بده |
+| `403` | عدم دسترسی/Scope نامعتبر |
+| `404` | نبود رکورد یا خارج بودن آن از Scoped queryset |
+| `409` | conflict/state transition conflict |
+| `429` | retry سریع انجام نده |
+| `503` | وضعیت موقت unavailable و retry کنترل‌شده |
+| Network | داده فرم را حفظ کن و retry بده |
 
-`request_id` باید در گزارش Bug و پیام پشتیبانی فنی حفظ شود، اما نمایش آن به کاربر نهایی فقط در بخش جزئیات فنی انجام می‌شود.
+`request_id` برای Bug report باید قابل دسترسی باشد، بدون افشای داده حساس.
 
-## 8. Typeها و API Client تولیدشده
+## 10. Relation Picker و UUID
 
-Frontend باید Typeها را از OpenAPI تولید یا حداقل با آن اعتبارسنجی کند.
+UUID شناسه فنی داخلی است. کاربر نهایی نباید مجبور شود UUID را تایپ/کپی کند.
+
+فرم‌های Schema-based باید Relationها را با گزینه‌های خوانا نشان دهند، مثل:
+
+- School name/code
+- Academic year title/code
+- Grade title
+- Class name/code
+- Student name / national id / student number
+- Enrollment label
+- Teacher/user name
+- Subject/title
+
+Backend همچنان UUID را به‌عنوان identity فنی دریافت می‌کند؛ Frontend فقط انتخاب آن را human-readable می‌کند.
+
+## 11. مسیر «ثبت و ویرایش دستی»
+
+Route:
+
+```text
+/manual-entry
+```
+
+این صفحه یک Hub راهنما است، نه Backend جداگانه. برای Resourceهای معمول از همان endpointهای رسمی Domain و Schema تولیدشده استفاده می‌کند.
+
+گروه‌ها:
+
+### 11.1 ساختار مدرسه
+
+- organizations
+- schools
+- academic-years
+- terms
+- grade-levels
+- classes
+
+### 11.2 دانش‌آموز و خانواده
+
+- students
+- guardians
+- enrollments
+
+### 11.3 برنامه درسی و ارزیابی
+
+- subjects
+- grade-subjects
+- course-offerings
+- assessment-types
+- assessments
+- scores
+- monthly-evaluations
+- calculation-policies
+
+### 11.4 حضور و غیاب
+
+- attendance-policies
+- attendance-sessions
+- attendance-records
+
+### 11.5 کاربران و دسترسی
+
+- users
+- role-assignments
+
+هر Card باید توضیح ساده، dependency/order tip، «ثبت جدید» و «مشاهده و ویرایش» داشته باشد.
+
+Enrollment exception مهم است: انتقال/تغییر کلاس/تغییر وضعیت باید با Actionهای اختصاصی انجام شود، نه ویرایش خام رکورد تاریخی.
+
+## 12. Public Import Policy
+
+برای Import جدید فقط فایل جامع رسمی فعال است.
+
+### Template
+
+```http
+GET /api/v1/imports/templates/comprehensive_school/
+```
+
+### Create
+
+```http
+POST /api/v1/imports/
+Content-Type: multipart/form-data
+```
+
+Payload:
+
+```text
+school=<uuid selected by relation picker>
+import_type=comprehensive_school
+source_file=<official .xlsx>
+```
+
+قواعد Backend:
+
+- فقط `comprehensive_school`
+- فقط `.xlsx`
+- حداکثر 10 MB
+- School باید accessible باشد
+- checksum تکراری در همان Scope برای Job queued/processing/completed رد می‌شود
+- legacy import types برای historical jobها باقی مانده‌اند، ولی create جدید ندارند
+
+Frontend نباید UI انتخاب template/typeهای قدیمی را نشان دهد.
+
+### Job actions
+
+ImportJobهای مجاز در Scope دارای عملیات رسمی هستند:
+
+```http
+GET  /api/v1/imports/
+GET  /api/v1/imports/{id}/
+POST /api/v1/imports/{id}/retry/
+POST /api/v1/imports/{id}/cancel/
+GET  /api/v1/imports/{id}/errors/
+```
+
+Retry فقط برای failed یا processing stale؛ Cancel فقط queued/processing.
+
+## 13. File Comprehensive Result UX
+
+Frontend باید `result_summary` را به‌جای یک پیام مبهم «موفق شد» نمایش دهد. فیلدهای مهم جدید:
+
+```text
+classes_created / classes_updated / classes_unchanged
+students_created / students_updated / students_unchanged
+enrollments_created / enrollments_updated / enrollments_unchanged
+evaluations_created / evaluations_updated / evaluations_unchanged
+metric_scores_created / metric_scores_updated / metric_scores_unchanged
+records_deleted = 0
+delete_policy = explicit_manual_only
+template_version
+source = comprehensive_school
+```
+
+قاعده UX: نبودن رکورد در فایل جدید نباید در UI به «حذف شد» تعبیر شود.
+
+## 14. Monthly Evaluation Catalog
+
+```http
+GET /api/v1/monthly-evaluations/catalog/
+```
+
+Response shape:
+
+```json
+{
+  "framework_version": "...",
+  "score_min": 0,
+  "score_max": 5,
+  "metric_count": 74,
+  "metrics": [
+    {
+      "code": "EDU_01",
+      "title": "...",
+      "domain_code": "...",
+      "domain_title": "...",
+      "domain_weight": 20,
+      "order": 1
+    }
+  ]
+}
+```
+
+Frontend نباید ۷۴ شاخص را جداگانه Hardcode کند؛ Catalog Backend مرجع تعریف Metricهاست.
+
+## 15. Manual Monthly Evaluation
+
+### Create / Update
+
+```http
+POST /api/v1/monthly-evaluations/manual/
+Content-Type: application/json
+```
+
+Payload:
+
+```json
+{
+  "enrollment": "<uuid>",
+  "month_no": 4,
+  "note": "توضیح اختیاری",
+  "metrics": [
+    {"metric_code": "EDU_01", "value": 4},
+    {"metric_code": "DEV_01", "value": 5}
+  ]
+}
+```
+
+Validation:
+
+- `enrollment`: UUID یک Enrollment فعال و accessible
+- `month_no`: `1..12`
+- `note`: حداکثر 5000
+- `metrics`: اختیاری، مقدار هر Metric `0..5`
+- Metric code در یک Request نباید تکراری باشد
+- حداقل یک Metric یا note لازم است
+
+Semantics:
+
+- اگر Evaluation وجود ندارد، create
+- اگر وجود دارد، update همان رکورد
+- Metric ارسال‌نشده حفظ می‌شود
+- اگر Evaluation soft-delete شده باشد، restore می‌شود
+- provenance اولیه `source_import_job` حفظ می‌شود
+
+Response:
+
+```json
+{
+  "evaluation": {"id": "..."},
+  "result": {
+    "created": false,
+    "restored": false,
+    "metrics_created": 0,
+    "metrics_updated": 2,
+    "metrics_unchanged": 0
+  }
+}
+```
+
+Status موفق می‌تواند `201` برای create یا `200` برای update باشد.
+
+## 16. Delete Monthly Evaluation
+
+```http
+DELETE /api/v1/monthly-evaluations/{id}/manual/?reason=<text>
+```
 
 قواعد:
 
-- Type دستی نباید قرارداد OpenAPI را Override کند.
-- Enumها باید از Schema استخراج شوند.
-- Fieldهای Optional و Nullable از هم تفکیک شوند.
-- Responseهای Paginated باید Generic مشترک داشته باشند.
-- Client تولیدشده در یک لایه‌ی Adapter استفاده شود تا Componentها به جزئیات ابزار تولید وابسته نشوند.
-- تغییر فایل OpenAPI باید Diff Typeها و Client را در Pull Request مشخص کند.
+- reason اجباری
+- طول `3..1000`
+- soft-delete
+- metric history حفظ می‌شود
+- Audit event ثبت می‌شود
+- detail lookup از Scoped queryset انجام می‌شود
 
-## 9. Endpointهای شروع Frontend
+Frontend باید عبارت «حذف منطقی» و حفظ سابقه را واضح توضیح دهد.
 
-جریان پایه‌ی Sprint اول:
+## 17. Monthly Evaluation Form UX
 
-```text
-POST auth/token/
-GET auth/me/
-GET organizations/
-GET schools/
-GET dashboard/summary/
-```
+فرم فعلی باید:
 
-خروجی مورد انتظار:
+- Enrollment فعال را با نام دانش‌آموز / student number / class نمایش دهد
+- search server-side داشته باشد
+- ماه را فارسی نمایش دهد ولی `month_no` عددی ارسال کند
+- Metricها را بر اساس Domain گروه‌بندی کند
+- blank Metric را «بدون تغییر» تفسیر کند
+- Existing Evaluation را load و prefill کند
+- save partial را مجاز بداند
+- entered count را نشان دهد
+- delete را فقط وقتی رکورد موجود است نشان دهد
+- reason برای delete بگیرد
 
-```text
-Login
-→ دریافت اطلاعات کاربر
-→ انتخاب سازمان یا شعبه
-→ ارسال Scope Header
-→ نمایش Dashboard
-```
+## 18. Security نکات ویژه Frontend
 
-تا زمان پایدار شدن این جریان، توسعه‌ی صفحات وابسته مانند دانش‌آموز، نمره، حضور و غیاب و گزارش نباید روی قراردادهای حدسی شروع شود.
+Frontend نباید:
 
-## 10. Definition of Contract Ready
+- Enrollment خارج از Scope را با query عمومی fetch کند
+- Teacher را فقط با مخفی کردن UI محدود کند
+- ID قابل حدس یا UUID از URL را trusted فرض کند
+- `source_import_job`, tenant ids یا audit fields را خودسرانه mutate کند
+- national ID یا PII را در console/log ثبت کند
+- Error response کامل حاوی PII را به monitoring بدون redaction بفرستد
 
-یک Endpoint زمانی `Contract Ready` است که همه‌ی موارد زیر مشخص باشند:
+## 19. Contract Change Workflow
 
-- Method و Path
-- Authentication و Roleهای مجاز
-- Scope مورد نیاز
-- Path، Query و Header Parameterها
-- Request Body و Validation
-- Success Response
-- Error Response و Status Codeها
-- Pagination در صورت وجود
-- Enumها، Optionalها و Nullableها
-- نمونه‌ی Request/Response در Schema
-- ثبت تغییر در `API_CHANGELOG.md`
+Backend:
 
-وجود Endpoint در Swagger به‌تنهایی به معنی آماده بودن برای Integration نیست.
+1. API behavior را تغییر بده
+2. Test اضافه/اصلاح کن
+3. `python manage.py spectacular --api-version v1 --file ../contracts/openapi.generated.yaml --validate`
+4. Diff را review کن
+5. `contracts/openapi.yaml` را regenerate/commit کن
+6. `contracts/API_CHANGELOG.md` را update کن
 
-## 11. فرآیند تغییر API
+Frontend:
 
-Backend برای هر تغییر Contract باید:
+1. OpenAPI diff را review کن
+2. `npm run generate:api`
+3. endpoint registry را در صورت نیاز update کن
+4. typecheck/lint/test/build را اجرا کن
+5. generated catalog drift نداشته باشد
 
-1. تغییر را در کد پیاده‌سازی کند.
-2. تست‌های Permission، Scope و Validation را اضافه یا اصلاح کند.
-3. OpenAPI را مجدداً تولید کند.
-4. Diff قرارداد را Review کند.
-5. `contracts/API_CHANGELOG.md` را به‌روزرسانی کند.
-6. Breaking Change را صریح علامت بزند.
-7. محیط Development را به‌روزرسانی کند.
+## 20. CI Expected Results
 
-Frontend باید:
-
-1. Diff فایل OpenAPI را بررسی کند.
-2. Typeها و Client را بازتولید کند.
-3. Compile و Test را اجرا کند.
-4. Error Stateها را بررسی کند.
-5. وضعیت Integration را در Pull Request ثبت کند.
-
-وضعیت پیشنهادی Endpoint:
+Backend checks:
 
 ```text
-Draft
-→ Contract Ready
-→ Backend Implemented
-→ Backend Tested
-→ Deployed to Dev
-→ Frontend Integrated
-→ QA Accepted
-→ Released
+pip check
+pip-audit
+ruff check
+ruff format --check --diff
+python manage.py check
+makemigrations --check --dry-run
+migrate
+OpenAPI generate + validate
+OpenAPI committed diff
+Redis/Celery smoke
+S3/MinIO smoke
+pytest + coverage
+PostgreSQL backup/restore drill
 ```
 
-## 12. Breaking Change
+آخرین نتیجه:
 
-موارد زیر Breaking Change محسوب می‌شوند مگر اینکه سازگاری قبلی حفظ شود:
+```text
+137 passed
+coverage 80.08% >= 78%
+0 OpenAPI errors
+```
 
-- حذف یا تغییر نام Endpoint
-- تغییر HTTP Method
-- حذف یا Required شدن یک Field
-- تغییر Type یا Enum
-- تغییر ساختار Response
-- تغییر Permission یا Scope
-- تغییر معنای Status Code
-- تغییر Pagination
+Frontend checks:
 
-Breaking Change باید قبل از Merge با Frontend هماهنگ، در Changelog ثبت و برای آن مسیر Migration یا نسخه‌بندی مشخص شود.
+```text
+npm ci
+npm audit --audit-level=high
+npm run generate:api
+generated catalog diff
+npm run typecheck
+npm run lint
+npm test
+production build
+```
 
-## 13. گزارش Bug مرتبط با API
+آخرین نتیجه:
 
-هر Bug Report باید شامل این اطلاعات باشد:
+```text
+21 passed
+0 frontend dependency vulnerabilities
+```
+
+## 21. Known Non-blocking Warnings
+
+- OpenAPI enum naming collision برای چند `status` choice؛ خروجی فعلی نامی مثل `Status6f2Enum` دارد. Contract valid است، ولی naming باید بعداً override شود.
+- GitHub Actions برای Node.js 20 deprecation warning می‌دهد؛ Migration به Node 24 بهتر است Maintenance جدا باشد.
+
+## 22. Definition of Frontend Integration Done
+
+یک Feature زمانی از نظر Integration کامل است که:
+
+- Operation در OpenAPI وجود داشته باشد
+- generated catalog sync باشد
+- endpoint registry از Operation ID استفاده کند
+- payload/response Type با Contract یکی باشد
+- loading/empty/error state وجود داشته باشد
+- scope/role UX درست باشد
+- Backend مستقل authorization را enforce کند
+- regression test وجود داشته باشد
+- typecheck/lint/test/build pass باشند
+- Breaking change در Changelog ثبت شده باشد
+
+## 23. Bug Report مرتبط با API
+
+Bug report مفید شامل:
 
 - Environment
-- Endpoint و Method
-- Request Headers بدون Token کامل
-- Request Payload با حذف اطلاعات حساس
-- Response Status
-- Response Body
+- Route UI
+- Endpoint + Method
+- role
+- active organization/school
+- payload با حذف PII/secret
+- status code
+- normalized error
 - `request_id`
-- نقش کاربر
-- Organization یا School انتخاب‌شده
-- زمان تقریبی رخداد
-- مراحل بازتولید
-- رفتار مورد انتظار و رفتار واقعی
+- steps to reproduce
+- expected/actual behavior
 
-گزارش‌هایی مانند «API کار نمی‌کند» بدون این اطلاعات برای بررسی فنی کافی نیستند.
-
-## 14. چک‌لیست Frontend Pull Request
-
-- [ ] Endpoint در OpenAPI وجود دارد.
-- [ ] Typeها از قرارداد تولید یا با آن تطبیق داده شده‌اند.
-- [ ] Base URL هاردکد نشده است.
-- [ ] Token و Scope در API Client مرکزی مدیریت می‌شوند.
-- [ ] `401`، `403`، `409` و Network Error پوشش داده شده‌اند.
-- [ ] Loading، Empty و Error State وجود دارند.
-- [ ] اطلاعات حساس Log نمی‌شوند.
-- [ ] تغییر Breaking یا اختلاف Schema ثبت شده است.
-- [ ] Test یا مراحل Manual Test در PR نوشته شده است.
+Token، password و PII غیرضروری نباید داخل Issue قرار بگیرند.
