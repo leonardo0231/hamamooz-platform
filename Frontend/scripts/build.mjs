@@ -52,9 +52,11 @@ await writeFile(resolve(root, 'dist/index.html'), sourceHtml.replaceAll('__API_B
 await cp(resolve(root, 'src/styles/app.css'), resolve(root, 'dist/app.css'));
 await cp(resolve(root, 'src/styles/brand.css'), resolve(root, 'dist/brand.css'));
 await cp(resolve(root, 'src/styles/product.css'), resolve(root, 'dist/product.css'));
+await cp(resolve(root, 'src/styles/design-refresh.css'), resolve(root, 'dist/design-refresh.css'));
 await cp(resolve(root, 'public'), resolve(root, 'dist'), { recursive: true });
 const manifest = { builtAt: new Date().toISOString(), contract: 'contracts/openapi.yaml' };
 await writeFile(resolve(root, 'dist/build-manifest.json'), JSON.stringify(manifest, null, 2));
 const html = await readFile(resolve(root, 'dist/index.html'), 'utf8');
 if (!html.includes('/assets/main.js')) throw new Error('index.html entrypoint is missing');
+if (!html.includes('/design-refresh.css')) throw new Error('visual refresh stylesheet is missing');
 console.log('Frontend production build completed.');
