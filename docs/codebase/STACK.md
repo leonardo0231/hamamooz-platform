@@ -5,9 +5,9 @@
 | Area | Value | Evidence |
 |---|---|---|
 | Backend language/runtime | Python >=3.12,<3.14 | `Backend/pyproject.toml` |
-| Frontend language/runtime | TypeScript on Node >=20 | `Frontend/package.json` |
+| Frontend language/runtime | JavaScript ES Modules on Node >=20 | `Frontend/package.json` |
 | Backend package tooling | pip requirements; `uv.lock` is present | `Backend/requirements/dev.txt`, `Backend/uv.lock` |
-| Frontend package tooling | npm lockfile | `Frontend/package-lock.json` |
+| Frontend package tooling | Dependency-free Node build; vendored runtime with licenses | `Frontend/scripts/build.mjs`, `Frontend/src/vendor/` |
 | Containers | Docker Compose, Python and Node image builds | `docker-compose.yml`, `Backend/Dockerfile`, `Frontend/Dockerfile` |
 
 ## Production Frameworks and Dependencies
@@ -19,7 +19,7 @@
 | Celery with Redis | 5.6.3 | Background jobs | `Backend/pyproject.toml` |
 | PostgreSQL driver | psycopg 3.2.9 | Database access | `Backend/pyproject.toml` |
 | Nginx | container proxy/static server | Frontend delivery and API proxy | `Frontend/nginx.conf` |
-| esbuild/TypeScript | 0.28.1/5.8.3 | Frontend build/type check | `Frontend/package.json` |
+| Preact/HTM | 10.29.8/3.1.1 | Component rendering and templates | `Frontend/src/vendor/` |
 
 ## Development Toolchain
 
@@ -34,7 +34,7 @@
 
 ```powershell
 cd Backend; .\.venv\Scripts\python -m pytest
-cd Frontend; npm ci; npm run typecheck; npm run lint; npm test
+cd Frontend; npm run lint; npm test
 docker compose up --build -d
 ```
 

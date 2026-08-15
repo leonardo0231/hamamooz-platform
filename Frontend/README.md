@@ -1,133 +1,74 @@
-# Frontend هم‌آموز
+# فرانت‌اند هم‌آموز
 
-رابط وب Production سامانه مدیریت آموزشی هم‌آموز. این Frontend مستقیماً از قرارداد رسمی `contracts/openapi.yaml` استفاده می‌کند و هیچ داده‌ی Mock یا Endpoint حدسی ندارد.
+نسخه دوم رابط کاربری سامانه هوشمند مدرسه؛ بازطراحی‌شده بر اساس داشبوردهای مدیریتی RTL با تمرکز بر پایش، هشدار و پرونده ۳۶۰ درجه دانش‌آموز.
 
-## Stack
+## معماری
 
-- TypeScript 5 با تنظیمات Strict
-- Browser ES Modules و Dynamic Import برای Route-level Code Splitting
-- Router، Store و API Client ماژولار بدون Framework یا UI Library در Runtime
-- SheetJS داخلی برای پیش‌نمایش فایل‌های Excel بدون وابستگی به CDN
-- CSS Design System اختصاصی، RTL و Responsive
-- Node.js Build/Preview scripts
-- تست‌های داخلی Node Test Runner
+- Preact 10.29.8 با Component و Hook؛ به‌صورت self-hosted و بدون CDN
+- HTM برای templateهای امن و خوانا بدون toolchain سنگین
+- Browser ES Modules و build قطعی بدون وابستگی شبکه
+- API Client مرکزی با JWT refresh، timeout، error normalization و scope headers
+- Design system اختصاصی فارسی با Vazirmatn/Estedad، RTL و responsive layout
+- Node Test Runner برای route، امنیت، fixture، design contract و build
 
-پروژه‌ی قبلی در Branch فرانت‌اند فقط README داشت؛ بنابراین این پیاده‌سازی در مسیر رسمی `Frontend/` همان Monorepo ساخته شده است.
+فایل‌های Third-party در `src/vendor/` همراه license نگهداری شده‌اند. نسخه Preact با digest رسمی release تطبیق داده شده است.
 
-## نیازمندی‌ها
+## اجرا
 
-- Node.js 20 یا جدیدتر
-- npm
-- Backend هم‌آموز با قرارداد هماهنگ
-- Python 3 و PyYAML فقط برای بازتولید Catalog از OpenAPI
-
-## نصب و تنظیم محیط
+پیش‌نیاز فقط Node.js 20 یا جدیدتر است و نصب package لازم نیست:
 
 ```bash
 cd Frontend
-npm install
-cp .env.example .env
-```
-
-مقادیر `.env`:
-
-```dotenv
-VITE_API_BASE_URL=http://localhost:8000/api/v1/
-VITE_APP_NAME=هم‌آموز
-VITE_REQUEST_TIMEOUT_MS=20000
-```
-
-`VITE_API_BASE_URL` باید به `/api/v1/` ختم شود. فایل `.env` در Git Commit نمی‌شود.
-
-## اجرای Development
-
-```bash
 npm run dev
 ```
 
-برنامه روی `http://localhost:5173` اجرا می‌شود. این دستور Build اولیه را انجام می‌دهد، تغییرات TypeScript و فایل‌های استاتیک را Watch می‌کند و Preview Server دارای SPA fallback را فعال نگه می‌دارد.
+برنامه روی `http://localhost:5173` اجرا می‌شود. درخواست‌های `/api/` در حالت development به Backend روی پورت `8000` proxy می‌شوند.
 
-Backend باید Origin فرانت‌اند را در `DJANGO_CORS_ALLOWED_ORIGINS` مجاز کند. برای Development مقدار `http://localhost:5173` و برای اجرای `npm run preview` مقدار `http://localhost:4173` لازم است؛ در Production باید Origin واقعی Deployment ثبت شود.
+برای مشاهده رابط بدون Backend:
+
+```text
+http://localhost:5173/?demo=1
+```
+
+حالت demo فقط با query string یا کلید `hamamooz.demo` فعال می‌شود و در مسیر عادی production استفاده نمی‌شود.
 
 ## کنترل کیفیت
 
 ```bash
-npm run typecheck
 npm run lint
 npm test
-```
-
-## Build نسخه Production
-
-```bash
 npm run build
 ```
 
-خروجی در `Frontend/dist/` ساخته می‌شود. Build در حالت عادی از esbuild استفاده می‌کند و در محیطی که Binary سازگار آن موجود نباشد، به‌صورت خودکار از خروجی ES Modules کامپایلر TypeScript استفاده می‌کند.
-
-## اجرای Production Build
+خروجی production در `dist/` قرار می‌گیرد. برای بررسی خروجی:
 
 ```bash
 npm run preview
 ```
 
-Preview روی `http://localhost:4173` اجرا می‌شود. در محیط واقعی باید `dist/` توسط Nginx، Caddy، CDN یا Static Hosting سرو شود و تمام Routeهای ناشناخته به `index.html` برگردند.
+## مسیرهای اصلی
 
-نمونه‌ی Nginx:
+- `/` داشبورد مدیریتی
+- `/students` فهرست دانش‌آموزان
+- `/students/:id` پرونده ۳۶۰ درجه
+- `/performance` عملکرد آموزشی
+- `/attendance` حضور و غیاب
+- `/alerts` مرکز هشدارها و پیگیری
+- `/suggestions` پیشنهادهای هوشمند
+- `/reports` گزارش‌ساز
+- مسیرهای مدیریت داده، کاربر، نقش، تنظیمات و پورتال
 
-```nginx
-location / {
-    try_files $uri $uri/ /index.html;
-}
+## اتصال Backend
+
+Base URL پیش‌فرض `/api/v1/` است تا در Docker و Nginx همان origin استفاده شود. برای محیطی متفاوت می‌توان پیش از `main.js` مقدار runtime زیر را تعیین کرد:
+
+```js
+window.__HAMAMOOZ_CONFIG__ = {
+  apiBaseUrl: 'https://example.com/api/v1/',
+  requestTimeoutMs: 20000,
+};
 ```
 
-## بازتولید قرارداد Frontend
+API Client به‌صورت مرکزی Headerهای `Authorization`، `X-School-ID`، `X-Organization-ID` و `X-Request-ID` را مدیریت می‌کند. Access token فقط در حافظه است؛ refresh token مطابق انتخاب «مرا به خاطر بسپار» در sessionStorage یا localStorage نگهداری می‌شود.
 
-پس از تغییر رسمی OpenAPI:
-
-```bash
-cd Frontend
-npm run generate:api
-npm run typecheck
-npm test
-```
-
-این دستور فایل‌های زیر را از `contracts/openapi.yaml` می‌سازد:
-
-- `src/api/generated/catalog.json`
-- `src/api/generated/catalog.ts`
-
-فایل OpenAPI در Frontend ویرایش نمی‌شود.
-
-اگر شاخه‌ی Frontend مستقل Checkout شده و پوشه‌ی `contracts/` کنار آن موجود نیست،
-مسیر قرارداد Backend را صریح بدهید:
-
-```bash
-HAMAMOOZ_OPENAPI_SOURCE=/path/to/backend/contracts/openapi.yaml npm run generate:api
-```
-
-## Authentication و Session
-
-- Access Token فقط در حافظه نگهداری می‌شود.
-- Refresh Token برای نشست عادی در `sessionStorage` نگهداری می‌شود.
-- فقط با انتخاب «مرا به خاطر بسپار» Refresh Token در `localStorage` نگهداری می‌شود؛ این رفتار به دلیل قرارداد JWT فعلی Backend است.
-- اعتبار نشست با `GET auth/me/` بررسی می‌شود.
-- درخواست‌های هم‌زمان 401 فقط یک Refresh مشترک ایجاد می‌کنند.
-- با Logout، Tokenها، User State و Scope فعال پاک می‌شوند.
-
-## Scope و Permission
-
-API Client به‌صورت مرکزی Headerهای زیر را مدیریت می‌کند:
-
-- `Authorization`
-- `X-School-ID`
-- `X-Organization-ID`
-- `X-Request-ID`
-
-Route Guard و Role Guard در Client وجود دارد؛ کنترل نهایی Permission همچنان متعلق به Backend است.
-
-## مستندات تکمیلی
-
-- [گزارش پیاده‌سازی](docs/IMPLEMENTATION_REPORT_FA.md)
-- [پوشش API و صفحات](docs/API_COVERAGE_FA.md)
-- [گزارش اصلاح UI/UX](docs/UI_UX_REMEDIATION_FA.md)
+منبع حقیقت قرارداد همچنان `contracts/openapi.yaml` است. تغییر Endpoint باید ابتدا در قرارداد و Backend اعمال و سپس adapter متناظر در `src/core/api.js` به‌روزرسانی شود.

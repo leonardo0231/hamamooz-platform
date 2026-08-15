@@ -2,7 +2,7 @@
 
 ## Architectural Style
 
-- Primary style: domain-organized Django modular monolith plus a separate TypeScript frontend.
+- Primary style: domain-organized Django modular monolith plus a separate component-based Preact frontend.
 - Constraints: school/organization scoped access, generated OpenAPI compatibility, and asynchronous import/report work.
 
 ## System Flow
@@ -12,7 +12,7 @@ Browser -> Frontend/Nginx -> /api proxy -> Django views -> app services/models -
                                            -> Celery/Redis -> background imports and reports
 ```
 
-The frontend central client resolves API routes from the generated catalog. Django routes dispatch to app viewsets, which call services/models. The backend generates `contracts/openapi.yaml`; the frontend catalog generator derives its artifacts from that file.
+The frontend central client owns authentication refresh, scope headers, timeout and normalized errors. Django routes dispatch to app viewsets, which call services/models. The backend-generated `contracts/openapi.yaml` remains the API source of truth and changes require updating the frontend adapter.
 
 The root integration smoke starts the production-like Compose topology in an isolated project name and exercises health, token authentication, dashboard/student reads, the comprehensive import workflow and report preview through public HTTP routes. It is a baseline verification path, not a second runtime architecture.
 
@@ -20,7 +20,8 @@ The root integration smoke starts the production-like Compose topology in an iso
 
 | Module | Owns | Must not own | Evidence |
 |---|---|---|---|
-| `Frontend/src/api/` | HTTP/auth/scope headers and contract registry | Page layout | `Frontend/src/api/client.ts` |
+| `Frontend/src/core/` | HTTP/auth/scope, session, routing and runtime configuration | Page layout | `Frontend/src/core/api.js` |
+| `Frontend/src/components/` | Shell, charts and accessible UI primitives | Domain persistence | component modules |
 | Django views/serializers | HTTP/API validation and representation | Browser rendering | `Backend/hamamooz/apps/*/views.py` |
 | Django services | Domain workflows | Transport-specific UI | `Backend/hamamooz/apps/imports/services.py` |
 | Celery pipeline | Async import processing | Synchronous page state | `Backend/hamamooz/apps/imports/pipeline.py` |
@@ -32,16 +33,16 @@ The root integration smoke starts the production-like Compose topology in an iso
 | Viewset + serializer | Django apps | Consistent REST resources |
 | Service layer | imports, evaluations, reports | Domain operations outside views |
 | Adapter | import adapters | Interpret workbook formats |
-| Generated contract catalog | frontend scripts | Keep endpoint registry tied to OpenAPI |
+| Central API adapter | frontend core | Keep page components independent of transport and auth details |
 
 ## Known Architectural Risks
 
 - OpenAPI generation emits one enum-name collision warning; its naming needs an explicit override if stable generated naming becomes required.
-- Frontend pages use local response interfaces; tests pin selected shapes to the generated catalog but a full generated TypeScript client is not present.
+- Runtime response validation is intentionally lightweight; contract-change CI should add schema-backed adapter tests for changed endpoints.
 
 ## Evidence
 
 - `docker-compose.yml`
 - `Backend/config/urls.py`
-- `Frontend/scripts/generate_contract.py`
+- `Frontend/src/core/api.js`
 - `scripts/docker-integration-smoke.sh`

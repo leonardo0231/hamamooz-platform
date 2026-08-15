@@ -5,7 +5,7 @@
 | ID | نیازمندی | Source/Evidence | Domain | API یا سطح تحویل | Test/verification | Status |
 |---|---|---|---|---|---|---|
 | RQ-001 | modular monolith حفظ شود | `docker-compose.yml`, ADR-0001 | همه | `/api/v1/` | architecture review | accepted |
-| RQ-002 | Frontend TypeScript + esbuild حفظ شود | `Frontend/package.json`, `Frontend/scripts/build.mjs` | frontend | route/application shell | frontend CI | existing |
+| RQ-002 | Frontend RTL مبتنی بر Preact با build تکرارپذیر و بدون CDN اجرا شود | `Frontend/package.json`, `Frontend/src/vendor/`, `Frontend/scripts/build.mjs` | frontend | route/application shell | lint + test + production build | implemented |
 | RQ-003 | OpenAPI از Backend تولید شود | `backend-ci.yml`, `contracts/README.md` | API | `contracts/openapi.yaml` | generate + diff | existing |
 | RQ-004 | PostgreSQL/Redis/Celery/S3/backup CI | `backend-ci.yml` | platform | CI | workflow jobs | existing |
 | RQ-005 | Compose clean boot و functional smoke | `scripts/docker-integration-smoke.sh` | platform | health/auth/dashboard/import/report preview | local run + GitHub workflow | implemented (remote evidence pending) |

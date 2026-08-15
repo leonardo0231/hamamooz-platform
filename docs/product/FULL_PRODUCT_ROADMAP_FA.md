@@ -2,7 +2,7 @@
 
 - وضعیت: مصوب برای جهت معماری؛ وضعیت هر قابلیت در سند traceability ثبت می‌شود.
 - تاریخ: 2026-08-10
-- منبع معماری فعلی: `docker-compose.yml`، `Backend/config/api_urls.py`، `Frontend/src/app/routes.ts` و مستندات شماره‌دار Backend.
+- منبع معماری فعلی: `docker-compose.yml`، `Backend/config/api_urls.py`، `Frontend/src/core/router.js` و مستندات شماره‌دار Backend.
 
 ## زمینهٔ تصمیم و سطح اطمینان
 
@@ -16,7 +16,7 @@
 سیستم یک **modular monolith** می‌ماند:
 
 ```text
-Browser TypeScript application
+Browser Preact application (ES modules, RTL)
         -> Django REST API (/api/v1/)
         -> Domain apps | read compositions | workflows
         -> PostgreSQL
@@ -24,7 +24,7 @@ Browser TypeScript application
         -> Filesystem local or private S3-compatible storage
 ```
 
-- Frontend فعلی TypeScript + esbuild حفظ می‌شود؛ React/Next migration خارج از scope است.
+- Frontend با Preact، HTM و ES moduleهای self-hosted اجرا می‌شود؛ وابستگی runtime به CDN یا package registry ندارد.
 - Microservice، generic event table، `Student360` database model، DSL rule engine، ABAC فراگیر و dashboard cache/materialized view زودهنگام ساخته نمی‌شوند.
 - `contracts/openapi.yaml` فقط از Backend تولید می‌شود و دستی ویرایش نمی‌شود.
 - هر feature additive زیر `/api/v1/` اضافه می‌شود مگر تغییر breaking semantics مستند و تصویب شود.
@@ -35,7 +35,7 @@ Browser TypeScript application
 |---|---|---|
 | PostgreSQL 17، Redis، migration check، OpenAPI generation/validation/drift | `.github/workflows/backend-ci.yml` | موجود |
 | Celery/Redis، MinIO/S3 smoke، coverage، backup/restore، image build | `.github/workflows/backend-ci.yml` | موجود |
-| catalog تولیدی Frontend، typecheck، lint، test، build | `.github/workflows/frontend-ci.yml` | موجود |
+| lint، تست مسیر/داده/امنیت/سیستم طراحی و production build فرانت | `.github/workflows/frontend-ci.yml` | موجود |
 | Compose health endpoint | `docker-compose.yml`, `Backend/config/urls.py` | موجود |
 | Clean-boot functional smoke | `scripts/docker-integration-smoke.sh`, job `integration-smoke` | local Docker Desktop green؛ نخستین GitHub green هنوز گیت است |
 | Staging deploy، secret rotation record، protection remote، pilot | هیچ workflow/تنظیم قابل مشاهده در source نیست | عملیاتی/نیازمند تصمیم مالک |
@@ -86,7 +86,7 @@ hamamooz/apps/
 2. Guide Teacher باید cohort مبتنی بر Enrollment داشته باشد؛ Counselor باید case scope مستقل داشته باشد؛ Parent باید Guardian→Student relationship معتبر داشته باشد.
 3. FK ownership، constraint، index، `PROTECT` برای تاریخچه، soft delete در جای مناسب، immutable historical record و transition صریح برای هر domain جدید الزامی است.
 4. اطلاعات محرمانهٔ Counseling در payload عمومی، portal، audit change یا log ثبت نمی‌شود.
-5. هر API change همراه implementation، API test، schema generation، contract sync و frontend typecheck/test تحویل می‌شود.
+5. هر API change همراه implementation، API test، schema generation، contract sync و frontend lint/test/build تحویل می‌شود.
 
 ## Definition of Done هر Phase
 

@@ -23,7 +23,7 @@ feat/student360-behavior
 | image build | `docker build` Backend و Frontend | CI |
 | functional clean boot | `bash scripts/docker-integration-smoke.sh` | CI `integration-smoke` |
 | backend quality/contract/restore | `Backend CI` | CI |
-| frontend catalog/typecheck/lint/test/build | `Frontend CI` | CI |
+| frontend lint/test/production build | `Frontend CI` | CI |
 | staging deploy | محیط staging و URL | [ASK USER] |
 | secret inventory/rotation | inventory و rotation record | [ASK USER] |
 | rollback rehearsal | timestamp و نتیجهٔ rehearsal | [ASK USER] |
