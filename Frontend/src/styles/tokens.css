@@ -1,0 +1,13 @@
+@font-face{font-family:Vazirmatn;src:url('/fonts/Vazirmatn.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}
+@font-face{font-family:Estedad;src:url('/fonts/Estedad.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}
+
+:root{
+  --font-body:Vazirmatn,Tahoma,sans-serif;--font-display:Estedad,Vazirmatn,Tahoma,sans-serif;
+  --canvas:#f7f7fc;--surface:#fff;--surface-soft:#fafafe;--surface-tint:#f2efff;
+  --ink:#17152b;--muted:#77768a;--muted-2:#a6a4b0;--line:#e7e6ee;--line-strong:#d9d7e3;
+  --nav:#17103e;--nav-2:#241553;--primary:#6936f5;--primary-2:#8d35f2;--primary-soft:#eee9ff;
+  --pink:#e52c82;--pink-soft:#ffebf3;--green:#12a875;--green-soft:#e6f8f2;--orange:#ee9b20;--orange-soft:#fff4df;--red:#e4475f;--red-soft:#ffebef;--blue:#2389dc;--blue-soft:#eaf5ff;
+  --shadow-xs:0 1px 2px rgba(31,24,73,.03);--shadow-sm:0 5px 18px rgba(31,24,73,.06);--shadow-md:0 14px 42px rgba(31,24,73,.1);
+  --radius-sm:10px;--radius-md:16px;--radius-lg:22px;--radius-pill:999px;--sidebar-width:258px;--topbar-height:74px;
+  color-scheme:light;
+}

@@ -1,6 +1,6 @@
 # HamAmoz Platform
 
-HamAmoz is a multi-branch school-management platform. It provides a Django REST API for academic operations, attendance, reporting, imports, and scoped access control, plus a TypeScript browser frontend generated against the committed OpenAPI contract.
+HamAmoz is a multi-branch school-management platform. It provides a Django REST API for academic operations, attendance, reporting, imports, and scoped access control, plus a responsive Preact dashboard connected to the committed API contract.
 
 ## Architecture
 
@@ -15,7 +15,7 @@ The source tree is a monorepo:
 
 ```text
 Backend/       Django REST Framework service, Celery tasks, migrations, tests
-Frontend/      TypeScript frontend and static Nginx container
+Frontend/      Preact/ESM frontend, design system and static Nginx container
 contracts/     Generated OpenAPI contract and API changelog
 docs/          Shared integration documents
 ```
@@ -24,7 +24,7 @@ docs/          Shared integration documents
 
 - Docker Engine with the Compose plugin for the supported local stack
 - Python 3.12 or 3.13, PostgreSQL, and Redis only for non-Docker backend development
-- Node.js 20+ and npm for non-Docker frontend development
+- Node.js 20+ for non-Docker frontend development
 
 ## Docker: full local stack
 
@@ -131,17 +131,15 @@ Frontend:
 
 ```powershell
 cd Frontend
-npm ci
 npm run dev
 ```
 
-The frontend development default API URL is `http://localhost:8000/api/v1/`.
+The development server proxies `/api/` to `http://localhost:8000`; production uses the Nginx same-origin proxy.
 
 ## Testing and contract generation
 
 ```powershell
 cd Frontend
-npm run typecheck
 npm run lint
 npm test
 

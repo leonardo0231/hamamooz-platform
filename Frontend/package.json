@@ -1,27 +1,18 @@
 {
   "name": "hamamooz-frontend",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "Production frontend for HamAmoz school management platform",
+  "description": "RTL Preact frontend for the HamAmoz school intelligence platform",
   "scripts": {
-    "generate:api": "python scripts/generate_contract.py",
     "clean": "node scripts/clean.mjs",
-    "typecheck": "tsc --noEmit",
     "build": "node scripts/build.mjs",
-    "dev": "node scripts/dev.mjs",
+    "dev": "node scripts/serve.mjs src 5173",
     "preview": "node scripts/serve.mjs dist 4173",
     "lint": "node scripts/lint.mjs",
-    "test": "npm run build && node --test tests/*.test.mjs"
-  },
-  "devDependencies": {
-    "esbuild": "0.28.1",
-    "typescript": "5.8.3"
+    "test": "node --test tests/*.test.mjs && node scripts/build.mjs"
   },
   "engines": {
     "node": ">=20"
-  },
-  "dependencies": {
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   }
 }

@@ -1,29 +1,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
-const client = await readFile(new URL('../src/api/client.ts', import.meta.url), 'utf8');
-const store = await readFile(new URL('../src/app/store.ts', import.meta.url), 'utf8');
+async function sourceFiles(directory) {
+  return (await Promise.all((await readdir(directory, { withFileTypes: true })).map(entry => {
+    const path = resolve(directory, entry.name);
+    return entry.isDirectory() ? sourceFiles(path) : [path];
+  }))).flat();
+}
 
-test('API client centralizes required headers and shared refresh', () => {
-  assert.match(client, /let refreshPromise:/);
-  assert.match(client, /X-Request-ID/);
-  assert.match(client, /X-School-ID/);
-  assert.match(client, /X-Organization-ID/);
-  assert.match(client, /retryAuth: false/);
+test('application source has no runtime CDN or unsafe HTML injection', async () => {
+  const files = (await sourceFiles(resolve('src'))).filter(path => /\.(?:js|mjs|html)$/.test(path) && !path.includes('/vendor/'));
+  for (const path of files) {
+    const content = await readFile(path, 'utf8');
+    assert.doesNotMatch(content, /\beval\s*\(/, path);
+    assert.doesNotMatch(content, /\.innerHTML\s*=/, path);
+    assert.doesNotMatch(content, /https?:\/\/(?:unpkg|cdn\.jsdelivr|cdnjs)/, path);
+  }
 });
 
-test('session restoration refreshes before requesting the protected profile', async () => {
-  const auth = await readFile(new URL('../src/app/auth.ts', import.meta.url), 'utf8');
-  const restore = auth.slice(auth.indexOf('export async function restoreSession'), auth.indexOf('export async function ensureUser'));
-  const ensure = auth.slice(auth.indexOf('export async function ensureUser'), auth.indexOf('export async function logout'));
-  assert.ok(restore.indexOf('endpoints.auth.refresh') < restore.indexOf('endpoints.auth.me'));
-  assert.ok(ensure.indexOf('endpoints.auth.refresh') < ensure.indexOf('endpoints.auth.me'));
-  assert.match(restore, /auth:\s*false/);
-  assert.match(ensure, /auth:\s*false/);
+test('access tokens are not persisted to web storage', async () => {
+  const store = await readFile(new URL('../src/core/store.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(store, /setItem\([^\n]*accessToken/);
+  assert.match(store, /REFRESH_REMEMBERED/);
 });
 
-test('access token is not persisted in browser storage', () => {
-  assert.doesNotMatch(store, /localStorage\.setItem\([^\n]*access/i);
-  assert.doesNotMatch(store, /sessionStorage\.setItem\([^\n]*access/i);
+test('post-login navigation rejects protocol-relative return targets', async () => {
+  const login = await readFile(new URL('../src/pages/login.js', import.meta.url), 'utf8');
+  assert.match(login, /!requested\.startsWith\('\/\/'\)/);
 });
