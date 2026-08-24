@@ -1,0 +1,9 @@
+{% extends "reports/includes/report_base.html" %}
+{% block title %}کارنامه تحلیلی سالانه{% endblock %}
+{% block report_content %}
+<h2>تحلیل وزنی سال تحصیلی</h2>
+<div class="metrics"><div class="metric"><strong>وزن نوبت اول</strong><br>{{ report.term_weights.first_term }}</div><div class="metric"><strong>وزن نوبت دوم</strong><br>{{ report.term_weights.second_term }}</div><div class="metric"><strong>معدل سالانه</strong><br>{{ report.summary.average|default:"-" }}</div><div class="metric"><strong>نسخه فرمول</strong><br>{{ report.summary.formula_version }}</div></div>
+<div class="analytical-grid"><table><thead><tr><th>درس</th><th>ضریب</th><th>نوبت اول</th><th>نوبت دوم</th><th>میانگین وزنی</th><th>کامل</th></tr></thead><tbody>{% for row in report.subjects %}<tr><td>{{ row.title }}</td><td>{{ row.coefficient }}</td><td>{{ row.first_term_score|default:"-" }}</td><td>{{ row.second_term_score|default:"-" }}</td><td>{{ row.average|default:"-" }}</td><td>{% if row.complete %}بله{% else %}خیر{% endif %}</td></tr>{% endfor %}</tbody></table><div class="chart">{{ report.chart_svg|safe }}</div></div>
+<div class="metrics">{% if report.rank_visibility.class %}<div class="metric">رتبه کلاس: {{ report.summary.class_rank|default:"-" }} / {{ report.summary.class_population|default:"-" }}</div>{% endif %}{% if report.rank_visibility.grade %}<div class="metric">رتبه پایه: {{ report.summary.grade_rank|default:"-" }} / {{ report.summary.grade_population|default:"-" }}</div>{% endif %}{% if report.rank_visibility.school %}<div class="metric">رتبه مدرسه: {{ report.summary.school_rank|default:"-" }} / {{ report.summary.school_population|default:"-" }}</div>{% endif %}</div>
+{% include "reports/includes/report_analytics.html" %}
+{% endblock %}

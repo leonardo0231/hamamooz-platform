@@ -1,4 +1,6 @@
+from django.db.models import Q
 from django.http import FileResponse, Http404
+from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework.exceptions import PermissionDenied
@@ -82,10 +84,10 @@ def portal_reports(student):
     ):
         return ReportArchive.objects.none()
     return ReportArchive.objects.filter(
-        enrollment__student=student,
+        Q(enrollment__student=student) | Q(summer_registration__enrollment__student=student),
         status=ReportArchive.Status.COMPLETED,
         released_at__isnull=False,
-    ).select_related("term")
+    ).select_related("term", "academic_year", "summer_program")
 
 
 def portal_recommendations(student, audience):
@@ -98,7 +100,8 @@ def portal_recommendations(student, audience):
         enrollment__student=student,
         audience=audience,
         status=Recommendation.Status.APPROVED,
-    )
+        approved_at__isnull=False,
+    ).filter(Q(expires_at__isnull=True) | Q(expires_at__gt=timezone.now()))
 
 
 def portal_guide_plans(student):
@@ -125,7 +128,7 @@ class PortalBaseView(APIView):
                 "id": str(report.id),
                 "report_type": report.report_type,
                 "output_format": report.output_format,
-                "term": report.term.title,
+                "term": report.period_label,
                 "created_at": report.created_at,
                 "released_at": report.released_at,
             }

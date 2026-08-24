@@ -417,6 +417,117 @@ class CalculationPolicy(SoftDeleteModel):
             raise ValidationError(errors)
 
 
+class AcademicReportSettings(SoftDeleteModel):
+    school = models.ForeignKey(
+        "organizations.School",
+        on_delete=models.PROTECT,
+        related_name="academic_report_settings",
+    )
+    academic_year = models.ForeignKey(
+        "organizations.AcademicYear",
+        on_delete=models.PROTECT,
+        related_name="academic_report_settings",
+    )
+    first_term_weight = models.DecimalField(
+        max_digits=7, decimal_places=3, default=Decimal("1")
+    )
+    second_term_weight = models.DecimalField(
+        max_digits=7, decimal_places=3, default=Decimal("2")
+    )
+    show_class_rank = models.BooleanField(default=True)
+    show_grade_rank = models.BooleanField(default=True)
+    show_school_rank = models.BooleanField(default=True)
+    revision = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["school", "-academic_year__starts_on"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school", "academic_year"],
+                condition=models.Q(is_deleted=False),
+                name="uq_academic_report_settings_school_year",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(first_term_weight__gt=0),
+                name="ck_academic_report_first_weight_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(second_term_weight__gt=0),
+                name="ck_academic_report_second_weight_positive",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["school", "academic_year"],
+                name="acad_report_school_year_idx",
+            )
+        ]
+
+    @property
+    def organization_id(self):
+        return self.school.organization_id
+
+    def clean(self):
+        errors = {}
+        if (
+            self.school_id
+            and self.academic_year_id
+            and self.school.organization_id != self.academic_year.organization_id
+        ):
+            errors["academic_year"] = "سال تحصیلی متعلق به مجموعه این شعبه نیست."
+        if self.first_term_weight <= 0:
+            errors["first_term_weight"] = "وزن نوبت اول باید بزرگ‌تر از صفر باشد."
+        if self.second_term_weight <= 0:
+            errors["second_term_weight"] = "وزن نوبت دوم باید بزرگ‌تر از صفر باشد."
+        if errors:
+            raise ValidationError(errors)
+
+
+class AcademicReportSettingsRevision(TimeStampedUUIDModel):
+    report_settings = models.ForeignKey(
+        AcademicReportSettings, on_delete=models.PROTECT, related_name="history"
+    )
+    school = models.ForeignKey(
+        "organizations.School",
+        on_delete=models.PROTECT,
+        related_name="academic_report_settings_revisions",
+    )
+    academic_year = models.ForeignKey(
+        "organizations.AcademicYear",
+        on_delete=models.PROTECT,
+        related_name="academic_report_settings_revisions",
+    )
+    revision = models.PositiveIntegerField()
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="academic_report_settings_revisions",
+    )
+    reason = models.TextField()
+    before = models.JSONField(default=dict)
+    after = models.JSONField(default=dict)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["report_settings", "revision"],
+                name="uq_academic_report_settings_revision",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["report_settings", "-created_at"],
+                name="acad_report_revision_time_idx",
+            )
+        ]
+
+    @property
+    def organization_id(self):
+        return self.school.organization_id
+
+
 class SubjectResult(TimeStampedUUIDModel):
     enrollment = models.ForeignKey(
         "students.Enrollment", on_delete=models.PROTECT, related_name="subject_results"
@@ -446,6 +557,11 @@ class TermResult(TimeStampedUUIDModel):
     )
     average = models.DecimalField(max_digits=7, decimal_places=4, null=True, blank=True)
     class_rank = models.PositiveIntegerField(null=True, blank=True)
+    grade_rank = models.PositiveIntegerField(null=True, blank=True)
+    school_rank = models.PositiveIntegerField(null=True, blank=True)
+    class_population = models.PositiveIntegerField(null=True, blank=True)
+    grade_population = models.PositiveIntegerField(null=True, blank=True)
+    school_population = models.PositiveIntegerField(null=True, blank=True)
     passed = models.BooleanField(default=False)
     formula_version = models.CharField(max_length=30)
     calculated_at = models.DateTimeField(auto_now=True)
@@ -457,3 +573,75 @@ class TermResult(TimeStampedUUIDModel):
             )
         ]
         indexes = [models.Index(fields=["term", "average"])]
+
+
+class AnnualResult(TimeStampedUUIDModel):
+    enrollment = models.OneToOneField(
+        "students.Enrollment", on_delete=models.PROTECT, related_name="annual_result"
+    )
+    average = models.DecimalField(max_digits=7, decimal_places=4, null=True, blank=True)
+    class_rank = models.PositiveIntegerField(null=True, blank=True)
+    grade_rank = models.PositiveIntegerField(null=True, blank=True)
+    school_rank = models.PositiveIntegerField(null=True, blank=True)
+    class_population = models.PositiveIntegerField(null=True, blank=True)
+    grade_population = models.PositiveIntegerField(null=True, blank=True)
+    school_population = models.PositiveIntegerField(null=True, blank=True)
+    complete = models.BooleanField(default=False)
+    passed = models.BooleanField(default=False)
+    formula_version = models.CharField(max_length=30)
+    calculated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["enrollment__student__last_name", "enrollment__student__first_name"]
+        indexes = [models.Index(fields=["average"], name="acad_annual_average_idx")]
+
+    @property
+    def school_id(self):
+        return self.enrollment.school_id
+
+    @property
+    def organization_id(self):
+        return self.enrollment.student.organization_id
+
+
+class AnnualSubjectResult(TimeStampedUUIDModel):
+    annual_result = models.ForeignKey(
+        AnnualResult, on_delete=models.PROTECT, related_name="subject_results"
+    )
+    enrollment = models.ForeignKey(
+        "students.Enrollment", on_delete=models.PROTECT, related_name="annual_subject_results"
+    )
+    grade_subject = models.ForeignKey(
+        GradeSubject, on_delete=models.PROTECT, related_name="annual_subject_results"
+    )
+    average = models.DecimalField(max_digits=7, decimal_places=4, null=True, blank=True)
+    complete = models.BooleanField(default=False)
+    passed = models.BooleanField(default=False)
+    formula_version = models.CharField(max_length=30)
+    calculated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["grade_subject__subject__title"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["enrollment", "grade_subject"],
+                name="uq_annual_subject_result_enrollment_subject",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["annual_result", "grade_subject"],
+                name="acad_annual_subject_idx",
+            )
+        ]
+
+    def clean(self):
+        errors = {}
+        if self.annual_result_id and self.enrollment_id:
+            if self.annual_result.enrollment_id != self.enrollment_id:
+                errors["annual_result"] = "نتیجه سالانه متعلق به این ثبت‌نام نیست."
+        if self.enrollment_id and self.grade_subject_id:
+            if self.enrollment.grade_level_id != self.grade_subject.grade_level_id:
+                errors["grade_subject"] = "درس متعلق به پایه ثبت‌نام نیست."
+        if errors:
+            raise ValidationError(errors)

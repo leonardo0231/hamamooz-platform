@@ -6,6 +6,11 @@
 
 ### Added
 
+- `GET/POST /api/v1/academic-report-settings/` و `PATCH /api/v1/academic-report-settings/{id}/` برای وزن اعشاری نوبت‌ها، سه کلید مستقل نمایش رتبه و تاریخچه تغییر سیاست در سطح مدرسه/سال.
+- `GET /api/v1/annual-results/` و `POST /api/v1/annual-results/recalculate/` برای نتایج سالانه وزنی، رتبه dense کلاس/پایه/مدرسه و جمعیت هر cohort.
+- منابع مستقل تابستان در `/api/v1/summer-programs/`، `/summer-courses/`، `/summer-registrations/`، `/summer-course-registrations/`، `/summer-exams/` و `/summer-subject-scores/`؛ نهایی‌سازی آزمون از `POST /api/v1/summer-exams/{id}/finalize/` انجام می‌شود.
+- هفت `layout_key` مستقل کارنامه در گزارش‌ها: `analytical_term_1`، `analytical_term_2`، `analytical_annual`، `final_term_1`، `final_term_2`، `final_annual` و `summer_report`.
+- فیلدهای مشتق‌شده بازه، fingerprint منبع، شماره رهگیری و نسخه برای گردش پیش‌نویس/تأیید انسانی/صدور بایگانی‌شده.
 - نوع Import جدید `comprehensive_school` برای ورود اتمیک کلاس‌ها، دانش‌آموزان، ثبت‌نام‌ها و ارزیابی‌های ۷۴ شاخصی از یک فایل XLSX
 - فیلد `result_summary` در پاسخ Import و خطاهای مکان‌دار شامل شیت، ردیف، ستون و کد پایدار خطا
 - قالب هوشمند نسخه ۲ ارزیابی ماهانه با متادیتای پایدار مدرسه، کلاس، ثبت‌نام و شاخص‌ها
@@ -22,6 +27,8 @@
 
 ### Changed
 
+- نوبت گزارش برای کارنامه‌های سالانه و تابستانی nullable است؛ مسیرهای قدیمی نوبت اول/دوم همچنان سازگار باقی می‌مانند و پورتال خانواده از `period_label` امن استفاده می‌کند.
+- متن‌های قابل جایگزینی گزارش به فیلدهای توضیحی مجاز محدود شده‌اند و شناسه، هویت، نمره، معدل، رتبه و سیاست‌های آموزشی از مسیر گزارش قابل تغییر نیستند.
 - ورود گروهی جدید از API عمومی فقط با `import_type=comprehensive_school` و فایل رسمی XLSX انجام می‌شود؛ انواع قدیمی فقط برای سابقه Jobهای قبلی حفظ شده‌اند.
 - Endpoint قالب Import عمومی فقط `comprehensive_school` را ارائه می‌کند.
 - اعتبارسنجی فایل جامع کد ملی را دقیقاً ۱۰ رقم بررسی می‌کند و دیگر مقدار کوتاه را با صفرگذاری خودکار اصلاح نمی‌کند.

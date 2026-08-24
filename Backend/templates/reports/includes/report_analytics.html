@@ -1,0 +1,27 @@
+<h2>ارزیابی رشد و همراهی خانواده</h2>
+{% if report.evaluation_radar_svg %}
+<div class="analytical-grid">
+  <div class="chart">
+    {{ report.evaluation_radar_svg|safe }}
+    <div>نسخه چارچوب: {{ report.evaluation_framework_version }}</div>
+  </div>
+  <div>
+    <div class="note"><strong>نقاط قوت:</strong> {% for item in report.strengths %}{{ item.metric_code }} ({{ item.value }}){% if not forloop.last %}، {% endif %}{% empty %}داده کافی نیست.{% endfor %}</div>
+    <div class="note"><strong>زمینه‌های قابل بهبود:</strong> {% for item in report.weaknesses %}{{ item.metric_code }} ({{ item.value }}){% if not forloop.last %}، {% endif %}{% empty %}داده کافی نیست.{% endfor %}</div>
+    <div class="note"><strong>روند:</strong> {% if report.evaluation_trend %}{{ report.evaluation_trend.label }} ({{ report.evaluation_trend.delta }}){% else %}برای محاسبه روند، ارزیابی هم‌چارچوب کافی نیست.{% endif %}</div>
+  </div>
+</div>
+{% else %}
+<div class="note">برای نمایش نمودار راداری، حداقل سه شاخص معتبر در یک ارزیابی لازم است.</div>
+{% endif %}
+<div class="metrics">
+  <div class="metric"><strong>جلسات نهایی حضور</strong><br>{{ report.product_context.attendance.finalized_session_count }}</div>
+  <div class="metric"><strong>غیبت غیرموجه</strong><br>{{ report.product_context.attendance.unexcused_absence_count }}</div>
+  <div class="metric"><strong>فعالیت‌های ثبت‌شده</strong><br>{{ report.product_context.activities|length }}</div>
+  <div class="metric"><strong>ارزیابی‌های ماهانه</strong><br>{{ report.product_context.evaluations|length }}</div>
+</div>
+<div class="note"><strong>توصیه‌های تأییدشده خانواده:</strong>
+  {% for recommendation in report.product_context.approved_recommendations %}
+    {{ recommendation.approved_text }}{% if not forloop.last %} — {% endif %}
+  {% empty %}توصیه جاری و تأییدشده‌ای برای نمایش وجود ندارد.{% endfor %}
+</div>

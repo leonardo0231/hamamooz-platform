@@ -1,0 +1,7 @@
+{% extends "reports/includes/report_base.html" %}
+{% block title %}کارنامه نهایی نوبت دوم{% endblock %}
+{% block report_content %}
+<h2>نتایج قطعی نوبت دوم</h2>
+<table><thead><tr><th>ردیف</th><th>عنوان درس</th><th>ضریب</th><th>مستمر</th><th>پایانی</th><th>نمره نوبت دوم</th><th>نتیجه</th></tr></thead><tbody>{% for row in report.subjects %}<tr><td>{{ forloop.counter }}</td><td>{{ row.title }}</td><td>{{ row.coefficient }}</td><td>{{ row.continuous|default:"-" }}</td><td>{{ row.final|default:"-" }}</td><td>{{ row.average|default:"-" }}</td><td>{% if row.passed %}قبول{% else %}نیازمند بررسی{% endif %}</td></tr>{% endfor %}</tbody></table>
+<div class="metrics"><div class="metric"><strong>معدل</strong><br>{{ report.summary.average|default:"-" }}</div>{% if report.rank_visibility.class %}<div class="metric"><strong>رتبه کلاس</strong><br>{{ report.summary.class_rank|default:"-" }} از {{ report.summary.class_population|default:"-" }}</div>{% endif %}{% if report.rank_visibility.grade %}<div class="metric"><strong>رتبه پایه</strong><br>{{ report.summary.grade_rank|default:"-" }} از {{ report.summary.grade_population|default:"-" }}</div>{% endif %}{% if report.rank_visibility.school %}<div class="metric"><strong>رتبه مدرسه</strong><br>{{ report.summary.school_rank|default:"-" }} از {{ report.summary.school_population|default:"-" }}</div>{% endif %}</div>
+{% endblock %}

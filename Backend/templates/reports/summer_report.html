@@ -1,0 +1,7 @@
+{% extends "reports/includes/report_base.html" %}
+{% block title %}کارنامه دوره تابستان{% endblock %}
+{% block report_content %}
+<h2>نتایج مستقیم آزمون جامع تابستان</h2>
+<table><thead><tr><th>ردیف</th><th>درس</th><th>نمره آزمون جامع</th>{% if report.show_status %}<th>وضعیت</th>{% endif %}</tr></thead><tbody>{% for row in report.subjects %}<tr><td>{{ forloop.counter }}</td><td>{{ row.title }}</td><td>{{ row.average|default:"-" }}</td>{% if report.show_status %}<td>{% if row.passed %}قبول{% else %}مردود{% endif %}</td>{% endif %}</tr>{% endfor %}</tbody></table>
+<div class="metrics"><div class="metric"><strong>میانگین تابستان</strong><br>{{ report.summary.average|default:"-" }}</div>{% if report.show_status %}<div class="metric"><strong>حد نصاب</strong><br>{{ report.pass_threshold }}</div><div class="metric"><strong>نتیجه</strong><br>{{ report.summary.status_label }}</div>{% endif %}<div class="metric"><strong>شیوه ثبت</strong><br>نمره مستقیم آزمون جامع</div></div>
+{% endblock %}

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}کارنامه رسمی هم‌آموز{% endblock %}</title>
+  <style>
+    @font-face { font-family: "Estedad"; src: url("static/fonts/Estedad.woff2"); font-weight: 100 900; }
+    @font-face { font-family: "Vazirmatn"; src: url("static/fonts/Vazirmatn.woff2"); font-weight: 100 900; }
+    @page { size: {{ page_size }}; margin: 12mm; @bottom-center { content: "صفحه " counter(page) " از " counter(pages); color: #64748b; font-size: 8px; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #102a43; background: #fff; font: 10px "Estedad", "Vazirmatn", "DejaVu Sans", sans-serif; }
+    .report { position: relative; min-height: 270mm; border-top: 4px solid #102f50; padding-top: 5mm; }
+    .report:not(:last-child) { break-after: page; }
+    .official-header { display: grid; grid-template-columns: 68px 1fr 180px; align-items: center; gap: 10px; border: 1px solid #b58a32; border-radius: 9px; padding: 8px 12px; background: #fbf8ef; }
+    .logo { width: 56px; height: 56px; object-fit: contain; }
+    h1, h2, h3 { margin: 0; color: #102f50; }
+    h1 { font-size: 18px; text-align: center; }
+    h2 { margin-top: 10px; font-size: 13px; border-right: 4px solid #b58a32; padding-right: 7px; }
+    .school-name { margin-top: 3px; text-align: center; }
+    .tracking { direction: rtl; font-size: 8px; line-height: 1.9; }
+    .identity { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px 10px; margin: 8px 0; padding: 7px; border-radius: 7px; background: #edf3f8; }
+    .identity strong, .metric strong { color: #102f50; }
+    table { width: 100%; border-collapse: collapse; margin-top: 7px; }
+    th, td { border: 1px solid #9aa9b7; padding: 5px 4px; text-align: center; }
+    th { background: #102f50; color: white; }
+    tbody tr:nth-child(even) { background: #f6f8fa; }
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; }
+    .metric { border: 1px solid #d5b66f; border-radius: 6px; padding: 6px; text-align: center; }
+    .chart { margin-top: 8px; border: 1px solid #d8e1e8; border-radius: 7px; padding: 5px; }
+    .chart svg { display: block; width: 100%; max-height: 115mm; }
+    .note { margin-top: 8px; padding: 7px; border-right: 4px solid #b58a32; background: #fffaf0; }
+    .warning { padding: 5px 7px; margin: 5px 0; color: #8a3b12; background: #fff3e8; border-radius: 5px; }
+    .signatures { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 24px; text-align: center; }
+    .signature-space { height: 36px; }
+    .official-footer { position: absolute; right: 0; left: 0; bottom: 0; display: flex; justify-content: space-between; border-top: 1px solid #d5b66f; padding-top: 4px; color: #536777; font-size: 8px; }
+    .fail { color: #a32626; font-weight: 700; }
+    .empty { color: #8898a6; }
+    .analytical-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(250px, 2fr); gap: 10px; align-items: start; }
+  </style>
+  {% block extra_style %}{% endblock %}
+</head>
+<body data-layout="{{ layout_key }}">
+{% for report in reports %}
+<section class="report" data-layout="{{ layout_key }}">
+  {% include "reports/includes/report_identity.html" %}
+  {% for warning in warnings %}<div class="warning">{{ warning }}</div>{% endfor %}
+  {% block report_content %}{% endblock %}
+  {% if overrides.manager_comment %}<div class="note"><strong>نظر مدیر:</strong> {{ overrides.manager_comment }}</div>{% endif %}
+  {% if overrides.family_recommendations %}<div class="note"><strong>پیشنهاد به خانواده:</strong> {{ overrides.family_recommendations }}</div>{% endif %}
+  {% if overrides.supplemental_text %}<div class="note">{{ overrides.supplemental_text }}</div>{% endif %}
+  {% include "reports/includes/report_signatures.html" %}
+  <footer class="official-footer">
+    <span>{{ report.school.address }}{% if report.school.phone %} — {{ report.school.phone }}{% endif %}</span>
+    <span>{% if overrides.footer_text %}{{ overrides.footer_text }}{% else %}اعتبارسنجی با کد رهگیری سامانه هم‌آموز{% endif %}</span>
+  </footer>
+</section>
+{% endfor %}
+</body>
+</html>

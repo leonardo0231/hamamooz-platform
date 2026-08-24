@@ -2,6 +2,8 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from hamamooz.apps.academics.views import (
+    AcademicReportSettingsViewSet,
+    AnnualResultViewSet,
     AssessmentTypeViewSet,
     AssessmentViewSet,
     CalculationPolicyViewSet,
@@ -89,6 +91,14 @@ from hamamooz.apps.reports.views import (
     ReportTemplateViewSet,
 )
 from hamamooz.apps.students.views import EnrollmentViewSet, GuardianViewSet, StudentViewSet
+from hamamooz.apps.summers.views import (
+    SummerComprehensiveExamViewSet,
+    SummerCourseRegistrationViewSet,
+    SummerCourseViewSet,
+    SummerProgramViewSet,
+    SummerRegistrationViewSet,
+    SummerSubjectScoreViewSet,
+)
 
 router = DefaultRouter()
 router.register("organizations", OrganizationViewSet, basename="organization")
@@ -109,6 +119,20 @@ router.register("assessment-types", AssessmentTypeViewSet, basename="assessment-
 router.register("assessments", AssessmentViewSet, basename="assessment")
 router.register("scores", ScoreViewSet, basename="score")
 router.register("calculation-policies", CalculationPolicyViewSet, basename="calculation-policy")
+router.register(
+    "academic-report-settings", AcademicReportSettingsViewSet, basename="academic-report-settings"
+)
+router.register("annual-results", AnnualResultViewSet, basename="annual-result")
+router.register("summer-programs", SummerProgramViewSet, basename="summer-program")
+router.register("summer-courses", SummerCourseViewSet, basename="summer-course")
+router.register("summer-registrations", SummerRegistrationViewSet, basename="summer-registration")
+router.register(
+    "summer-course-registrations",
+    SummerCourseRegistrationViewSet,
+    basename="summer-course-registration",
+)
+router.register("summer-exams", SummerComprehensiveExamViewSet, basename="summer-exam")
+router.register("summer-subject-scores", SummerSubjectScoreViewSet, basename="summer-subject-score")
 router.register("attendance-sessions", AttendanceSessionViewSet, basename="attendance-session")
 router.register("attendance-records", AttendanceRecordViewSet, basename="attendance-record")
 router.register("attendance-policies", AttendancePolicyViewSet, basename="attendance-policy")

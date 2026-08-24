@@ -24,6 +24,10 @@ The root integration smoke starts the production-like Compose topology in an iso
 | `Frontend/src/components/` | Shell, charts and accessible UI primitives | Domain persistence | component modules |
 | Django views/serializers | HTTP/API validation and representation | Browser rendering | `Backend/hamamooz/apps/*/views.py` |
 | Django services | Domain workflows | Transport-specific UI | `Backend/hamamooz/apps/imports/services.py` |
+| `academics` report policy | Per-school/year positive Decimal term weights, coefficient-aware annual results and dense class/grade/school cohorts | Summer examination lifecycle or presentation templates | `Backend/hamamooz/apps/academics/services.py` |
+| `summers` | Independent summer programs, course registration, one comprehensive examination and direct per-subject scores | Regular academic terms, question banks, answer sheets or summer attendance | `Backend/hamamooz/apps/summers/models.py` |
+| `reports` | Seven RTL layouts, source fingerprints, human approval and immutable versioned PDF/DOCX archives | Editing identity, authoritative scores, annual policy or counseling evidence | `Backend/hamamooz/apps/reports/services.py` |
+| Report management UI | Live school-scoped report, policy and summer workflows through the shared API adapter | Bypassing backend role checks or manufacturing snapshot data | `Frontend/src/pages/reports.js` |
 | Celery pipeline | Async import processing | Synchronous page state | `Backend/hamamooz/apps/imports/pipeline.py` |
 
 ## Reused Patterns
@@ -39,6 +43,7 @@ The root integration smoke starts the production-like Compose topology in an iso
 
 - OpenAPI generation emits one enum-name collision warning; its naming needs an explicit override if stable generated naming becomes required.
 - Runtime response validation is intentionally lightweight; contract-change CI should add schema-backed adapter tests for changed endpoints.
+- The committed OpenAPI contract must be regenerated from the running Django application after any report-card API addition; hand-editing generated YAML is prohibited by `contracts/README.md`.
 
 ## Evidence
 

@@ -1,8 +1,11 @@
+from copy import deepcopy
+
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.http import FileResponse
 from django.utils import timezone
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
@@ -22,7 +25,13 @@ from .serializers import (
     ReportPreviewSerializer,
     ReportTemplateSerializer,
 )
-from .services import build_report_snapshot, render_report_draft, render_report_html
+from .services import (
+    approve_report_draft,
+    build_report_snapshot,
+    render_report_draft,
+    render_report_html,
+    revalidate_report_draft,
+)
 from .tasks import generate_report_task
 
 REPORTERS = [
@@ -55,10 +64,13 @@ class ReportArchiveViewSet(AuditedModelViewSet):
         "school",
         "academic_year",
         "term",
+        "layout_key",
         "report_type",
         "status",
         "enrollment",
         "class_section",
+        "summer_program",
+        "summer_registration",
     ]
     required_roles_by_action = {
         "create": REPORTERS,
@@ -70,7 +82,9 @@ class ReportArchiveViewSet(AuditedModelViewSet):
         school_ids = selected_school_ids(self.request)
         class_ids = allowed_class_ids(self.request.user, school_ids)
         queryset = ReportArchive.objects.filter(school_id__in=school_ids).filter(
-            Q(class_section_id__in=class_ids) | Q(enrollment__class_section_id__in=class_ids)
+            Q(class_section_id__in=class_ids)
+            | Q(enrollment__class_section_id__in=class_ids)
+            | Q(summer_registration__enrollment__class_section_id__in=class_ids)
         )
         return queryset.select_related(
             "school",
@@ -78,6 +92,9 @@ class ReportArchiveViewSet(AuditedModelViewSet):
             "term",
             "enrollment__student",
             "class_section",
+            "summer_program",
+            "summer_registration__enrollment__student",
+            "summer_exam",
             "requested_by",
         ).distinct()
 
@@ -134,6 +151,32 @@ class ReportArchiveViewSet(AuditedModelViewSet):
             content_type=content_type,
         )
 
+    @action(detail=True, methods=["get"], url_path="download-docx")
+    def download_docx(self, request, pk=None):
+        report = self.get_object()
+        if report.status != ReportArchive.Status.COMPLETED or not report.editable_output_file:
+            return Response({"detail": "نسخه قابل ویرایش هنوز آماده نیست."}, status=409)
+        record_audit(
+            action="report.editable_downloaded",
+            actor=request.user,
+            request=request,
+            entity=report,
+            organization_id=report.organization_id,
+            school_id=report.school_id,
+        )
+        report.editable_output_file.open("rb")
+        return FileResponse(
+            report.editable_output_file,
+            as_attachment=True,
+            filename=(
+                f"{_safe_filename_part(report.school.name)}-"
+                f"{_safe_filename_part(report.period_label)}-editable.docx"
+            ),
+            content_type=(
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            ),
+        )
+
     @action(detail=True, methods=["post"])
     def release(self, request, pk=None):
         report = self.get_object()
@@ -173,12 +216,34 @@ class ReportTemplateViewSet(AuditedModelViewSet):
             organization_id__in=accessible_organization_ids(self.request.user)
         ).filter(Q(school__isnull=True) | Q(school_id__in=school_ids))
 
+    def perform_destroy(self, instance):
+        if instance.school_id is None:
+            from hamamooz.apps.accounts.access import administered_organization_ids
+
+            if instance.organization_id not in set(
+                administered_organization_ids(self.request.user)
+            ):
+                raise PermissionDenied(
+                    "Only an organization administrator may delete a shared template."
+                )
+        return super().perform_destroy(instance)
+
 
 class ReportDraftViewSet(AuditedModelViewSet):
     queryset = ReportDraft.objects.none()
     serializer_class = ReportDraftSerializer
     http_method_names = ["get", "post", "patch", "head", "options"]
-    filterset_fields = ["school", "academic_year", "term", "enrollment", "class_section", "status"]
+    filterset_fields = [
+        "school",
+        "academic_year",
+        "term",
+        "layout_key",
+        "enrollment",
+        "class_section",
+        "summer_program",
+        "summer_registration",
+        "status",
+    ]
     ordering_fields = ["created_at", "reviewed_at"]
     required_roles_by_action = {
         "create": REPORTERS,
@@ -195,9 +260,19 @@ class ReportDraftViewSet(AuditedModelViewSet):
         return (
             ReportDraft.objects.filter(school_id__in=school_ids)
             .filter(
-                Q(enrollment__class_section_id__in=class_ids) | Q(class_section_id__in=class_ids)
+                Q(enrollment__class_section_id__in=class_ids)
+                | Q(class_section_id__in=class_ids)
+                | Q(summer_registration__enrollment__class_section_id__in=class_ids)
             )
-            .select_related("template", "enrollment__student", "class_section", "archive")
+            .select_related(
+                "template",
+                "enrollment__student",
+                "class_section",
+                "summer_program",
+                "summer_registration__enrollment__student",
+                "summer_exam",
+                "archive",
+            )
         )
 
     def get_serializer_class(self):
@@ -208,16 +283,18 @@ class ReportDraftViewSet(AuditedModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = ReportDraftCreateSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
-        draft = serializer.save()
-        record_audit(
-            action="report.draft_created",
-            actor=request.user,
-            request=request,
-            entity=draft,
-            organization_id=draft.organization_id,
-            school_id=draft.school_id,
-            metadata={"template": draft.template.code, "snapshot_version": "full_product_v1"},
-        )
+        with transaction.atomic():
+            draft = serializer.save()
+            self.check_object_permissions(request, draft)
+            record_audit(
+                action="report.draft_created",
+                actor=request.user,
+                request=request,
+                entity=draft,
+                organization_id=draft.organization_id,
+                school_id=draft.school_id,
+                metadata={"template": draft.template.code, "snapshot_version": "report-card-v2"},
+            )
         return Response(ReportDraftSerializer(draft).data, status=status.HTTP_201_CREATED)
 
     def partial_update(self, request, *args, **kwargs):
@@ -239,11 +316,31 @@ class ReportDraftViewSet(AuditedModelViewSet):
         )
         return Response(ReportDraftSerializer(draft).data)
 
+    @action(detail=True, methods=["get"])
+    def preview(self, request, pk=None):
+        """Render the tenant-scoped draft without bypassing official approval checks."""
+        draft = self.get_object()
+        snapshot = deepcopy(draft.snapshot)
+        if draft.status in {ReportDraft.Status.DRAFT, ReportDraft.Status.SUBMITTED}:
+            snapshot["content_overrides"] = dict(draft.content_overrides)
+        return Response(
+            {
+                "html": render_report_html(snapshot, preview=True),
+                "snapshot": snapshot,
+                "warnings": snapshot.get("warnings", []),
+            }
+        )
+
     @action(detail=True, methods=["post"])
     def submit(self, request, pk=None):
         draft = self.get_object()
         if draft.status != ReportDraft.Status.DRAFT:
             return Response({"detail": "Only a draft report may be submitted."}, status=409)
+        try:
+            revalidate_report_draft(draft, require_ready=True)
+        except (ValueError, serializers.ValidationError, DjangoValidationError) as exc:
+            detail = getattr(exc, "detail", str(exc))
+            return Response({"detail": detail}, status=409)
         draft.status = ReportDraft.Status.SUBMITTED
         draft.save(update_fields=["status", "updated_at"])
         record_audit(
@@ -261,14 +358,11 @@ class ReportDraftViewSet(AuditedModelViewSet):
         draft = self.get_object()
         if draft.status != ReportDraft.Status.SUBMITTED:
             return Response({"detail": "Only a submitted report may be approved."}, status=409)
-        draft.status = ReportDraft.Status.APPROVED
-        draft.reviewed_by = request.user
-        draft.reviewed_at = timezone.now()
-        draft.rejection_reason = ""
-        draft.full_clean(exclude=["id"])
-        draft.save(
-            update_fields=["status", "reviewed_by", "reviewed_at", "rejection_reason", "updated_at"]
-        )
+        try:
+            draft = approve_report_draft(draft.id, actor=request.user)
+        except (ValueError, serializers.ValidationError, DjangoValidationError) as exc:
+            detail = getattr(exc, "detail", str(exc))
+            return Response({"detail": detail}, status=409)
         record_audit(
             action="report.draft_approved",
             actor=request.user,
@@ -312,8 +406,9 @@ class ReportDraftViewSet(AuditedModelViewSet):
             return Response({"detail": "Only an approved report may be rendered."}, status=409)
         try:
             rendered = render_report_draft(draft.id)
-        except ValueError as exc:
-            return Response({"detail": str(exc)}, status=409)
+        except (ValueError, serializers.ValidationError, DjangoValidationError) as exc:
+            detail = getattr(exc, "detail", str(exc))
+            return Response({"detail": detail}, status=409)
         record_audit(
             action="report.draft_rendered",
             actor=request.user,

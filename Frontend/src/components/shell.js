@@ -1,6 +1,6 @@
 import { html, useEffect, useState } from '../core/view.js';
 import { navigate } from '../core/router.js';
-import { activeRoles, roleLabels, store, useStore } from '../core/store.js';
+import { activeRoles, hasRole, roleLabels, store, useStore } from '../core/store.js';
 import { logout } from '../core/api.js';
 import { Avatar, SearchField } from './ui.js';
 import { Icon } from './icons.js';
@@ -17,9 +17,10 @@ function Link({ href, children, className = '', onClick, ...props }) {
 }
 
 function Sidebar({ routeId, open, close }) {
+  const navigation = primaryNavigation.filter(([id]) => id !== 'settings' || hasRole(['organization_admin', 'school_manager', 'educational_deputy']));
   return html`<aside class=${`sidebar ${open ? 'sidebar--open' : ''}`} aria-label="ناوبری اصلی">
     <div class="sidebar__brand"><span class="sidebar__logo"><${Icon} name="graduation" size=${27} /></span><div><strong>سامانه هوشمند مدرسه</strong><small>مدیریت هوشمند، آینده‌ای روشن</small></div><button class="icon-button sidebar__close" onClick=${close} aria-label="بستن منو"><${Icon} name="close" /></button></div>
-    <nav class="sidebar__nav">${primaryNavigation.map(([id, href, label, icon, badge]) => html`<${Link} key=${id} href=${href} onClick=${close} className=${`sidebar__link ${routeId === id ? 'is-active' : ''}`} aria-current=${routeId === id ? 'page' : undefined}><${Icon} name=${icon} size=${22} /><span>${label}</span>${badge && html`<b>${badge}</b>`}</${Link}>`)}</nav>
+    <nav class="sidebar__nav">${navigation.map(([id, href, label, icon, badge]) => html`<${Link} key=${id} href=${href} onClick=${close} className=${`sidebar__link ${routeId === id ? 'is-active' : ''}`} aria-current=${routeId === id ? 'page' : undefined}><${Icon} name=${icon} size=${22} /><span>${label}</span>${badge && html`<b>${badge}</b>`}</${Link}>`)}</nav>
     <div class="sidebar__footer"><button onClick=${() => navigate('/profile')}><${Avatar} name="مریم نادری" size="sm"/><span><small>نقش فعال</small><strong>${roleLabels[activeRoles()[0]] ?? 'مدیر مدرسه'}</strong></span><${Icon} name="chevron" size=${16}/></button></div>
   </aside>`;
 }

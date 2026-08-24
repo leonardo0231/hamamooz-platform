@@ -3,9 +3,78 @@ from django.db.models import Q
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
+from hamamooz.apps.core.services import record_audit
 from hamamooz.apps.students.models import Enrollment
 
-from .models import Assessment, Score, ScoreRevision
+from .models import (
+    AcademicReportSettings,
+    AcademicReportSettingsRevision,
+    Assessment,
+    Score,
+    ScoreRevision,
+)
+
+
+REPORT_SETTINGS_FIELDS = (
+    "first_term_weight",
+    "second_term_weight",
+    "show_class_rank",
+    "show_grade_rank",
+    "show_school_rank",
+)
+
+
+def academic_report_settings_snapshot(settings):
+    return {
+        "first_term_weight": f"{settings.first_term_weight:.3f}",
+        "second_term_weight": f"{settings.second_term_weight:.3f}",
+        "show_class_rank": settings.show_class_rank,
+        "show_grade_rank": settings.show_grade_rank,
+        "show_school_rank": settings.show_school_rank,
+    }
+
+
+@transaction.atomic
+def revise_academic_report_settings(*, settings, changes, reason, actor, request=None):
+    if len(reason.strip()) < 5:
+        raise ValidationError({"reason": "دلیل تغییر باید حداقل ۵ نویسه باشد."})
+    locked = (
+        AcademicReportSettings.objects.select_for_update(of=("self",))
+        .select_related("school__organization", "academic_year")
+        .get(pk=settings.pk)
+    )
+    before = academic_report_settings_snapshot(locked)
+    changed_fields = []
+    for field in REPORT_SETTINGS_FIELDS:
+        if field in changes and changes[field] != getattr(locked, field):
+            setattr(locked, field, changes[field])
+            changed_fields.append(field)
+    if not changed_fields:
+        raise ValidationError({"detail": "هیچ تغییری در تنظیمات گزارش ایجاد نشده است."})
+    locked.revision += 1
+    locked.full_clean(exclude=["id"])
+    locked.save(update_fields=[*changed_fields, "revision", "updated_at"])
+    after = academic_report_settings_snapshot(locked)
+    AcademicReportSettingsRevision.objects.create(
+        report_settings=locked,
+        school=locked.school,
+        academic_year=locked.academic_year,
+        revision=locked.revision,
+        changed_by=actor,
+        reason=reason.strip(),
+        before=before,
+        after=after,
+    )
+    record_audit(
+        action="academic_report_settings.updated",
+        actor=actor,
+        request=request,
+        entity=locked,
+        organization_id=locked.organization_id,
+        school_id=locked.school_id,
+        changes={"before": before, "after": after, "changed_fields": changed_fields},
+    )
+    return locked
 
 
 def _lock_assessment(assessment):

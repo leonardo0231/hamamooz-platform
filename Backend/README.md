@@ -12,6 +12,11 @@
 - گردش `draft -> submitted -> approved -> locked` و مسیر رد برای اصلاح
 - تاریخچه اصلاح نمره و اصلاح کنترل‌شده نمره قفل‌شده همراه دلیل
 - محاسبه نمره نرمال‌شده، معدل درس، معدل نوبت، قبولی و رتبه Dense کلاس
+- محاسبه سالانه Decimal با وزن قابل‌تغییر نوبت‌ها، ضریب درس و رتبه مستقل کلاس، پایه و مدرسه
+- تاریخچه تغییر وزن‌ها و تنظیم جداگانه نمایش هر رتبه در سطح مدرسه و سال تحصیلی
+- دوره مستقل تابستان، ثبت درس و نمره مستقیم آزمون جامع و حد نصاب قبولی nullable
+- هفت قالب مستقل RTL کارنامه تحلیلی A3، نهایی A4 و تابستان A4 با تأیید انسانی
+- Snapshot تغییرناپذیر و fingerprint، شماره رهگیری و نسخه، PDF رسمی و Word قابل ویرایش
 - سیاست محاسبات نسخه‌دار در سطح مجموعه، سال و پایه
 - Import اتمیک XLSX برای دانش‌آموز، ثبت‌نام و نمره
 - کارنامه A4 فارسی، پیش‌نمایش و آرشیو Snapshot/PDF
@@ -91,6 +96,16 @@ python manage.py check
 python manage.py makemigrations --check --dry-run
 pytest --cov=hamamooz --cov-report=term-missing
 ./scripts/generate_openapi.sh ../contracts/openapi.yaml
+```
+
+برای بازبینی هدفمند کارنامه‌ها و پورتال خانواده:
+
+```bash
+pytest -q \
+  tests/test_annual_report_cards.py \
+  tests/test_summer_program.py \
+  tests/test_report_cards_complete.py \
+  tests/test_portal.py
 ```
 
 تست‌های `select_for_update` و سناریوهای رقابت هم‌زمان باید روی PostgreSQL اجرا شوند. اجرای SQLite برای اثبات رفتار locking معتبر نیست.

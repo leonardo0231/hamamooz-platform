@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import pytest
 from django.utils import timezone
 
@@ -5,6 +7,7 @@ from hamamooz.apps.accounts.models import Role, RoleAssignment, User
 from hamamooz.apps.recommendations.models import Recommendation
 from hamamooz.apps.reports.models import ReportArchive
 from hamamooz.apps.students.models import Guardian, GuardianAccount, StudentAccount, StudentGuardian
+from hamamooz.apps.summers.models import SummerProgram, SummerRegistration
 
 
 @pytest.mark.django_db
@@ -121,6 +124,80 @@ def test_parent_portal_exposes_only_released_reports_and_approved_parent_recomme
             "approved_at": recommendations.data["recommendations"][0]["approved_at"],
         }
     ]
+
+
+@pytest.mark.django_db
+def test_parent_portal_exposes_released_summer_report_without_an_ordinary_term(
+    api_client, base_data
+):
+    parent = guardian_portal_user(base_data)
+    enrollment = base_data["enrollments"][0]
+    program = SummerProgram.objects.create(
+        school=base_data["school1"],
+        academic_year=base_data["year"],
+        title="تابستان دانش‌آموز",
+    )
+    registration = SummerRegistration.objects.create(program=program, enrollment=enrollment)
+    archive = ReportArchive.objects.create(
+        organization=base_data["organization"],
+        school=base_data["school1"],
+        academic_year=base_data["year"],
+        term=None,
+        report_type=ReportArchive.ReportType.STUDENT_REPORT_CARD,
+        layout_key="summer_report",
+        status=ReportArchive.Status.COMPLETED,
+        summer_program=program,
+        summer_registration=registration,
+        requested_by=base_data["manager"],
+        released_by=base_data["manager"],
+        released_at=timezone.now(),
+    )
+
+    api_client.force_authenticate(parent)
+    response = api_client.get(f"/api/v1/portal/children/{enrollment.student_id}/reports/")
+
+    assert response.status_code == 200
+    assert response.data["reports"] == [
+        {
+            "id": str(archive.id),
+            "report_type": ReportArchive.ReportType.STUDENT_REPORT_CARD,
+            "output_format": ReportArchive.OutputFormat.PDF,
+            "term": "تابستان دانش‌آموز",
+            "created_at": response.data["reports"][0]["created_at"],
+            "released_at": response.data["reports"][0]["released_at"],
+        }
+    ]
+
+
+@pytest.mark.django_db
+def test_parent_portal_never_returns_an_expired_approved_recommendation(
+    api_client, base_data
+):
+    parent = guardian_portal_user(base_data)
+    enrollment = base_data["enrollments"][0]
+    Recommendation.objects.create(
+        organization=base_data["organization"],
+        school=base_data["school1"],
+        enrollment=enrollment,
+        audience=Recommendation.Audience.PARENT,
+        rule_code="expired-family-guidance",
+        rule_version=1,
+        priority=Recommendation.Priority.MEDIUM,
+        generated_text="پیشنهاد اولیه",
+        approved_text="پیشنهاد تأییدشده منقضی",
+        status=Recommendation.Status.APPROVED,
+        reviewer=base_data["manager"],
+        approved_at=timezone.now() - timedelta(days=2),
+        expires_at=timezone.now() - timedelta(days=1),
+    )
+
+    api_client.force_authenticate(parent)
+    response = api_client.get(
+        f"/api/v1/portal/children/{enrollment.student_id}/recommendations/"
+    )
+
+    assert response.status_code == 200
+    assert response.data["recommendations"] == []
 
 
 @pytest.mark.django_db

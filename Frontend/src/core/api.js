@@ -191,3 +191,54 @@ export const dataApi = {
   alerts: async (query, signal) => config.demoMode ? alerts : results(await apiRequest('attendance-alerts/', { query, signal })).map(normalizeAlert),
   resource: async (tag, query, signal) => results(await apiRequest(`${tag}/`, { query, signal })),
 };
+
+function resourceId(value) {
+  if (value == null || String(value).trim() === '') throw new Error('شناسه رکورد معتبر نیست.');
+  return encodeURIComponent(String(value));
+}
+
+function resource(path, query, signal) { return apiRequest(`${path}/`, { query, signal }); }
+function create(path, body) { return apiRequest(`${path}/`, { method: 'POST', body }); }
+function update(path, id, body) { return apiRequest(`${path}/${resourceId(id)}/`, { method: 'PATCH', body }); }
+
+export const reportApi = {
+  academicYears: (query, signal) => resource('academic-years', query, signal),
+  terms: (query, signal) => resource('terms', query, signal),
+  enrollments: (query, signal) => resource('enrollments', query, signal),
+  subjects: (query, signal) => resource('subjects', query, signal),
+  templates: (query, signal) => resource('reports/templates', query, signal),
+  createTemplate: body => create('reports/templates', body),
+  drafts: (query, signal) => resource('reports/drafts', query, signal),
+  archives: (query, signal) => resource('reports', query, signal),
+  settings: (query, signal) => resource('academic-report-settings', query, signal),
+  createSettings: body => create('academic-report-settings', body),
+  updateSettings: (id, body) => update('academic-report-settings', id, body),
+  annualResults: (query, signal) => resource('annual-results', query, signal),
+  recalculateAnnual: body => apiRequest('annual-results/recalculate/', { method: 'POST', body }),
+  summerPrograms: (query, signal) => resource('summer-programs', query, signal),
+  createSummerProgram: body => create('summer-programs', body),
+  updateSummerProgram: (id, body) => update('summer-programs', id, body),
+  summerCourses: (query, signal) => resource('summer-courses', query, signal),
+  createSummerCourse: body => create('summer-courses', body),
+  summerRegistrations: (query, signal) => resource('summer-registrations', query, signal),
+  createSummerRegistration: body => create('summer-registrations', body),
+  summerCourseRegistrations: (query, signal) => resource('summer-course-registrations', query, signal),
+  createSummerCourseRegistration: body => create('summer-course-registrations', body),
+  summerExams: (query, signal) => resource('summer-exams', query, signal),
+  createSummerExam: body => create('summer-exams', body),
+  updateSummerExam: (id, body) => update('summer-exams', id, body),
+  finalizeSummerExam: id => apiRequest(`summer-exams/${resourceId(id)}/finalize/`, { method: 'POST', body: {} }),
+  summerScores: (query, signal) => resource('summer-subject-scores', query, signal),
+  createSummerScore: body => create('summer-subject-scores', body),
+  updateSummerScore: (id, body) => update('summer-subject-scores', id, body),
+  createDraft: body => create('reports/drafts', body),
+  previewDraft: id => apiRequest(`reports/drafts/${resourceId(id)}/preview/`),
+  transitionDraft: (id, action, body = {}) => {
+    if (!['submit', 'approve', 'reject', 'render'].includes(action)) throw new Error('عملیات کارنامه معتبر نیست.');
+    return apiRequest(`reports/drafts/${resourceId(id)}/${action}/`, { method: 'POST', body });
+  },
+  downloadArchive: (id, outputFormat = 'pdf') => apiRequest(
+    `reports/${resourceId(id)}/${outputFormat === 'docx' ? 'download-docx' : 'download'}/`,
+    { responseType: 'blob' },
+  ),
+};

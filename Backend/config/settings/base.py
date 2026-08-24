@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     "hamamooz.apps.accounts",
     "hamamooz.apps.students",
     "hamamooz.apps.academics",
+    "hamamooz.apps.summers",
     "hamamooz.apps.imports",
     "hamamooz.apps.evaluations",
     "hamamooz.apps.reports",

@@ -1,0 +1,23 @@
+<header class="official-header">
+  <div>{% if report.school.logo_url %}<img class="logo" src="{{ report.school.logo_url }}" alt="نشان مدرسه">{% endif %}</div>
+  <div>
+    <h1>{% if overrides.display_title %}{{ overrides.display_title }}{% elif period.type == "summer" %}کارنامه دوره تابستان{% else %}{{ template_title|default:"کارنامه تحصیلی" }}{% endif %}</h1>
+    <div class="school-name">{{ report.organization.name }} — {{ report.school.name }}{% if report.school.branch %} / {{ report.school.branch }}{% endif %}</div>
+  </div>
+  <div class="tracking">
+    <div><strong>دوره:</strong> {{ period.label }}</div>
+    <div><strong>کد رهگیری:</strong> {{ official.tracking_code|default:"پیش‌نمایش" }}</div>
+    <div><strong>نسخه:</strong> {{ official.version|default:"-" }}</div>
+    <div><strong>تاریخ صدور:</strong> {% if official.generated_at %}{{ official.generated_at|slice:":10" }}{% else %}{{ generated_at|date:"Y/m/d" }}{% endif %}</div>
+  </div>
+</header>
+<div class="identity">
+  <div><strong>دانش‌آموز:</strong> {{ report.student.full_name }}</div>
+  <div><strong>کد ملی:</strong> {{ report.student.national_id }}</div>
+  <div><strong>شماره دانش‌آموزی:</strong> {{ report.student.student_number }}</div>
+  <div><strong>سال تحصیلی:</strong> {{ report.academic.year }}</div>
+  <div><strong>پایه:</strong> {{ report.academic.grade }}</div>
+  <div><strong>کلاس:</strong> {{ report.academic.class }}</div>
+  <div><strong>مدیر:</strong> {{ report.school.manager|default:"-" }}</div>
+  {% if period.type != "summer" or report.show_status %}<div><strong>وضعیت:</strong> {{ report.summary.status_label|default:"در حال تکمیل" }}</div>{% endif %}
+</div>

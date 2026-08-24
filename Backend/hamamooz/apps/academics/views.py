@@ -6,6 +6,7 @@ from rest_framework.response import Response
 
 from hamamooz.apps.accounts.access import (
     accessible_organization_ids,
+    allowed_class_ids,
     broad_access_school_ids,
     selected_school_ids,
 )
@@ -15,9 +16,12 @@ from hamamooz.apps.core.services import record_audit
 from hamamooz.apps.core.viewsets import AuditedModelViewSet
 from hamamooz.apps.students.models import Enrollment
 
+from .calculations import recalculate_school_annual
 from .models import (
+    AcademicReportSettings,
     Assessment,
     AssessmentType,
+    AnnualResult,
     CalculationPolicy,
     CourseOffering,
     GradeSubject,
@@ -26,6 +30,8 @@ from .models import (
     SubjectResult,
 )
 from .serializers import (
+    AcademicReportSettingsSerializer,
+    AnnualResultSerializer,
     AssessmentSerializer,
     AssessmentTypeSerializer,
     BulkScoreSerializer,
@@ -34,6 +40,7 @@ from .serializers import (
     CourseOfferingSerializer,
     GradeSubjectSerializer,
     RejectAssessmentSerializer,
+    RecalculateAnnualResultsSerializer,
     ScoreSerializer,
     SubjectResultSerializer,
     SubjectSerializer,
@@ -57,6 +64,7 @@ REVIEWERS = [
     Role.SCHOOL_MANAGER,
     Role.EDUCATIONAL_DEPUTY,
 ]
+ACADEMIC_REPORT_SETTINGS_MANAGERS = REVIEWERS
 
 
 def offering_scope_q(user, school_ids, prefix=""):
@@ -360,3 +368,96 @@ class CalculationPolicyViewSet(AuditedModelViewSet):
         return CalculationPolicy.objects.filter(
             organization_id__in=accessible_organization_ids(self.request.user)
         ).select_related("organization", "academic_year", "grade_level")
+
+
+class AcademicReportSettingsViewSet(AuditedModelViewSet):
+    queryset = AcademicReportSettings.objects.none()
+    serializer_class = AcademicReportSettingsSerializer
+    http_method_names = ["get", "post", "patch", "head", "options"]
+    filterset_fields = ["school", "academic_year"]
+    required_roles_by_action = {
+        "create": ACADEMIC_REPORT_SETTINGS_MANAGERS,
+        "partial_update": ACADEMIC_REPORT_SETTINGS_MANAGERS,
+    }
+
+    def get_queryset(self):
+        return (
+            AcademicReportSettings.objects.filter(
+                school_id__in=selected_school_ids(self.request)
+            )
+            .select_related("school__organization", "academic_year")
+            .prefetch_related("history__changed_by")
+        )
+
+    def perform_create(self, serializer):
+        self.perform_audited_create(
+            serializer,
+            action="academic_report_settings.created",
+        )
+
+    def perform_update(self, serializer):
+        # The domain service owns the typed revision and public audit event.
+        with transaction.atomic():
+            instance = serializer.save()
+            self.check_object_permissions(self.request, instance)
+
+
+class AnnualResultViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    queryset = AnnualResult.objects.none()
+    serializer_class = AnnualResultSerializer
+    permission_classes = [RolePermission]
+    filterset_fields = ["enrollment", "complete"]
+    required_roles_by_action = {"recalculate": REVIEWERS}
+
+    def get_queryset(self):
+        schools = selected_school_ids(self.request)
+        classes = allowed_class_ids(self.request.user, schools)
+        queryset = AnnualResult.objects.filter(
+            enrollment__school_id__in=schools,
+            enrollment__class_section_id__in=classes,
+        )
+        school_id = self.request.query_params.get("school")
+        academic_year_id = self.request.query_params.get("academic_year")
+        if school_id:
+            queryset = queryset.filter(enrollment__school_id=school_id)
+        if academic_year_id:
+            queryset = queryset.filter(enrollment__academic_year_id=academic_year_id)
+        return queryset.select_related(
+            "enrollment__student",
+            "enrollment__school",
+            "enrollment__academic_year",
+            "enrollment__grade_level",
+            "enrollment__class_section",
+        ).prefetch_related("subject_results__grade_subject__subject")
+
+    @action(detail=False, methods=["post"])
+    def recalculate(self, request):
+        serializer = RecalculateAnnualResultsSerializer(
+            data=request.data,
+            context=self.get_serializer_context(),
+        )
+        serializer.is_valid(raise_exception=True)
+        school = serializer.validated_data["school"]
+        academic_year = serializer.validated_data["academic_year"]
+        if school.id not in set(selected_school_ids(request)):
+            self.permission_denied(request, "شعبه درخواست با شعبه انتخاب‌شده منطبق نیست.")
+        with transaction.atomic():
+            results = recalculate_school_annual(school, academic_year)
+            record_audit(
+                action="academic_results.recalculated",
+                actor=request.user,
+                request=request,
+                entity=school,
+                organization_id=school.organization_id,
+                school_id=school.id,
+                changes={
+                    "academic_year": str(academic_year.id),
+                    "result_count": len(results),
+                },
+            )
+        results = self.get_queryset().filter(pk__in=[item.pk for item in results])
+        return Response(self.get_serializer(results, many=True).data)
