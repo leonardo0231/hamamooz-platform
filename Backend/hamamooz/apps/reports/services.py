@@ -4,6 +4,7 @@ from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.conf import settings
 from django.core.files.base import ContentFile
@@ -28,7 +29,7 @@ from hamamooz.apps.academics.models import (
 )
 from hamamooz.apps.students.models import Enrollment
 
-from .models import ReportArchive, ReportDraft
+from .models import ReportArchive, ReportBatch, ReportBatchItem, ReportDraft
 
 ALLOWED_REPORT_BLOCKS = {
     "student_identity",
@@ -173,6 +174,77 @@ def build_report_snapshot(report_type, term, enrollment=None, class_section=None
     return {
         "reports": [build_student_snapshot(item, term, recalculate=False) for item in enrollments]
     }
+
+
+def build_analytical_snapshot(enrollment, term, *, page_size="a3_landscape"):
+    """Frozen snapshot for the coloured student report and its in-app view."""
+    snapshot = build_report_snapshot(
+        ReportArchive.ReportType.STUDENT_REPORT_CARD, term, enrollment=enrollment
+    )
+    report = snapshot["reports"][0]
+    report["product_context"] = _report_extended_context(enrollment)
+    history = (
+        TermResult.objects.filter(enrollment__student=enrollment.student)
+        .select_related("term", "enrollment__academic_year")
+        .order_by("-enrollment__academic_year__starts_on", "-term__ends_on")[:3]
+    )
+    report["history"] = [
+        {"label": item.enrollment.academic_year.title, "average": _decimal_string(item.average)}
+        for item in reversed(history)
+        if item.average is not None
+    ]
+    snapshot["template"] = {
+        "blocks": list(ALLOWED_REPORT_BLOCKS),
+        "presentation": {"page_size": page_size},
+    }
+    return snapshot
+
+
+def render_report_batch(batch_id):
+    """Render every queued item independently, then package successful PDFs."""
+    batch = ReportBatch.objects.select_related("organization", "school", "academic_year", "term", "requested_by").get(pk=batch_id)
+    batch.status = ReportBatch.Status.PROCESSING
+    batch.started_at = timezone.now()
+    batch.save(update_fields=["status", "started_at", "updated_at"])
+    output = BytesIO()
+    completed = failed = 0
+    with ZipFile(output, "w", ZIP_DEFLATED) as archive_zip:
+        for item in batch.items.select_related("enrollment__student", "enrollment__class_section").all():
+            item.status = ReportBatchItem.Status.PROCESSING
+            item.save(update_fields=["status", "updated_at"])
+            try:
+                snapshot = build_analytical_snapshot(batch_item_enrollment := item.enrollment, batch.term, page_size=batch.page_size)
+                report = ReportArchive.objects.create(
+                    organization=batch.organization, school=batch.school, academic_year=batch.academic_year,
+                    term=batch.term, report_type=ReportArchive.ReportType.STUDENT_REPORT_CARD,
+                    status=ReportArchive.Status.PROCESSING, enrollment=batch_item_enrollment,
+                    requested_by=batch.requested_by, output_format=ReportArchive.OutputFormat.PDF,
+                    snapshot=snapshot, started_at=timezone.now(),
+                )
+                pdf = render_report_pdf(snapshot)
+                safe_id = batch_item_enrollment.student.national_id or str(batch_item_enrollment.student_id)
+                filename = f"{safe_id}-{batch_item_enrollment.student.full_name}.pdf".replace("/", "-")
+                report.output_file.save(filename, ContentFile(pdf), save=False)
+                report.status = ReportArchive.Status.COMPLETED
+                report.completed_at = timezone.now()
+                report.formula_version = snapshot["reports"][0]["summary"]["formula_version"]
+                report.save()
+                report.output_file.open("rb")
+                archive_zip.writestr(filename, report.output_file.read())
+                item.report, item.status, item.error_message = report, ReportBatchItem.Status.COMPLETED, ""
+                item.save(update_fields=["report", "status", "error_message", "updated_at"])
+                completed += 1
+            except Exception as exc:  # one student must never abort a school batch
+                item.status, item.error_message = ReportBatchItem.Status.FAILED, str(exc)[:2000]
+                item.save(update_fields=["status", "error_message", "updated_at"])
+                failed += 1
+    batch.completed_count, batch.failed_count = completed, failed
+    batch.completed_at = timezone.now()
+    batch.status = ReportBatch.Status.COMPLETED if failed == 0 else (ReportBatch.Status.PARTIAL if completed else ReportBatch.Status.FAILED)
+    if completed:
+        batch.zip_file.save(f"report-batch-{batch.id}.zip", ContentFile(output.getvalue()), save=False)
+    batch.save()
+    return batch
 
 
 def render_report_html(snapshot, *, preview=False):

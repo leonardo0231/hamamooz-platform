@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
@@ -7,6 +9,11 @@ from hamamooz.apps.core.models import SoftDeleteModel, TimeStampedUUIDModel
 from hamamooz.apps.organizations.models import validate_image_size
 
 national_id_validator = RegexValidator(r"^\d{10}$", "کد ملی باید دقیقاً ۱۰ رقم باشد.")
+
+
+def student_photo_upload_to(instance, filename):
+    suffix = Path(filename).suffix.lower() or ".jpg"
+    return f"students/photos/{instance.organization_id}/{instance.national_id}{suffix}"
 
 
 class Student(SoftDeleteModel):
@@ -30,7 +37,7 @@ class Student(SoftDeleteModel):
     gender = models.CharField(max_length=10, choices=Gender.choices)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
     photo = models.ImageField(
-        upload_to="students/photos/", blank=True, validators=[validate_image_size]
+        upload_to=student_photo_upload_to, blank=True, validators=[validate_image_size]
     )
     notes = models.TextField(blank=True)
 

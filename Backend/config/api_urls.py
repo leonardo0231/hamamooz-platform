@@ -85,6 +85,7 @@ from hamamooz.apps.portal.views import (
 from hamamooz.apps.recommendations.views import RecommendationViewSet
 from hamamooz.apps.reports.views import (
     ReportArchiveViewSet,
+    ReportBatchViewSet,
     ReportDraftViewSet,
     ReportTemplateViewSet,
 )
@@ -159,6 +160,7 @@ router.register(
     MonthlyEvaluationViewSet,
     basename="monthly-evaluation",
 )
+router.register("reports/batches", ReportBatchViewSet, basename="report-batch")
 router.register("reports", ReportArchiveViewSet, basename="report")
 
 urlpatterns = [
