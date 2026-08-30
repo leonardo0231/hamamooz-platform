@@ -55,8 +55,11 @@ export function EChart({ option, label, className = '', emptyLabel = 'داده �
     const color = barSeries.itemStyle?.color ?? '#08766f';
     return html`<div class=${`echart ${className}`} role="img" aria-label=${label}><div class="report-metric-bars">${names.map((name, index) => html`<div class="report-metric-bar"><div class="report-metric-bar__head"><span>${name}</span><b>${formatMetricValue(values[index])}٪</b></div><div class="report-metric-bar__track"><i style=${`width:${Math.max(0, Math.min(100, Number(values[index]) || 0))}%;background:${color}`}></i></div></div>`)}</div></div>`;
   }
+  const radarItems = option.radar?.indicator ?? [];
+  const radarValues = option.series?.[0]?.data?.[0]?.value ?? [];
   return html`<div class=${`echart ${className}`} role="img" aria-label=${label}>
     <div class="echart__canvas" ref=${target}></div>
+    ${radarItems.length > 0 && html`<div class="report-radar-legend" aria-label="راهنمای ارزیابی مهارت‌ها">${radarItems.map((item, index) => html`<span><i></i><em>${item.name}</em><b>${formatMetricValue(radarValues[index])}٪</b></span>`)}</div>`}
     ${failed && html`<span class="echart__fallback">${emptyLabel}</span>`}
   </div>`;
 }

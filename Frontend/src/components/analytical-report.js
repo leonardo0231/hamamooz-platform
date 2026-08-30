@@ -136,7 +136,7 @@ function shortTrendLabel(label) { return String(label || '').replace(/^پایه\
 
 function radarOption(items) {
   if (!items?.length) return null;
-  return { textStyle: { fontFamily: 'Vazirmatn' }, tooltip: { confine: true }, radar: { radius: '44%', axisNameGap: 14, indicator: items.map(item => ({ name: item.title, max: 100 })), splitNumber: 4, splitArea: { areaStyle: { color: ['#fff', '#f2faf8'] } }, axisName: { color: '#334155', fontSize: 10, fontFamily: 'Vazirmatn', formatter: name => String(name).replace(/\s+/g, '\n') }, splitLine: { lineStyle: { color: '#cbd5e1' } }, axisLine: { lineStyle: { color: '#dbeafe' } } },
+  return { textStyle: { fontFamily: 'Vazirmatn' }, tooltip: { confine: true }, radar: { radius: '64%', axisNameGap: 12, indicator: items.map(item => ({ name: item.title, max: 100 })), splitNumber: 4, splitArea: { areaStyle: { color: ['#fff', '#f2faf8'] } }, axisName: { color: 'transparent', fontSize: 10, fontFamily: 'Vazirmatn', formatter: () => '' }, splitLine: { lineStyle: { color: '#cbd5e1' } }, axisLine: { lineStyle: { color: '#dbeafe' } } },
     series: [{ type: 'radar', symbol: 'circle', symbolSize: 6, data: [{ value: items.map(item => item.value), name: 'ارزیابی مهارت‌ها', areaStyle: { color: 'rgba(14,116,144,.22)' }, lineStyle: { color: '#0e7490', width: 2.5 }, itemStyle: { color: '#0e7490' } }] }],
   };
 }
