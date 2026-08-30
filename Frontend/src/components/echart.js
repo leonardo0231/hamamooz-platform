@@ -59,6 +59,7 @@ export function EChart({ option, label, className = '', emptyLabel = 'داده �
   const radarValues = option.series?.[0]?.data?.[0]?.value ?? [];
   return html`<div class=${`echart ${className}`} role="img" aria-label=${label}>
     <div class="echart__canvas" ref=${target}></div>
+    ${radarItems.length > 0 && html`<div class="report-radar-numbers" aria-hidden="true">${radarItems.map((_, index) => html`<span class=${`is-${index + 1}`}>${index + 1}</span>`)}</div>`}
     ${radarItems.length > 0 && html`<div class="report-radar-legend" aria-label="راهنمای شماره‌گذاری ارزیابی مهارت‌ها">${radarItems.map((item, index) => html`<span><i>${index + 1}</i><em>${item.title ?? item.name}</em><b>${formatMetricValue(radarValues[index])}٪</b></span>`)}</div>`}
     ${failed && html`<span class="echart__fallback">${emptyLabel}</span>`}
   </div>`;
