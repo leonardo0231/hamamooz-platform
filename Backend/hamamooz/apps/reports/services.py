@@ -307,7 +307,9 @@ def render_report_pdf(snapshot):
     html = render_report_html(_pdf_snapshot(snapshot))
     return HTML(
         string=html,
-        base_url=Path(settings.BASE_DIR).as_uri(),
+        # A trailing slash makes template-relative static assets resolve under
+        # BASE_DIR (rather than beside it), including the embedded Persian fonts.
+        base_url=f"{Path(settings.BASE_DIR).as_uri()}/",
     ).write_pdf(presentational_hints=False)
 
 
