@@ -9,7 +9,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.template.loader import render_to_string
 from django.utils import timezone
 
@@ -30,6 +30,7 @@ from hamamooz.apps.academics.models import (
 from hamamooz.apps.students.models import Enrollment
 
 from .models import ReportArchive, ReportBatch, ReportBatchItem, ReportDraft
+from .presentation import build_report_visuals
 
 ALLOWED_REPORT_BLOCKS = {
     "student_identity",
@@ -183,13 +184,27 @@ def build_analytical_snapshot(enrollment, term, *, page_size="a3_landscape"):
     )
     report = snapshot["reports"][0]
     report["product_context"] = _report_extended_context(enrollment)
-    history = (
+    history_rows = (
         TermResult.objects.filter(enrollment__student=enrollment.student)
-        .select_related("term", "enrollment__academic_year")
-        .order_by("-enrollment__academic_year__starts_on", "-term__ends_on")[:3]
+        .select_related("term", "enrollment__academic_year", "enrollment__grade_level")
+        .order_by("-enrollment__academic_year__starts_on", "-term__ends_on")
     )
+    # A growth point represents the final available result of one academic
+    # year, not two terms of the same year.  This is the promised three-year
+    # learning trajectory, even when the current year is still in progress.
+    history_by_year = {}
+    for item in history_rows:
+        history_by_year.setdefault(item.enrollment.academic_year_id, item)
+        if len(history_by_year) == 3:
+            break
+    history = list(history_by_year.values())[:3]
     report["history"] = [
-        {"label": item.enrollment.academic_year.title, "average": _decimal_string(item.average)}
+        {
+            "label": item.enrollment.grade_level.title,
+            "year": item.enrollment.academic_year.title,
+            "average": _decimal_string(item.average),
+            "rank": item.class_rank,
+        }
         for item in reversed(history)
         if item.average is not None
     ]
@@ -249,10 +264,13 @@ def render_report_batch(batch_id):
 
 def render_report_html(snapshot, *, preview=False):
     template = snapshot.get("template", {})
+    rendered_snapshot = deepcopy(snapshot)
+    for report in rendered_snapshot.get("reports", []):
+        report["visuals"] = build_report_visuals(report)
     return render_to_string(
         "reports/report_card.html",
         {
-            "reports": snapshot["reports"],
+            "reports": rendered_snapshot["reports"],
             "preview": preview,
             "blocks": template.get("blocks", ALLOWED_REPORT_BLOCKS),
             "overrides": snapshot.get("content_overrides", {}),
@@ -326,27 +344,58 @@ def _report_extended_context(enrollment):
     from hamamooz.apps.attendance.models import AttendanceRecord, AttendanceSession
     from hamamooz.apps.behavior.models import BehaviorEvent
     from hamamooz.apps.evaluations.models import MonthlyEvaluation
+    from hamamooz.apps.evaluations.catalog import METRIC_CATALOG
     from hamamooz.apps.recommendations.models import Recommendation
 
     attendance_records = AttendanceRecord.objects.filter(
         enrollment=enrollment, session__status=AttendanceSession.Status.FINALIZED
     )
+    attendance_counts = attendance_records.aggregate(
+        total=Count("id"),
+        present=Count("id", filter=Q(status=AttendanceRecord.Status.PRESENT)),
+        unexcused=Count("id", filter=Q(status=AttendanceRecord.Status.ABSENT_UNEXCUSED)),
+        excused=Count("id", filter=Q(status=AttendanceRecord.Status.ABSENT_EXCUSED)),
+        late=Count("id", filter=Q(late_minutes__gt=0)),
+    )
+    total_records = attendance_counts["total"] or 0
     attendance = {
         "finalized_session_count": attendance_records.values("session_id").distinct().count(),
-        "unexcused_absence_count": attendance_records.filter(
-            status=AttendanceRecord.Status.ABSENT_UNEXCUSED
-        ).count(),
+        "record_count": total_records,
+        "present_count": attendance_counts["present"] or 0,
+        "unexcused_absence_count": attendance_counts["unexcused"] or 0,
+        "excused_absence_count": attendance_counts["excused"] or 0,
+        "late_count": attendance_counts["late"] or 0,
+        "attendance_rate": round((attendance_counts["present"] or 0) * 100 / total_records, 1)
+        if total_records
+        else None,
     }
-    evaluations = [
-        {
-            "month_no": item.month_no,
-            "framework_version": item.framework_version,
-            "metric_scores": {score.metric_code: score.value for score in item.metric_scores.all()},
-        }
-        for item in MonthlyEvaluation.objects.filter(enrollment=enrollment)
+    evaluations = []
+    for item in (
+        MonthlyEvaluation.objects.filter(enrollment=enrollment)
         .prefetch_related("metric_scores")
         .order_by("month_no", "framework_version")
-    ]
+    ):
+        score_rows = list(item.metric_scores.all())
+        evaluations.append(
+            {
+                "month_no": item.month_no,
+                "framework_version": item.framework_version,
+                "metric_scores": {score.metric_code: score.value for score in score_rows},
+                "metrics": [
+                    {
+                        "code": score.metric_code,
+                        "title": METRIC_CATALOG.get(score.metric_code, {}).get(
+                            "title", score.metric_code
+                        ),
+                        "domain_title": METRIC_CATALOG.get(score.metric_code, {}).get(
+                            "domain_title", ""
+                        ),
+                        "value": score.value,
+                    }
+                    for score in score_rows
+                ],
+            }
+        )
     behavior = [
         {
             "event_type": item.event_type.code,

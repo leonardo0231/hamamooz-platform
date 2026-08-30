@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>نمونه خروجی کارنامه تحلیلی هم‌آموز</title>
+    <link rel="preload" href="/fonts/Vazirmatn.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/styles/tokens.css" />
+    <link rel="stylesheet" href="/styles/base.css" />
+    <link rel="stylesheet" href="/styles/reports.css" />
+    <style>
+      @page { size: A3 landscape; margin: 0; }
+      html,body,#report-sample{min-height:100%;background:#fff}
+      .report-sample{padding:18px;background:#edf4f2}
+      .report-sample--print .report-sample{min-height:0;padding:0;overflow:hidden;background:#fff;direction:ltr}
+      .report-sample--print .analytical-sheet{width:100%;max-width:none;margin:0;padding:8px;direction:rtl;zoom:.69}
+      @media print{
+        .report-sample{width:420mm;height:297mm;min-height:0;padding:0;overflow:hidden;background:#fff;direction:ltr}
+        .analytical-sheet{width:100%;max-width:none;margin:0;padding:8px;direction:rtl;zoom:.69}
+      }
+    </style>
+  </head>
+  <body>
+    <main id="report-sample" class="report-sample"></main>
+    <script type="module" src="/report-sample.js?v=analytical-a3-v2"></script>
+  </body>
+</html>
