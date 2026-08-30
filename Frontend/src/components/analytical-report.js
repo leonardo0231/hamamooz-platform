@@ -136,16 +136,16 @@ function shortTrendLabel(label) { return String(label || '').replace(/^پایه\
 
 function radarOption(items) {
   if (!items?.length) return null;
-  return { textStyle: { fontFamily: 'Vazirmatn' }, tooltip: { confine: true }, radar: { radius: '64%', indicator: items.map(item => ({ name: item.title, max: 100 })), splitNumber: 4, splitArea: { areaStyle: { color: ['#fff', '#f2faf8'] } }, axisName: { color: '#334155', fontSize: 11, fontFamily: 'Vazirmatn' }, splitLine: { lineStyle: { color: '#cbd5e1' } }, axisLine: { lineStyle: { color: '#dbeafe' } } },
+  return { textStyle: { fontFamily: 'Vazirmatn' }, tooltip: { confine: true }, radar: { radius: '44%', axisNameGap: 14, indicator: items.map(item => ({ name: item.title, max: 100 })), splitNumber: 4, splitArea: { areaStyle: { color: ['#fff', '#f2faf8'] } }, axisName: { color: '#334155', fontSize: 10, fontFamily: 'Vazirmatn', formatter: name => String(name).replace(/\s+/g, '\n') }, splitLine: { lineStyle: { color: '#cbd5e1' } }, axisLine: { lineStyle: { color: '#dbeafe' } } },
     series: [{ type: 'radar', symbol: 'circle', symbolSize: 6, data: [{ value: items.map(item => item.value), name: 'ارزیابی مهارت‌ها', areaStyle: { color: 'rgba(14,116,144,.22)' }, lineStyle: { color: '#0e7490', width: 2.5 }, itemStyle: { color: '#0e7490' } }] }],
   };
 }
 
 function barsOption(items, color) {
   if (!items?.length) return null;
-  return { textStyle: { fontFamily: 'Vazirmatn' }, tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, valueFormatter: value => `${fa(value)}٪` }, grid: { top: 4, right: 6, bottom: 3, left: 86, containLabel: true }, xAxis: { type: 'value', max: 100, show: false },
-    yAxis: { type: 'category', inverse: true, data: items.map(item => item.title), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#475569', fontSize: 11, fontFamily: 'Vazirmatn', width: 82, overflow: 'truncate' } },
-    series: [{ type: 'bar', data: items.map(item => item.value), barWidth: 13, showBackground: true, backgroundStyle: { color: '#edf2f7', borderRadius: 7 }, label: { show: true, position: 'left', color: '#475569', formatter: ({ value }) => `${fa(value)}٪`, fontFamily: 'Vazirmatn', fontSize: 10 }, itemStyle: { color, borderRadius: 7 } }],
+  return { textStyle: { fontFamily: 'Vazirmatn' }, tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, valueFormatter: value => `${fa(value)}٪` }, grid: { top: 4, right: 30, bottom: 3, left: 112, containLabel: true }, xAxis: { type: 'value', max: 100, show: false },
+    yAxis: { type: 'category', inverse: true, data: items.map(item => item.title), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { show: true, color: '#475569', fontSize: 10, fontFamily: 'Vazirmatn', width: 106, overflow: 'truncate', align: 'right' } },
+    series: [{ type: 'bar', data: items.map(item => item.value), barWidth: 14, showBackground: true, backgroundStyle: { color: '#edf2f7', borderRadius: 7 }, label: { show: true, position: 'right', color: '#475569', formatter: ({ value }) => `${fa(value)}٪`, fontFamily: 'Vazirmatn', fontSize: 10 }, itemStyle: { color, borderRadius: 7 } }],
   };
 }
 

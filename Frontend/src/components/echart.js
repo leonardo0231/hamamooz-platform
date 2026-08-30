@@ -1,6 +1,7 @@
 import { html, useEffect, useRef, useState } from '../core/view.js';
 
 let modulePromise;
+const formatMetricValue = value => new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 0 }).format(Number(value) || 0);
 
 function loadECharts() {
   // The built application places this file on its own origin.  The same path
@@ -47,6 +48,13 @@ export function EChart({ option, label, className = '', emptyLabel = 'داده �
   }, [optionKey]);
 
   if (!option) return html`<div class=${`echart echart--empty ${className}`}>${emptyLabel}</div>`;
+  const barSeries = option.series?.[0]?.type === 'bar' ? option.series[0] : null;
+  if (barSeries) {
+    const names = option.yAxis?.data ?? [];
+    const values = barSeries.data ?? [];
+    const color = barSeries.itemStyle?.color ?? '#08766f';
+    return html`<div class=${`echart ${className}`} role="img" aria-label=${label}><div class="report-metric-bars">${names.map((name, index) => html`<div class="report-metric-bar"><div class="report-metric-bar__head"><span>${name}</span><b>${formatMetricValue(values[index])}٪</b></div><div class="report-metric-bar__track"><i style=${`width:${Math.max(0, Math.min(100, Number(values[index]) || 0))}%;background:${color}`}></i></div></div>`)}</div></div>`;
+  }
   return html`<div class=${`echart ${className}`} role="img" aria-label=${label}>
     <div class="echart__canvas" ref=${target}></div>
     ${failed && html`<span class="echart__fallback">${emptyLabel}</span>`}
