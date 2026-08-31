@@ -1,7 +1,7 @@
 import pytest
 
 from hamamooz.apps.reports.models import ReportBatch
-from hamamooz.apps.students.models import Student, student_photo_upload_to
+from hamamooz.apps.students.models import student_photo_upload_to
 
 
 @pytest.mark.django_db
@@ -28,7 +28,9 @@ def test_authorized_manager_can_queue_a_class_report_batch(api_client, base_data
     )
     assert response.status_code == 201
     assert response.data["total_count"] == len(base_data["enrollments"])
-    assert ReportBatch.objects.get(pk=response.data["id"]).items.count() == len(base_data["enrollments"])
+    assert ReportBatch.objects.get(pk=response.data["id"]).items.count() == len(
+        base_data["enrollments"]
+    )
 
 
 @pytest.mark.django_db

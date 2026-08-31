@@ -15,4 +15,8 @@ def generate_report_task(report_id):
 @shared_task(autoretry_for=(OSError,), retry_backoff=True, max_retries=3)
 def generate_report_batch_task(batch_id):
     batch = render_report_batch(batch_id)
-    return {"status": batch.status, "completed": batch.completed_count, "failed": batch.failed_count}
+    return {
+        "status": batch.status,
+        "completed": batch.completed_count,
+        "failed": batch.failed_count,
+    }

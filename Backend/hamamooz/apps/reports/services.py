@@ -49,6 +49,10 @@ ALLOWED_REPORT_BLOCKS = {
 ALLOWED_REPORT_PAGE_SIZES = {
     "a4_portrait": "A4 portrait",
     "a3_landscape": "A3 landscape",
+    # The provided visual reference is a 3:2 canvas.  Keep this separate from
+    # A3 so schools can choose an exact digital handout without changing the
+    # standard print profile.
+    "digital_3x2": "420mm 280mm",
 }
 
 
@@ -177,7 +181,7 @@ def build_report_snapshot(report_type, term, enrollment=None, class_section=None
     }
 
 
-def build_analytical_snapshot(enrollment, term, *, page_size="a3_landscape"):
+def build_analytical_snapshot(enrollment, term, *, page_size="digital_3x2"):
     """Frozen snapshot for the coloured student report and its in-app view."""
     snapshot = build_report_snapshot(
         ReportArchive.ReportType.STUDENT_REPORT_CARD, term, enrollment=enrollment
@@ -215,30 +219,61 @@ def build_analytical_snapshot(enrollment, term, *, page_size="a3_landscape"):
     return snapshot
 
 
+def build_report_render_snapshot(report_type, term, *, enrollment=None, class_section=None):
+    """Build the presentation snapshot used by preview and archived reports.
+
+    Student report cards have a richer, A3 analytical presentation.  Keeping this
+    choice in one place prevents the preview, a single archived report, and a
+    batch report from silently using different data contracts.
+    """
+
+    if report_type == ReportArchive.ReportType.STUDENT_REPORT_CARD:
+        if enrollment is None:
+            raise ValueError("Student report cards require an enrollment.")
+        return build_analytical_snapshot(enrollment, term)
+    return build_report_snapshot(report_type, term, class_section=class_section)
+
+
 def render_report_batch(batch_id):
     """Render every queued item independently, then package successful PDFs."""
-    batch = ReportBatch.objects.select_related("organization", "school", "academic_year", "term", "requested_by").get(pk=batch_id)
+    batch = ReportBatch.objects.select_related(
+        "organization", "school", "academic_year", "term", "requested_by"
+    ).get(pk=batch_id)
     batch.status = ReportBatch.Status.PROCESSING
     batch.started_at = timezone.now()
     batch.save(update_fields=["status", "started_at", "updated_at"])
     output = BytesIO()
     completed = failed = 0
     with ZipFile(output, "w", ZIP_DEFLATED) as archive_zip:
-        for item in batch.items.select_related("enrollment__student", "enrollment__class_section").all():
+        for item in batch.items.select_related(
+            "enrollment__student", "enrollment__class_section"
+        ).all():
             item.status = ReportBatchItem.Status.PROCESSING
             item.save(update_fields=["status", "updated_at"])
             try:
-                snapshot = build_analytical_snapshot(batch_item_enrollment := item.enrollment, batch.term, page_size=batch.page_size)
+                snapshot = build_analytical_snapshot(
+                    batch_item_enrollment := item.enrollment, batch.term, page_size=batch.page_size
+                )
                 report = ReportArchive.objects.create(
-                    organization=batch.organization, school=batch.school, academic_year=batch.academic_year,
-                    term=batch.term, report_type=ReportArchive.ReportType.STUDENT_REPORT_CARD,
-                    status=ReportArchive.Status.PROCESSING, enrollment=batch_item_enrollment,
-                    requested_by=batch.requested_by, output_format=ReportArchive.OutputFormat.PDF,
-                    snapshot=snapshot, started_at=timezone.now(),
+                    organization=batch.organization,
+                    school=batch.school,
+                    academic_year=batch.academic_year,
+                    term=batch.term,
+                    report_type=ReportArchive.ReportType.STUDENT_REPORT_CARD,
+                    status=ReportArchive.Status.PROCESSING,
+                    enrollment=batch_item_enrollment,
+                    requested_by=batch.requested_by,
+                    output_format=ReportArchive.OutputFormat.PDF,
+                    snapshot=snapshot,
+                    started_at=timezone.now(),
                 )
                 pdf = render_report_pdf(snapshot)
-                safe_id = batch_item_enrollment.student.national_id or str(batch_item_enrollment.student_id)
-                filename = f"{safe_id}-{batch_item_enrollment.student.full_name}.pdf".replace("/", "-")
+                safe_id = batch_item_enrollment.student.national_id or str(
+                    batch_item_enrollment.student_id
+                )
+                filename = f"{safe_id}-{batch_item_enrollment.student.full_name}.pdf".replace(
+                    "/", "-"
+                )
                 report.output_file.save(filename, ContentFile(pdf), save=False)
                 report.status = ReportArchive.Status.COMPLETED
                 report.completed_at = timezone.now()
@@ -246,7 +281,11 @@ def render_report_batch(batch_id):
                 report.save()
                 report.output_file.open("rb")
                 archive_zip.writestr(filename, report.output_file.read())
-                item.report, item.status, item.error_message = report, ReportBatchItem.Status.COMPLETED, ""
+                item.report, item.status, item.error_message = (
+                    report,
+                    ReportBatchItem.Status.COMPLETED,
+                    "",
+                )
                 item.save(update_fields=["report", "status", "error_message", "updated_at"])
                 completed += 1
             except Exception as exc:  # one student must never abort a school batch
@@ -255,9 +294,15 @@ def render_report_batch(batch_id):
                 failed += 1
     batch.completed_count, batch.failed_count = completed, failed
     batch.completed_at = timezone.now()
-    batch.status = ReportBatch.Status.COMPLETED if failed == 0 else (ReportBatch.Status.PARTIAL if completed else ReportBatch.Status.FAILED)
+    batch.status = (
+        ReportBatch.Status.COMPLETED
+        if failed == 0
+        else (ReportBatch.Status.PARTIAL if completed else ReportBatch.Status.FAILED)
+    )
     if completed:
-        batch.zip_file.save(f"report-batch-{batch.id}.zip", ContentFile(output.getvalue()), save=False)
+        batch.zip_file.save(
+            f"report-batch-{batch.id}.zip", ContentFile(output.getvalue()), save=False
+        )
     batch.save()
     return batch
 
@@ -265,15 +310,16 @@ def render_report_batch(batch_id):
 def render_report_html(snapshot, *, preview=False):
     template = snapshot.get("template", {})
     rendered_snapshot = deepcopy(snapshot)
+    content_overrides = rendered_snapshot.get("content_overrides", {})
     for report in rendered_snapshot.get("reports", []):
-        report["visuals"] = build_report_visuals(report)
+        report["visuals"] = build_report_visuals(report, content_overrides=content_overrides)
     return render_to_string(
         "reports/report_card.html",
         {
             "reports": rendered_snapshot["reports"],
             "preview": preview,
             "blocks": template.get("blocks", ALLOWED_REPORT_BLOCKS),
-            "overrides": snapshot.get("content_overrides", {}),
+            "overrides": content_overrides,
             "page_size": report_page_size(template.get("presentation")),
             "generated_at": timezone.now(),
         },
@@ -307,7 +353,10 @@ def render_report_pdf(snapshot):
     html = render_report_html(_pdf_snapshot(snapshot))
     return HTML(
         string=html,
-        base_url=Path(settings.BASE_DIR).as_uri(),
+        # A trailing slash is essential: without it a relative ``static/...``
+        # URL is resolved next to the Backend directory instead of inside it.
+        # That silently replaces our Persian typefaces with fallbacks in PDFs.
+        base_url=f"{Path(settings.BASE_DIR).as_uri()}/",
     ).write_pdf(presentational_hints=False)
 
 
@@ -343,8 +392,8 @@ def _report_extended_context(enrollment):
     from hamamooz.apps.analytics.models import StudentRiskSignal
     from hamamooz.apps.attendance.models import AttendanceRecord, AttendanceSession
     from hamamooz.apps.behavior.models import BehaviorEvent
-    from hamamooz.apps.evaluations.models import MonthlyEvaluation
     from hamamooz.apps.evaluations.catalog import METRIC_CATALOG
+    from hamamooz.apps.evaluations.models import MonthlyEvaluation
     from hamamooz.apps.recommendations.models import Recommendation
 
     attendance_records = AttendanceRecord.objects.filter(
@@ -608,7 +657,7 @@ def generate_report(report_id):
 
     stored_name = ""
     try:
-        snapshot = build_report_snapshot(
+        snapshot = build_report_render_snapshot(
             report.report_type,
             report.term,
             enrollment=report.enrollment,

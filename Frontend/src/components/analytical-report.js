@@ -149,9 +149,9 @@ function barsOption(items, color) {
   };
 }
 
-function Panel({ title, tone = 'teal', className = '', children, action }) {
+function Panel({ title, tone = 'teal', className = '', children, action, href }) {
   const displayTitle = title === 'مهارت‌های قرن بیست‌ویکم' ? 'مهارت‌های زندگی و شایستگی‌های قرن ۲۱' : title;
-  const body = className.includes('analytical-access') ? html`<a class="report-access-link" href="/reports" aria-label="مشاهدهٔ کارنامه در سامانه">${children}</a>` : children;
+  const body = href ? html`<a class="report-access-link" href=${href} aria-label="مشاهدهٔ همین کارنامه در سامانه">${children}</a>` : children;
   return html`<section class=${`analytical-panel analytical-panel--${tone} ${className}`}><header class="analytical-panel__header"><h3>${displayTitle}</h3>${action && html`<span>${action}</span>`}</header><div class="analytical-panel__body">${body}</div></section>`;
 }
 function Empty() { return html`<p class="analytical-empty">داده کافی نیست</p>`; }
@@ -189,7 +189,7 @@ export function AnalyticalReport({ snapshot, loading = false }) {
       <${Panel} title="آمادگی برای دوره متوسطه" className="analytical-readiness" tone="navy">${readiness ? html`<${EChart} option=${readiness} label="آمادگی تحصیلی برای دوره متوسطه" className="echart--readiness"/>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="توصیهٔ ویژه و حمایت خانواده" className="analytical-support" tone="gold">${report.support?.length ? html`<ul class="report-bullet-list">${report.support.map(item => html`<li>${item}</li>`)}</ul>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="افتخارات و عناوین کسب‌شده" className="analytical-awards" tone="gold">${report.awards?.length ? html`<div class="report-awards">${report.awards.map(item => html`<div><i>${item.icon}</i><span><b>${item.title}</b><small>${item.text}</small></span></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
-      <${Panel} title="دسترسی سریع والدین" className="analytical-access" tone="navy"><div class="report-access"><${QrCode}/><strong>مشاهدهٔ نسخهٔ کامل</strong><small>${report.accessCode}</small></div></${Panel}>
+      <${Panel} title="دسترسی سریع والدین" className="analytical-access" tone="navy" href=${report.accessHref}><div class="report-access"><${QrCode}/><strong>مشاهدهٔ نسخهٔ کامل</strong><small>${report.accessCode}</small></div></${Panel}>
     </div>
     <footer class="analytical-sheet__footer"><div><strong>این کارنامه صرفاً گزارش نمرات نیست.</strong><span>تصویری از مسیر رشد علمی، تربیتی و شخصیتی دانش‌آموز است.</span></div><div class="report-signatures"><span>امضای دبیر</span><span>معاون آموزشی</span><span>مدیر و مهر مدرسه</span></div><div><b>${report.school}</b><span>نسخهٔ تحلیلی · قابل مشاهده در سامانه و PDF رسمی</span></div></footer>
   </article>`;

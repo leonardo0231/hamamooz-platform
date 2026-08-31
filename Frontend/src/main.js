@@ -12,6 +12,7 @@ import { GenericPage } from './pages/generic.js';
 import { LoginPage } from './pages/login.js';
 import { ProfilePage } from './pages/profile.js';
 import { ReportsPage } from './pages/reports.js';
+import { ImportsPage } from './pages/imports.js';
 import { ErrorPage } from './pages/errors.js';
 
 function Page({ route }) {
@@ -22,6 +23,7 @@ function Page({ route }) {
     case 'alerts': return html`<${AlertsPage}/>`;
     case 'profile': return html`<${ProfilePage}/>`;
     case 'reports': return html`<${ReportsPage}/>`;
+    case 'imports': return html`<${ImportsPage}/>`;
     case 'not-found': return html`<${ErrorPage}/>`;
     case 'forbidden': return html`<${ErrorPage} forbidden=${true}/>`;
     case 'resource': return html`<${GenericPage} kind="resource" tag=${route.params.tag}/>`;

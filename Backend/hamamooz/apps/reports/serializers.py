@@ -167,7 +167,15 @@ class ReportBatchItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ReportBatchItem
-        fields = ["id", "student_name", "national_id", "enrollment", "report_id", "status", "error_message"]
+        fields = [
+            "id",
+            "student_name",
+            "national_id",
+            "enrollment",
+            "report_id",
+            "status",
+            "error_message",
+        ]
 
 
 class ReportBatchSerializer(serializers.ModelSerializer):
@@ -178,14 +186,34 @@ class ReportBatchSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReportBatch
         fields = [
-            "id", "organization", "school", "academic_year", "term", "class_section", "scope", "page_size",
-            "status", "total_count", "completed_count", "failed_count", "progress_percent", "zip_download_url",
-            "started_at", "completed_at", "error_message", "requested_by", "created_at", "items",
+            "id",
+            "organization",
+            "school",
+            "academic_year",
+            "term",
+            "class_section",
+            "scope",
+            "page_size",
+            "status",
+            "total_count",
+            "completed_count",
+            "failed_count",
+            "progress_percent",
+            "zip_download_url",
+            "started_at",
+            "completed_at",
+            "error_message",
+            "requested_by",
+            "created_at",
+            "items",
         ]
         read_only_fields = fields
 
-    def get_zip_download_url(self, obj):
-        if not obj.zip_file or obj.status not in [ReportBatch.Status.COMPLETED, ReportBatch.Status.PARTIAL]:
+    def get_zip_download_url(self, obj) -> str | None:
+        if not obj.zip_file or obj.status not in [
+            ReportBatch.Status.COMPLETED,
+            ReportBatch.Status.PARTIAL,
+        ]:
             return None
         request = self.context.get("request")
         path = f"/api/v1/reports/batches/{obj.id}/download/"
@@ -193,35 +221,73 @@ class ReportBatchSerializer(serializers.ModelSerializer):
 
 
 class ReportBatchCreateSerializer(serializers.Serializer):
-    school = serializers.PrimaryKeyRelatedField(queryset=ReportArchive._meta.get_field("school").remote_field.model.objects.all())
-    academic_year = serializers.PrimaryKeyRelatedField(queryset=ReportArchive._meta.get_field("academic_year").remote_field.model.objects.all())
-    term = serializers.PrimaryKeyRelatedField(queryset=ReportArchive._meta.get_field("term").remote_field.model.objects.all())
+    school = serializers.PrimaryKeyRelatedField(
+        queryset=ReportArchive._meta.get_field("school").remote_field.model.objects.all()
+    )
+    academic_year = serializers.PrimaryKeyRelatedField(
+        queryset=ReportArchive._meta.get_field("academic_year").remote_field.model.objects.all()
+    )
+    term = serializers.PrimaryKeyRelatedField(
+        queryset=ReportArchive._meta.get_field("term").remote_field.model.objects.all()
+    )
     scope = serializers.ChoiceField(choices=ReportBatch.Scope.choices)
-    class_section = serializers.PrimaryKeyRelatedField(queryset=ReportArchive._meta.get_field("class_section").remote_field.model.objects.all(), required=False, allow_null=True)
-    page_size = serializers.ChoiceField(choices=[("a3_landscape", "A3 landscape"), ("a4_portrait", "A4 portrait")], default="a3_landscape")
+    class_section = serializers.PrimaryKeyRelatedField(
+        queryset=ReportArchive._meta.get_field("class_section").remote_field.model.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    page_size = serializers.ChoiceField(
+        choices=[
+            ("digital_3x2", "Digital 3:2"),
+            ("a3_landscape", "A3 landscape"),
+            ("a4_portrait", "A4 portrait"),
+        ],
+        default="digital_3x2",
+    )
 
     def validate(self, attrs):
-        request, school, year, term = self.context["request"], attrs["school"], attrs["academic_year"], attrs["term"]
+        request, school, year, term = (
+            self.context["request"],
+            attrs["school"],
+            attrs["academic_year"],
+            attrs["term"],
+        )
         if school.id not in set(accessible_school_ids(request.user)):
             raise serializers.ValidationError({"school": "School is outside your access scope."})
         if year.organization_id != school.organization_id or term.academic_year_id != year.id:
-            raise serializers.ValidationError({"term": "Term must belong to the selected academic year."})
+            raise serializers.ValidationError(
+                {"term": "Term must belong to the selected academic year."}
+            )
         section = attrs.get("class_section")
         if attrs["scope"] == ReportBatch.Scope.CLASS:
             if not section or section.school_id != school.id or section.academic_year_id != year.id:
-                raise serializers.ValidationError({"class_section": "A class in the selected school and year is required."})
+                raise serializers.ValidationError(
+                    {"class_section": "A class in the selected school and year is required."}
+                )
             target_classes = [section.id]
         else:
             if section:
-                raise serializers.ValidationError({"class_section": "School scope does not accept a class."})
-            target_classes = list(school.classes.filter(academic_year=year).values_list("id", flat=True))
+                raise serializers.ValidationError(
+                    {"class_section": "School scope does not accept a class."}
+                )
+            target_classes = list(
+                school.classes.filter(academic_year=year).values_list("id", flat=True)
+            )
         allowed = set(allowed_class_ids(request.user, [school.id]))
         if not set(target_classes).issubset(allowed):
-            raise serializers.ValidationError({"detail": "One or more classes are outside your access scope."})
+            raise serializers.ValidationError(
+                {"detail": "One or more classes are outside your access scope."}
+            )
         # A group is official only when every selected class has locked, complete scores.
-        for selected_class in ReportArchive._meta.get_field("class_section").remote_field.model.objects.filter(id__in=target_classes):
+        for selected_class in ReportArchive._meta.get_field(
+            "class_section"
+        ).remote_field.model.objects.filter(id__in=target_classes):
             validate_official_report_readiness(
-                {"report_type": ReportArchive.ReportType.CLASS_REPORT_CARDS, "term": term, "class_section": selected_class}
+                {
+                    "report_type": ReportArchive.ReportType.CLASS_REPORT_CARDS,
+                    "term": term,
+                    "class_section": selected_class,
+                }
             )
         attrs["_target_classes"] = target_classes
         return attrs
@@ -229,10 +295,19 @@ class ReportBatchCreateSerializer(serializers.Serializer):
     def create(self, validated_data):
         target_classes = validated_data.pop("_target_classes")
         school = validated_data["school"]
-        batch = ReportBatch.objects.create(organization=school.organization, requested_by=self.context["request"].user, **validated_data)
+        batch = ReportBatch.objects.create(
+            organization=school.organization,
+            requested_by=self.context["request"].user,
+            **validated_data,
+        )
         from hamamooz.apps.students.models import Enrollment
-        enrollments = Enrollment.objects.filter(class_section_id__in=target_classes, status=Enrollment.Status.ACTIVE).select_related("student")
-        ReportBatchItem.objects.bulk_create([ReportBatchItem(batch=batch, enrollment=item) for item in enrollments])
+
+        enrollments = Enrollment.objects.filter(
+            class_section_id__in=target_classes, status=Enrollment.Status.ACTIVE
+        ).select_related("student")
+        ReportBatchItem.objects.bulk_create(
+            [ReportBatchItem(batch=batch, enrollment=item) for item in enrollments]
+        )
         batch.total_count = len(enrollments)
         batch.save(update_fields=["total_count", "updated_at"])
         return batch
