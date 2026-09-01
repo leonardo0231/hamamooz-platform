@@ -112,6 +112,11 @@ jobs:
         run: python manage.py migrate --noinput
 
       - name: Generate and validate OpenAPI schema
+        # PostgreSQL reports PositiveSmallIntegerField bounds differently from
+        # SQLite. Generate the checked-in, database-independent contract with
+        # the same deterministic SQLite engine used by local schema checks.
+        env:
+          DATABASE_URL: sqlite:///:memory:
         run: |
           python manage.py spectacular \
             --api-version v1 \
