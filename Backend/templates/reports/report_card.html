@@ -2,7 +2,7 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="utf-8">
-  <title>کارنامه جامع رشد و تحلیل دانش‌آموز</title>
+  <title>کارنامه تحصیلی جامع رشد و تحلیل دانش‌آموز</title>
   <style>
     @font-face{font-family:Estedad;src:url("static/fonts/Estedad.woff2");font-weight:normal}
     @font-face{font-family:Vazirmatn;src:url("static/fonts/Vazirmatn.woff2");font-weight:normal}
@@ -28,7 +28,7 @@
 <body class="{% if page_size == 'A4 portrait' %}layout-a4{% else %}layout-a3{% endif %}">
 {% for report in reports %}
 <section class="report">
-  <header class="report-header"><div class="brand">{% if report.school.logo_url %}<img class="brand-logo" src="{{ report.school.logo_url }}" alt="لوگوی مدرسه">{% else %}<div class="brand-fallback">بعثت</div>{% endif %}<span>{{ report.organization.name }}</span></div><div class="header-title"><h1>کارنامه جامع رشد و تحلیل دانش‌آموز</h1><h2>{{ report.academic.grade }}</h2><p>{{ report.school.name }}{% if report.school.branch %} · {{ report.school.branch }}{% endif %}</p></div><blockquote class="header-quote">« هیچ تلاشی بی‌نتیجه نیست؛<br>هر قدم کوچک امروز، آینده‌ای بزرگ می‌سازد. »</blockquote></header>
+  <header class="report-header"><div class="brand">{% if report.school.logo_url %}<img class="brand-logo" src="{{ report.school.logo_url }}" alt="لوگوی مدرسه">{% else %}<div class="brand-fallback">بعثت</div>{% endif %}<span>{{ report.organization.name }}</span></div><div class="header-title"><h1>کارنامه تحصیلی جامع رشد و تحلیل دانش‌آموز</h1><h2>{{ report.academic.grade }}</h2><p>{{ report.school.name }}{% if report.school.branch %} · {{ report.school.branch }}{% endif %}</p></div><blockquote class="header-quote">« هیچ تلاشی بی‌نتیجه نیست؛<br>هر قدم کوچک امروز، آینده‌ای بزرگ می‌سازد. »</blockquote></header>
   <div class="report-ribbon"><span>{{ report.academic.year }} · {{ report.academic.term }} · کلاس {{ report.academic.class }}</span><span>{% if report.demo %}<em>نمونهٔ نمایشی</em>{% elif report.summary.passed %}<em>وضعیت: {{ report.visuals.summary.status }}</em>{% else %}<em>نیازمند پیگیری آموزشی</em>{% endif %}</span></div>
   <main class="report-grid">
     {% if "student_identity" in blocks %}<section class="panel panel--navy identity"><header class="panel-title"><h3>مشخصات دانش‌آموز</h3></header><div class="panel-body"><div class="student-photo">{% if report.student.photo_url %}<img src="{{ report.student.photo_url }}" alt="عکس دانش‌آموز">{% else %}<span>{{ report.student.full_name|slice:":1" }}</span>{% endif %}</div><dl class="identity-list"><div><dt>نام و نام خانوادگی</dt><dd>{{ report.student.full_name }}</dd></div><div><dt>کد ملی</dt><dd>{{ report.student.national_id }}</dd></div><div><dt>شماره دانش‌آموزی</dt><dd>{{ report.student.student_number }}</dd></div><div><dt>پایه و کلاس</dt><dd>{{ report.academic.grade }} · {{ report.academic.class }}</dd></div></dl><div class="mini-kpis"><div><span>معدل کل</span><strong>{{ report.visuals.summary.average }}</strong></div><div><span>رتبه کلاس</span><strong>{{ report.visuals.summary.rank }}</strong></div></div></div></section>{% endif %}
