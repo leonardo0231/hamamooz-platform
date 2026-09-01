@@ -116,7 +116,7 @@ jobs:
         # SQLite. Generate the checked-in, database-independent contract with
         # the same deterministic SQLite engine used by local schema checks.
         env:
-          DATABASE_URL: sqlite:///:memory:
+          DATABASE_URL: "sqlite:///:memory:"
         run: |
           python manage.py spectacular \
             --api-version v1 \
