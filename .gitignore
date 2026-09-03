@@ -17,6 +17,8 @@ staticfiles/
 backups/
 *.log
 Backend/docs/import_templates/*.generated.xlsx
+tmp/
+output/
 
 # Frontend dependencies
 node_modules/

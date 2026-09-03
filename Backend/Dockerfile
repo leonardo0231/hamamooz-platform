@@ -6,6 +6,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 RUN python -m venv /opt/venv
 
+ARG PIP_INDEX_URL
+ENV PIP_INDEX_URL=${PIP_INDEX_URL}
+
 COPY requirements/production.txt requirements/base.txt /tmp/requirements/
 RUN /opt/venv/bin/pip install --upgrade pip \
     && /opt/venv/bin/pip install -r /tmp/requirements/production.txt
@@ -17,15 +20,20 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PATH="/opt/venv/bin:$PATH"
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    fonts-dejavu-core \
-    libjpeg62-turbo \
-    libopenjp2-7 \
-    libpango-1.0-0 \
-    libpangoft2-1.0-0 \
-    libpq5 \
-    shared-mime-info \
+RUN sed -i \
+    -e 's|http://deb.debian.org/debian-security|http://mirror-linux.runflare.com/debian-security|g' \
+    -e 's|http://deb.debian.org/debian|http://mirror-linux.runflare.com/debian|g' \
+    /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        curl \
+        fonts-dejavu-core \
+        libjpeg62-turbo \
+        libopenjp2-7 \
+        libpango-1.0-0 \
+        libpangoft2-1.0-0 \
+        libpq5 \
+        shared-mime-info \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --system --gid 10001 hamamooz \
