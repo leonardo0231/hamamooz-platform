@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from hamamooz.apps.reports.presentation import build_report_visuals
 
 
@@ -39,3 +41,15 @@ def test_missing_data_stays_explicitly_empty_instead_of_becoming_fake_values():
     assert visuals["trend"]["has_data"] is False
     assert visuals["radar"]["has_data"] is False
     assert visuals["attendance"]["has_data"] is False
+
+
+def test_report_template_keeps_print_safe_accessible_semantics():
+    template = Path("templates/reports/report_card.html").read_text(encoding="utf-8")
+
+    assert '<caption>وضعیت آموزشی و نمرات نهایی' in template
+    assert 'scope="col"' in template
+    assert 'scope="row"' in template
+    assert 'role="img" aria-label="{{ item.value }} درصد"' in template
+    assert 'class="report-access-code"' in template
+    assert 'class="qr-box"' not in template
+    assert '{{ item.icon }}' not in template
