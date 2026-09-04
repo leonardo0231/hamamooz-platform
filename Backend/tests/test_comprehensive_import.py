@@ -264,9 +264,7 @@ def test_comprehensive_import_reports_independent_errors_after_class_preflight(b
     assert "structural_validation" not in [error["code"] for error in job.errors]
     assert any(error["sheet"] == "دانش‌آموزان" for error in job.errors)
     assert any(error["sheet"] == "ثبت اطلاعات" for error in job.errors)
-    warning_codes = {
-        warning["code"] for warning in job.result_summary["normalization_warnings"]
-    }
+    warning_codes = {warning["code"] for warning in job.result_summary["normalization_warnings"]}
     assert "school_code_ignored" in warning_codes
     assert "academic_year_fallback" in warning_codes
     assert not Student.objects.filter(national_id__startswith="9000000").exists()
