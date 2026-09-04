@@ -5,16 +5,13 @@ from django.db import transaction
 from django.utils import timezone
 
 from . import services
-from .comprehensive_hardening import (
-    apply_hardened_comprehensive_workbook,
-    enrich_comprehensive_rows,
-    validate_hardened_comprehensive_workbook,
-)
+from .comprehensive_flexible import validate_flexible_hardened_comprehensive_workbook
+from .comprehensive_hardening import apply_hardened_comprehensive_workbook, enrich_comprehensive_rows
 from .models import ImportJob
 
 
 def process_import_job(job_id):
-    """Process new comprehensive imports through the strict identity-aware pipeline.
+    """Process new comprehensive imports through the identity-aware flexible pipeline.
 
     Historical non-comprehensive jobs are still delegated to the legacy service so old failed
     jobs remain retryable, while the public serializer prevents creating new legacy imports.
@@ -57,7 +54,7 @@ def process_import_job(job_id):
 
     try:
         loaded = enrich_comprehensive_rows(job, services._load_rows(job))
-        prepared, errors = validate_hardened_comprehensive_workbook(job, loaded.rows)
+        prepared, errors = validate_flexible_hardened_comprehensive_workbook(job, loaded.rows)
         if errors:
             with transaction.atomic():
                 locked_job = ImportJob.objects.select_for_update().get(pk=job_id)
@@ -67,7 +64,10 @@ def process_import_job(job_id):
                 locked_job.total_rows = loaded.source_row_count
                 locked_job.error_count = len(errors)
                 locked_job.errors = errors[:1000]
-                locked_job.result_summary = {}
+                locked_job.result_summary = {
+                    "warning_count": len(prepared.get("warnings", [])),
+                    "normalization_warnings": prepared.get("warnings", [])[:1000],
+                }
                 locked_job.finished_at = timezone.now()
                 locked_job.save()
                 return locked_job
@@ -77,6 +77,9 @@ def process_import_job(job_id):
             if locked_job.status == ImportJob.Status.CANCELLED:
                 return locked_job
             summary = apply_hardened_comprehensive_workbook(locked_job, prepared)
+            warnings = prepared.get("warnings", [])
+            summary["warning_count"] = len(warnings)
+            summary["normalization_warnings"] = warnings[:1000]
             locked_job.status = ImportJob.Status.COMPLETED
             locked_job.total_rows = loaded.source_row_count
             locked_job.successful_rows = loaded.source_row_count
