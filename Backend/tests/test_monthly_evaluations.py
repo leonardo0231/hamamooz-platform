@@ -5,7 +5,7 @@ from django.core.files.base import ContentFile
 from openpyxl import Workbook, load_workbook
 from test_imports import create_job
 
-from hamamooz.apps.evaluations.catalog import DOMAIN_DEFINITIONS, METRIC_CATALOG
+from hamamooz.apps.evaluations.catalog import DOMAIN_DEFINITIONS, FRAMEWORK_VERSION, METRIC_CATALOG
 from hamamooz.apps.evaluations.models import MetricScore, MonthlyEvaluation
 from hamamooz.apps.imports.models import ImportJob
 from hamamooz.apps.imports.serializers import uploaded_file_checksum
@@ -40,8 +40,8 @@ def smart_workbook_bytes(base_data, metric_values, *, school_code=None):
     students.append([1, "1", enrollment.student.full_name, enrollment.class_section.title])
 
     data = workbook.create_sheet("ثبت اطلاعات")
-    data.append([None] * 92)
     metric_codes = list(METRIC_CATALOG)
+    data.append([None] * (5 + len(metric_codes) + 9 + 4))
     data.append(
         ["ردیف", "ماه", "کد دانش‌آموزی", "نام و نام خانوادگی", "کلاس"]
         + [METRIC_CATALOG[code]["title"] for code in metric_codes]
@@ -58,7 +58,7 @@ def smart_workbook_bytes(base_data, metric_values, *, school_code=None):
     metadata = workbook.create_sheet("__hamamooz_meta")
     for row in [
         ["template_version", "2.0"],
-        ["framework_version", "1.0"],
+        ["framework_version", FRAMEWORK_VERSION],
         ["school_code", school_code or base_data["school1"].code],
         ["academic_year_code", base_data["year"].code],
         ["class_code", base_data["class1"].code],
@@ -220,7 +220,7 @@ def test_monthly_evaluation_api_is_scoped_and_returns_calculations(api_client, b
     assert result["student"] == str(base_data["students"][0].id)
     assert result["month_no"] == 4
     assert result["overall_score"] == 14.0
-    assert result["completion_percent"] == pytest.approx(2 / 74 * 100, abs=0.01)
+    assert result["completion_percent"] == pytest.approx(2 / len(METRIC_CATALOG) * 100, abs=0.01)
 
     denied = api_client.get(
         "/api/v1/monthly-evaluations/",
@@ -376,6 +376,7 @@ def test_smart_template_endpoint_embeds_stable_metadata(api_client, base_data):
     workbook = load_workbook(BytesIO(b"".join(response.streaming_content)), data_only=False)
     assert workbook["__hamamooz_meta"].sheet_state == "veryHidden"
     assert workbook["__hamamooz_meta"]["B1"].value == "2.0"
+    assert workbook["__hamamooz_meta"]["B2"].value == FRAMEWORK_VERSION
     assert workbook["__hamamooz_meta"]["B3"].value == base_data["school1"].code
     assert workbook["ثبت اطلاعات"].max_row == 2 + len(base_data["enrollments"]) * 12
     workbook.close()
@@ -390,8 +391,10 @@ def test_generated_smart_template_round_trips_through_import(api_client, base_da
         HTTP_X_SCHOOL_ID=str(base_data["school1"].id),
     )
     workbook = load_workbook(BytesIO(b"".join(response.streaming_content)))
-    workbook["ثبت اطلاعات"]["F3"] = 5
-    workbook["ثبت اطلاعات"]["CN3"] = "رفت و برگشت قالب"
+    sheet = workbook["ثبت اطلاعات"]
+    sheet["F3"] = 5
+    note_column = next(cell.column for cell in sheet[2] if cell.value == "توضیحات")
+    sheet.cell(row=3, column=note_column, value="رفت و برگشت قالب")
     payload = BytesIO()
     workbook.save(payload)
     workbook.close()
