@@ -5,7 +5,6 @@ from decimal import Decimal, InvalidOperation
 
 from hamamooz.apps.evaluations.catalog import FRAMEWORK_VERSION, metric_catalog_for
 from hamamooz.apps.organizations.models import AcademicYear, GradeLevel
-from hamamooz.apps.students.models import Student
 
 from .comprehensive import (
     CLASS_SHEET,
