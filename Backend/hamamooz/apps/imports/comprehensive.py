@@ -156,8 +156,7 @@ def _metric_columns(sheet):
         if [code for code, _title in parsed] != expected_codes:
             continue
         titles_match = all(
-            not title or _label(title) == _label(catalog[code]["title"])
-            for code, title in parsed
+            not title or _label(title) == _label(catalog[code]["title"]) for code, title in parsed
         )
         if not titles_match:
             continue
@@ -412,16 +411,22 @@ def _preflight_comprehensive_classes(job, class_rows):
         row_has_error = False
 
         if not class_code:
-            errors.append(_error(CLASS_SHEET, source_row, "کد کلاس", "class", "کد کلاس الزامی است."))
+            errors.append(
+                _error(CLASS_SHEET, source_row, "کد کلاس", "class", "کد کلاس الزامی است.")
+            )
             row_has_error = True
         elif class_code in seen_class_codes:
-            errors.append(_error(CLASS_SHEET, source_row, "کد کلاس", "class", "کد کلاس تکراری است."))
+            errors.append(
+                _error(CLASS_SHEET, source_row, "کد کلاس", "class", "کد کلاس تکراری است.")
+            )
             row_has_error = True
         else:
             seen_class_codes.add(class_code)
 
         if not class_title:
-            errors.append(_error(CLASS_SHEET, source_row, "نام کلاس", "class", "نام کلاس الزامی است."))
+            errors.append(
+                _error(CLASS_SHEET, source_row, "نام کلاس", "class", "نام کلاس الزامی است.")
+            )
             row_has_error = True
 
         grade_key = _label(grade_value)
@@ -520,11 +525,19 @@ def validate_comprehensive_workbook(job, rows):
     normalized_evaluations = []
     evaluation_keys = set()
     framework_versions = {
-        _text(row.get("framework_version")) for row in evaluation_rows if row.get("framework_version")
+        _text(row.get("framework_version"))
+        for row in evaluation_rows
+        if row.get("framework_version")
     }
     if len(framework_versions) > 1:
         errors.append(
-            _error(EVALUATION_SHEET, None, None, "framework_version", "همه ارزیابی‌های فایل باید یک نسخه چارچوب داشته باشند.")
+            _error(
+                EVALUATION_SHEET,
+                None,
+                None,
+                "framework_version",
+                "همه ارزیابی‌های فایل باید یک نسخه چارچوب داشته باشند.",
+            )
         )
     workbook_framework_version = next(iter(framework_versions), FRAMEWORK_VERSION)
 
@@ -548,7 +561,9 @@ def validate_comprehensive_workbook(job, rows):
             metrics = {}
             for metric_code, value in row["metrics"].items():
                 if metric_code not in catalog:
-                    raise ValueError(f"کد شاخص {metric_code} در چارچوب {framework_version} معتبر نیست.")
+                    raise ValueError(
+                        f"کد شاخص {metric_code} در چارچوب {framework_version} معتبر نیست."
+                    )
                 try:
                     decimal = Decimal(_text(value))
                     score = int(decimal)
