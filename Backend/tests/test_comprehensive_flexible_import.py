@@ -72,9 +72,7 @@ def test_comprehensive_import_accepts_sample_conventions_without_editing_excel(b
     job.refresh_from_db()
 
     assert job.status == ImportJob.Status.COMPLETED, job.errors
-    student = Student.objects.get(
-        organization=base_data["organization"], national_id="0960715363"
-    )
+    student = Student.objects.get(organization=base_data["organization"], national_id="0960715363")
     assert student.birth_date == date(2014, 1, 9)
 
     enrollment = Enrollment.objects.get(student=student, academic_year=base_data["year"])
@@ -85,9 +83,7 @@ def test_comprehensive_import_accepts_sample_conventions_without_editing_excel(b
     evaluation = MonthlyEvaluation.objects.get(enrollment=enrollment, month_no=1)
     assert evaluation.metric_scores.get(metric_code="ART_06").value == 5
 
-    warning_codes = {
-        warning["code"] for warning in job.result_summary["normalization_warnings"]
-    }
+    warning_codes = {warning["code"] for warning in job.result_summary["normalization_warnings"]}
     assert {
         "selected_school_inactive",
         "school_code_ignored",
