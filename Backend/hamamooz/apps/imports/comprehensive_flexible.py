@@ -41,12 +41,7 @@ def _text(value) -> str:
 
 def _label(value) -> str:
     return "".join(
-        _text(value)
-        .replace("ي", "ی")
-        .replace("ك", "ک")
-        .replace("‌", " ")
-        .replace("ـ", "")
-        .split()
+        _text(value).replace("ي", "ی").replace("ك", "ک").replace("‌", " ").replace("ـ", "").split()
     ).lower()
 
 
@@ -404,10 +399,14 @@ def validate_flexible_hardened_comprehensive_workbook(job, rows):
         row_has_error = False
 
         if not class_code:
-            errors.append(_error(CLASS_SHEET, source_row, "کد کلاس", "class", "کد کلاس الزامی است."))
+            errors.append(
+                _error(CLASS_SHEET, source_row, "کد کلاس", "class", "کد کلاس الزامی است.")
+            )
             row_has_error = True
         elif class_code in seen_class_codes:
-            errors.append(_error(CLASS_SHEET, source_row, "کد کلاس", "class", "کد کلاس تکراری است."))
+            errors.append(
+                _error(CLASS_SHEET, source_row, "کد کلاس", "class", "کد کلاس تکراری است.")
+            )
             row_has_error = True
         else:
             seen_class_codes.add(class_code)
