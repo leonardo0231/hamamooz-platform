@@ -70,7 +70,12 @@ def build_comprehensive_school_template() -> BytesIO:
     guide.sheet_view.rightToLeft = True
     guide.append(["قالب جامع مدرسه هم‌آموز"])
     guide.append(["نسخه چارچوب شاخص‌ها", FRAMEWORK_VERSION])
-    guide.append(["راهنما", "ابتدا کلاس‌ها و دانش‌آموزان را تکمیل کنید؛ سپس امتیازهای ۰ تا ۵ را در شیت ثبت اطلاعات وارد کنید."])
+    guide.append(
+        [
+            "راهنما",
+            "ابتدا کلاس‌ها و دانش‌آموزان را تکمیل کنید؛ سپس امتیازهای ۰ تا ۵ را در شیت ثبت اطلاعات وارد کنید.",
+        ]
+    )
     guide.append(["نکته", "کد ملی باید دقیقاً ۱۰ رقم و تاریخ تولد باید با قالب YYYY-MM-DD ثبت شود."])
     guide.column_dimensions["A"].width = 28
     guide.column_dimensions["B"].width = 90
@@ -129,7 +134,9 @@ def build_comprehensive_school_template() -> BytesIO:
     weights.append(["تنظیمات وزن‌دهی حوزه‌ها"])
     weights.append(["اوزان رسمی سامانه؛ نام و کد حوزه‌ها را تغییر ندهید."])
     weights.append([])
-    weights.append(["کد حوزه", "نام حوزه", "وزن درصدی", "تعداد شاخص", "شروع ستون شاخص", "پایان ستون شاخص"])
+    weights.append(
+        ["کد حوزه", "نام حوزه", "وزن درصدی", "تعداد شاخص", "شروع ستون شاخص", "پایان ستون شاخص"]
+    )
     _style_header(weights[4])
     domain_bounds = _metric_bounds_by_domain()
     for domain_code, (title, weight) in DOMAIN_DEFINITIONS.items():
