@@ -4,14 +4,19 @@ from decimal import Decimal, InvalidOperation
 
 from django.utils import timezone
 
-from hamamooz.apps.evaluations.catalog import FRAMEWORK_VERSION, METRIC_CATALOG
+from hamamooz.apps.evaluations.catalog import (
+    FRAMEWORK_VERSION,
+    METRIC_CATALOG,
+    METRIC_CATALOGS,
+    metric_catalog_for,
+)
 from hamamooz.apps.evaluations.models import MetricScore, MonthlyEvaluation
 from hamamooz.apps.organizations.models import AcademicYear, ClassSection, GradeLevel
 from hamamooz.apps.students.models import Enrollment, Student
 
 from .adapters import LoadedImportRows
 
-COMPREHENSIVE_TEMPLATE_VERSION = "1.0"
+COMPREHENSIVE_TEMPLATE_VERSION = "2.0"
 COMPREHENSIVE_IMPORT_TYPE = "comprehensive_school"
 CLASS_SHEET = "کلاس‌بندی"
 STUDENT_SHEET = "دانش‌آموزان"
@@ -116,21 +121,69 @@ def _validate_headers(sheet, expected, *, start_column=1):
         raise ValueError(f"عنوان ستون‌های شیت «{sheet.title}» در ردیف ۴ با قالب رسمی یکسان نیست.")
 
 
+def _split_metric_header(value):
+    header = _text(value)
+    if not header:
+        return "", ""
+    parts = header.split("|", maxsplit=1)
+    code = parts[0].strip().upper()
+    title = parts[1].strip() if len(parts) == 2 else ""
+    return code, title
+
+
 def _metric_columns(sheet):
-    result = {}
-    expected_codes = list(METRIC_CATALOG)
-    headers = next(sheet.iter_rows(min_row=4, max_row=4, min_col=7, max_col=80, values_only=True))
-    for offset, (expected_code, header_value) in enumerate(
-        zip(expected_codes, headers, strict=True), start=7
-    ):
-        header = _text(header_value)
-        code = header.split("|", maxsplit=1)[0].strip().upper()
+    """Return metric-column mapping and the framework version encoded by row 4.
+
+    Version 1 used 74 metric columns (G:CB). The current school workbook uses
+    46 metric columns (G:AZ) and intentionally leaves BA:CB empty before its
+    calculated columns at CC:CP. Matching both code and title prevents a code
+    whose meaning changed between versions from being silently reinterpreted.
+    """
+
+    headers = list(
+        next(sheet.iter_rows(min_row=4, max_row=4, min_col=7, max_col=80, values_only=True))
+    )
+    candidates = [FRAMEWORK_VERSION] + [
+        version for version in METRIC_CATALOGS if version != FRAMEWORK_VERSION
+    ]
+
+    for framework_version in candidates:
+        catalog = METRIC_CATALOGS[framework_version]
+        expected_codes = list(catalog)
+        if len(expected_codes) > len(headers):
+            continue
+        parsed = [_split_metric_header(value) for value in headers[: len(expected_codes)]]
+        if [code for code, _title in parsed] != expected_codes:
+            continue
+        titles_match = all(
+            not title or _label(title) == _label(catalog[code]["title"])
+            for code, title in parsed
+        )
+        if not titles_match:
+            continue
+        trailing = headers[len(expected_codes) :]
+        if framework_version == FRAMEWORK_VERSION and any(
+            _split_metric_header(value)[0] for value in trailing
+        ):
+            continue
+        return {
+            column: code for column, code in enumerate(expected_codes, start=7)
+        }, framework_version
+
+    current_codes = list(METRIC_CATALOG)
+    for offset, expected_code in enumerate(current_codes, start=7):
+        code, title = _split_metric_header(headers[offset - 7])
         if code != expected_code:
             raise ValueError(
                 f"کد شاخص ستون {offset} در شیت «{sheet.title}» باید {expected_code} باشد."
             )
-        result[offset] = expected_code
-    return result
+        expected_title = METRIC_CATALOG[expected_code]["title"]
+        if title and _label(title) != _label(expected_title):
+            raise ValueError(
+                f"عنوان شاخص {expected_code} در ستون {offset} شیت «{sheet.title}» "
+                f"باید «{expected_title}» باشد."
+            )
+    raise ValueError(f"چیدمان شاخص‌های شیت «{sheet.title}» با هیچ نسخه پشتیبانی‌شده‌ای سازگار نیست.")
 
 
 def _reject_rows_beyond_template_limit(sheet, *, max_row, min_column, max_column):
@@ -158,9 +211,11 @@ def load_comprehensive_workbook(job, workbook) -> LoadedImportRows:
     _validate_headers(classes_sheet, CLASS_HEADERS)
     _validate_headers(students_sheet, STUDENT_HEADERS)
     _validate_headers(evaluation_sheet, EVALUATION_IDENTITY_HEADERS)
-    metric_columns = _metric_columns(evaluation_sheet)
+    metric_columns, framework_version = _metric_columns(evaluation_sheet)
     _reject_rows_beyond_template_limit(classes_sheet, max_row=34, min_column=2, max_column=7)
-    _reject_rows_beyond_template_limit(students_sheet, max_row=104, min_column=2, max_column=9)
+    # Some current workbooks pre-fill a harmless local-code sequence below the
+    # supported student rows. Only real student data (C:I) counts as overflow.
+    _reject_rows_beyond_template_limit(students_sheet, max_row=104, min_column=3, max_column=9)
     _reject_rows_beyond_template_limit(evaluation_sheet, max_row=1204, min_column=1, max_column=94)
 
     rows = []
@@ -239,6 +294,7 @@ def load_comprehensive_workbook(job, workbook) -> LoadedImportRows:
                 "month": month_value,
                 "metrics": metrics,
                 "note": note,
+                "framework_version": framework_version,
                 "__sheet__": EVALUATION_SHEET,
                 "__source_row__": source_row,
             }
@@ -251,7 +307,7 @@ def load_comprehensive_workbook(job, workbook) -> LoadedImportRows:
     return LoadedImportRows(
         rows=rows,
         source_row_count=len(rows),
-        adapter="comprehensive-school-v1",
+        adapter=f"comprehensive-school-{framework_version}",
     )
 
 
@@ -290,14 +346,9 @@ def _model_error(exc):
 
 
 def _preflight_comprehensive_classes(job, class_rows):
-    """Validate class-level references before inspecting dependent rows.
+    """Validate class references once before dependent student/evaluation rows."""
 
-    Students and evaluations rely on the classes in this sheet.  Returning the structural
-    errors first prevents one incorrect reference from being reported again for every
-    dependent row in a large workbook.
-    """
     errors = []
-
     reported_school_codes = set()
     for row in class_rows:
         school_code = _text(row["school_code"])
@@ -310,7 +361,7 @@ def _preflight_comprehensive_classes(job, class_rows):
                 row["__source_row__"],
                 "کد مدرسه",
                 "school",
-                (f'کد مدرسه "{school_code}" با مدرسه انتخاب‌شده "{job.school.code}" مطابقت ندارد.'),
+                f'کد مدرسه "{school_code}" با مدرسه انتخاب‌شده "{job.school.code}" مطابقت ندارد.',
             )
         )
 
@@ -327,20 +378,20 @@ def _preflight_comprehensive_classes(job, class_rows):
         )
         academic_year = None
     else:
+        academic_year_code = next(iter(year_codes))
         academic_year = AcademicYear.objects.filter(
             organization=job.organization,
-            code=next(iter(year_codes)),
+            code=academic_year_code,
             is_active=True,
         ).first()
         if academic_year is None:
-            academic_year_code = next(iter(year_codes))
             errors.append(
                 _error(
                     CLASS_SHEET,
                     None,
                     "سال تحصیلی",
                     "academic_year",
-                    (f'سال تحصیلی "{academic_year_code}" در این مجموعه وجود ندارد یا فعال نیست.'),
+                    f'سال تحصیلی "{academic_year_code}" در این مجموعه وجود ندارد یا فعال نیست.',
                 )
             )
 
@@ -361,40 +412,16 @@ def _preflight_comprehensive_classes(job, class_rows):
         row_has_error = False
 
         if not class_code:
-            errors.append(
-                _error(
-                    CLASS_SHEET,
-                    source_row,
-                    "کد کلاس",
-                    "class",
-                    "کد کلاس الزامی است.",
-                )
-            )
+            errors.append(_error(CLASS_SHEET, source_row, "کد کلاس", "class", "کد کلاس الزامی است."))
             row_has_error = True
         elif class_code in seen_class_codes:
-            errors.append(
-                _error(
-                    CLASS_SHEET,
-                    source_row,
-                    "کد کلاس",
-                    "class",
-                    "کد کلاس تکراری است.",
-                )
-            )
+            errors.append(_error(CLASS_SHEET, source_row, "کد کلاس", "class", "کد کلاس تکراری است."))
             row_has_error = True
         else:
             seen_class_codes.add(class_code)
 
         if not class_title:
-            errors.append(
-                _error(
-                    CLASS_SHEET,
-                    source_row,
-                    "نام کلاس",
-                    "class",
-                    "نام کلاس الزامی است.",
-                )
-            )
+            errors.append(_error(CLASS_SHEET, source_row, "نام کلاس", "class", "نام کلاس الزامی است."))
             row_has_error = True
 
         grade_key = _label(grade_value)
@@ -492,6 +519,15 @@ def validate_comprehensive_workbook(job, rows):
     students_by_local_code = {item["local_code"]: item for item in normalized_students}
     normalized_evaluations = []
     evaluation_keys = set()
+    framework_versions = {
+        _text(row.get("framework_version")) for row in evaluation_rows if row.get("framework_version")
+    }
+    if len(framework_versions) > 1:
+        errors.append(
+            _error(EVALUATION_SHEET, None, None, "framework_version", "همه ارزیابی‌های فایل باید یک نسخه چارچوب داشته باشند.")
+        )
+    workbook_framework_version = next(iter(framework_versions), FRAMEWORK_VERSION)
+
     for row in evaluation_rows:
         source_row = row["__source_row__"]
         try:
@@ -505,8 +541,14 @@ def validate_comprehensive_workbook(job, rows):
             key = (local_code, month_no)
             if key in evaluation_keys:
                 raise ValueError("برای این دانش‌آموز و ماه بیش از یک ردیف ارزیابی وجود دارد.")
+            framework_version = _text(row.get("framework_version")) or workbook_framework_version
+            catalog = metric_catalog_for(framework_version)
+            if not catalog:
+                raise ValueError(f"نسخه چارچوب شاخص‌ها {framework_version} پشتیبانی نمی‌شود.")
             metrics = {}
             for metric_code, value in row["metrics"].items():
+                if metric_code not in catalog:
+                    raise ValueError(f"کد شاخص {metric_code} در چارچوب {framework_version} معتبر نیست.")
                 try:
                     decimal = Decimal(_text(value))
                     score = int(decimal)
@@ -525,6 +567,7 @@ def validate_comprehensive_workbook(job, rows):
                     "month_no": month_no,
                     "metrics": metrics,
                     "note": note,
+                    "framework_version": framework_version,
                     "source_row": source_row,
                 }
             )
@@ -551,6 +594,7 @@ def validate_comprehensive_workbook(job, rows):
         "classes": normalized_classes,
         "students": normalized_students,
         "evaluations": normalized_evaluations,
+        "framework_version": workbook_framework_version,
     }, errors
 
 
@@ -576,6 +620,7 @@ def apply_comprehensive_workbook(job, prepared):
         "metric_scores_upserted": 0,
         "final_evaluations": 0,
         "provisional_evaluations": 0,
+        "framework_version": prepared.get("framework_version", FRAMEWORK_VERSION),
     }
 
     class_instances = {}
@@ -656,8 +701,7 @@ def apply_comprehensive_workbook(job, prepared):
                 and instance.school_id != job.school_id
             ):
                 raise ValueError(
-                    f"دانش‌آموز {student.full_name} در همین سال تحصیلی "
-                    "ثبت‌نام فعال در مدرسه دیگری دارد."
+                    f"دانش‌آموز {student.full_name} در همین سال تحصیلی ثبت‌نام فعال در مدرسه دیگری دارد."
                 )
             summary["enrollments_updated"] += 1
             _restore(instance)
@@ -687,12 +731,16 @@ def apply_comprehensive_workbook(job, prepared):
 
     for item in prepared["evaluations"]:
         enrollment = enrollment_instances[item["local_code"]]
+        framework_version = item.get("framework_version") or prepared.get(
+            "framework_version", FRAMEWORK_VERSION
+        )
+        catalog = metric_catalog_for(framework_version)
         evaluation = (
             MonthlyEvaluation.objects.select_for_update()
             .filter(
                 enrollment=enrollment,
                 month_no=item["month_no"],
-                framework_version=FRAMEWORK_VERSION,
+                framework_version=framework_version,
             )
             .first()
         )
@@ -700,7 +748,7 @@ def apply_comprehensive_workbook(job, prepared):
             evaluation = MonthlyEvaluation.objects.create(
                 enrollment=enrollment,
                 month_no=item["month_no"],
-                framework_version=FRAMEWORK_VERSION,
+                framework_version=framework_version,
                 note=item["note"],
                 recorded_by=job.requested_by,
                 source_import_job=job,
@@ -721,7 +769,7 @@ def apply_comprehensive_workbook(job, prepared):
                 defaults={"value": score},
             )
             summary["metric_scores_upserted"] += 1
-        if len(item["metrics"]) == len(METRIC_CATALOG):
+        if len(item["metrics"]) == len(catalog):
             summary["final_evaluations"] += 1
         else:
             summary["provisional_evaluations"] += 1
