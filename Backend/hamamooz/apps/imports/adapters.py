@@ -148,9 +148,7 @@ class SmartWideEvaluationAdapter:
         if metadata["template_version"] != SMART_TEMPLATE_VERSION:
             raise ValueError(f"نسخه قالب هوشمند باید {SMART_TEMPLATE_VERSION} باشد.")
         if metadata["framework_version"] not in METRIC_CATALOGS:
-            raise ValueError(
-                f"نسخه چارچوب شاخص‌ها {metadata['framework_version']} پشتیبانی نمی‌شود."
-            )
+            raise ValueError(f"نسخه چارچوب شاخص‌ها {metadata['framework_version']} پشتیبانی نمی‌شود.")
         catalog = metric_catalog_for(metadata["framework_version"])
         if metadata["school_code"] != job.school.code:
             raise ValueError("کد مدرسه با شعبه انتخاب‌شده در سایت یکسان نیست.")
