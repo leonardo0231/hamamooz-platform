@@ -10,7 +10,7 @@ DOMAIN_DEFINITIONS = {
     "PER": ("مهارت‌های فردی", 7),
 }
 
-_TITLES = {
+_V1_TITLES = {
     "EDU": [
         "نمرات درسی",
         "پیشرفت نسبت به قبل",
@@ -105,18 +105,102 @@ _TITLES = {
     ],
 }
 
-METRIC_CATALOG = {
-    f"{prefix}_{index:02d}": {
-        "code": f"{prefix}_{index:02d}",
-        "title": title,
-        "domain_code": prefix,
-        "domain_title": DOMAIN_DEFINITIONS[prefix][0],
-        "domain_weight": DOMAIN_DEFINITIONS[prefix][1],
-        "order": index,
-    }
-    for prefix, titles in _TITLES.items()
-    for index, title in enumerate(titles, start=1)
+# Current official comprehensive-school workbook (46 metrics, G:AZ).
+_V2_TITLES = {
+    "EDU": [
+        "نمرات درسی",
+        "پیشرفت نسبت به قبل",
+        "انجام تکالیف",
+        "مشارکت در کلاس",
+        "دقت و تمرکز",
+        "مهارت حل مسئله",
+        "آمادگی برای امتحان",
+        "مطالعه غیر درسی",
+    ],
+    "DEV": [
+        "احترام به معلم و همکلاسی",
+        "مسئولیت‌پذیری",
+        "همکاری با دیگران",
+        "ادب و رفتار اجتماعی",
+        "اعتماد به نفس",
+    ],
+    "CHR": [
+        "هدف‌گذاری",
+        "دوست یابی",
+    ],
+    "DIS": [
+        "حضور و غیاب",
+        "تأخیر",
+        "رعایت قوانین مدرسه",
+        "رعایت پوشش",
+        "احترام به مقررات کلاس",
+    ],
+    "CUL": [
+        "مشارکت در برنامه‌های فرهنگی",
+        "شناخت ارزش‌های اجتماعی",
+        "رفتار مناسب در مراسم‌ها",
+    ],
+    "RES": [
+        "انجام تحقیق",
+        "خلاقیت در پروژه‌ها",
+        "تحلیل اطلاعات",
+        "استفاده از منابع",
+        "نوآوری",
+        "پرسشگری",
+    ],
+    "SPT": [
+        "آمادگی جسمانی",
+        "مشارکت در فعالیت‌های ورزشی",
+        "روحیه تیمی",
+        "رعایت قوانین بازی",
+        "تلاش و پشتکار",
+        "پیشرفت بدنی",
+        "مهارت‌های حرکتی",
+    ],
+    "ART": [
+        "خلاقیت",
+        "مشارکت در فعالیت‌های هنری",
+        "مهارت در نقاشی / موسیقی / ...",
+        "دقت در کار هنری",
+        "نوآوری",
+        "علاقه‌مندی",
+        "ارائه آثار",
+    ],
+    "PER": [
+        "مهارت ارتباطی",
+        "مهارت برنامه‌ریزی",
+        "ارائه مطلب",
+    ],
 }
 
+FRAMEWORK_VERSION = "2.0"
+LEGACY_FRAMEWORK_VERSION = "1.0"
+
+
+def _build_catalog(titles_by_domain):
+    return {
+        f"{prefix}_{index:02d}": {
+            "code": f"{prefix}_{index:02d}",
+            "title": title,
+            "domain_code": prefix,
+            "domain_title": DOMAIN_DEFINITIONS[prefix][0],
+            "domain_weight": DOMAIN_DEFINITIONS[prefix][1],
+            "order": index,
+        }
+        for prefix, titles in titles_by_domain.items()
+        for index, title in enumerate(titles, start=1)
+    }
+
+
+METRIC_CATALOGS = {
+    LEGACY_FRAMEWORK_VERSION: _build_catalog(_V1_TITLES),
+    FRAMEWORK_VERSION: _build_catalog(_V2_TITLES),
+}
+METRIC_CATALOG = METRIC_CATALOGS[FRAMEWORK_VERSION]
 METRIC_CODES = frozenset(METRIC_CATALOG)
-FRAMEWORK_VERSION = "1.0"
+
+
+def metric_catalog_for(framework_version):
+    """Return the metric catalog matching a persisted evaluation framework version."""
+
+    return METRIC_CATALOGS.get(str(framework_version), {})
