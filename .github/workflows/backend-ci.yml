@@ -78,10 +78,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -188,12 +188,12 @@ jobs:
         run: pytest --cov=hamamooz --cov-report=xml
 
       - name: Upload backend coverage
-        if: always()
-        uses: actions/upload-artifact@v4
+        if: ${{ always() && hashFiles('Backend/coverage.xml') != '' }}
+        uses: actions/upload-artifact@v7
         with:
           name: backend-coverage
           path: Backend/coverage.xml
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 7
 
       - name: PostgreSQL backup and restore drill
@@ -233,7 +233,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Validate Compose configuration
         run: docker compose config --quiet
@@ -251,7 +251,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Run clean-boot Compose integration smoke
         run: bash scripts/docker-integration-smoke.sh
