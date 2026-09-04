@@ -6,7 +6,10 @@ from django.utils import timezone
 
 from . import services
 from .comprehensive_flexible import validate_flexible_hardened_comprehensive_workbook
-from .comprehensive_hardening import apply_hardened_comprehensive_workbook, enrich_comprehensive_rows
+from .comprehensive_hardening import (
+    apply_hardened_comprehensive_workbook,
+    enrich_comprehensive_rows,
+)
 from .models import ImportJob
 
 
