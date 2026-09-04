@@ -6,7 +6,6 @@ from openpyxl.utils import get_column_letter
 
 from hamamooz.apps.evaluations.catalog import (
     FRAMEWORK_VERSION,
-    METRIC_CATALOG,
     METRIC_CATALOGS,
     metric_catalog_for,
 )
@@ -194,9 +193,7 @@ class SmartWideEvaluationAdapter:
             metric_columns[column_index] = metric_code
             seen_codes.add(metric_code)
         if seen_codes != set(catalog):
-            raise ValueError(
-                f"نگاشت {len(catalog)} شاخص در متادیتای قالب کامل نیست."
-            )
+            raise ValueError(f"نگاشت {len(catalog)} شاخص در متادیتای قالب کامل نیست.")
 
         expanded = []
         source_row_count = 0
