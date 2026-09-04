@@ -83,7 +83,7 @@ def enrich_comprehensive_rows(job, loaded: LoadedImportRows) -> LoadedImportRows
     return LoadedImportRows(
         rows=loaded.rows,
         source_row_count=loaded.source_row_count,
-        adapter="comprehensive-school-v1-hardened",
+        adapter=f"{loaded.adapter}-hardened",
     )
 
 
@@ -237,9 +237,10 @@ def _snapshot_change_counts(job, prepared):
 
     evaluation_map = {}
     enrollment_ids = [item.id for item in existing_enrollments.values()]
+    framework_version = prepared.get("framework_version", FRAMEWORK_VERSION)
     for evaluation in MonthlyEvaluation.objects.filter(
         enrollment_id__in=enrollment_ids,
-        framework_version=FRAMEWORK_VERSION,
+        framework_version=framework_version,
     ).prefetch_related("metric_scores"):
         evaluation_map[(evaluation.enrollment_id, evaluation.month_no)] = evaluation
 
