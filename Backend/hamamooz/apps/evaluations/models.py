@@ -13,11 +13,20 @@ class MonthlyEvaluation(SoftDeleteModel):
         on_delete=models.PROTECT,
         related_name="monthly_evaluations",
     )
+    term = models.ForeignKey(
+        "organizations.Term",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="monthly_evaluations",
+    )
     month_no = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(12)]
     )
     framework_version = models.CharField(max_length=20, default=FRAMEWORK_VERSION)
     note = models.TextField(blank=True)
+    raw_metric_values = models.JSONField(default=dict, blank=True)
+    source_summary = models.JSONField(default=dict, blank=True)
     recorded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
