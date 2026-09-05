@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: HamAmoz School Platform API
-  version: 1.0.0
+  version: 1.0.0 (v1)
   description: API نسخه MVP سامانه چندشعبه‌ای هم‌آموز
 paths:
   /api/v1/academic-years/:
@@ -8765,6 +8765,124 @@ paths:
               schema:
                 $ref: '#/components/schemas/ReportArchive'
           description: ''
+  /api/v1/reports/batches/:
+    get:
+      operationId: reports_batches_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedReportBatchList'
+          description: ''
+    post:
+      operationId: reports_batches_create
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportBatch'
+          description: ''
+  /api/v1/reports/batches/{id}/:
+    get:
+      operationId: reports_batches_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this report batch.
+        required: true
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportBatch'
+          description: ''
+  /api/v1/reports/batches/{id}/download/:
+    get:
+      operationId: reports_batches_download_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this report batch.
+        required: true
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportBatch'
+          description: ''
+  /api/v1/reports/batches/{id}/release/:
+    post:
+      operationId: reports_batches_release_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this report batch.
+        required: true
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportBatch'
+          description: ''
   /api/v1/reports/drafts/:
     get:
       operationId: reports_drafts_list
@@ -11764,7 +11882,7 @@ components:
           readOnly: true
         scope:
           allOf:
-          - $ref: '#/components/schemas/ScopeEnum'
+          - $ref: '#/components/schemas/AttendanceScopeEnum'
           readOnly: true
         severity:
           allOf:
@@ -12220,6 +12338,14 @@ components:
         * `present` - حاضر
         * `absent_excused` - غیبت موجه
         * `absent_unexcused` - غیبت غیرموجه
+    AttendanceScopeEnum:
+      enum:
+      - daily
+      - period
+      type: string
+      description: |-
+        * `daily` - روزانه
+        * `period` - زنگ/کلاس
     AttendanceSession:
       type: object
       properties:
@@ -12263,7 +12389,7 @@ components:
           type: string
           format: date
         scope:
-          $ref: '#/components/schemas/ScopeEnum'
+          $ref: '#/components/schemas/AttendanceScopeEnum'
         period_number:
           type: integer
           maximum: 9223372036854775807
@@ -12357,7 +12483,7 @@ components:
           type: string
           format: date
         scope:
-          $ref: '#/components/schemas/ScopeEnum'
+          $ref: '#/components/schemas/AttendanceScopeEnum'
         period_number:
           type: integer
           maximum: 9223372036854775807
@@ -13033,7 +13159,7 @@ components:
           readOnly: true
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/ScopeEnum'
+          - $ref: '#/components/schemas/AttendanceScopeEnum'
           - $ref: '#/components/schemas/NullEnum'
         summary:
           allOf:
@@ -15347,7 +15473,7 @@ components:
           type: string
           format: date
         scope:
-          $ref: '#/components/schemas/ScopeEnum'
+          $ref: '#/components/schemas/AttendanceScopeEnum'
         enrollment:
           type: string
           format: uuid
@@ -16403,6 +16529,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ReportArchive'
+    PaginatedReportBatchList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportBatch'
     PaginatedReportDraftList:
       type: object
       required:
@@ -17021,7 +17170,7 @@ components:
           type: string
           format: date
         scope:
-          $ref: '#/components/schemas/ScopeEnum'
+          $ref: '#/components/schemas/AttendanceScopeEnum'
         period_number:
           type: integer
           maximum: 9223372036854775807
@@ -18200,6 +18349,184 @@ components:
       required:
       - report_type
       - term
+    ReportBatch:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        organization:
+          type: string
+          format: uuid
+          readOnly: true
+        school:
+          type: string
+          format: uuid
+          readOnly: true
+        academic_year:
+          type: string
+          format: uuid
+          readOnly: true
+        term:
+          type: string
+          format: uuid
+          readOnly: true
+        class_section:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        scope:
+          allOf:
+          - $ref: '#/components/schemas/ReportBatchScopeEnum'
+          readOnly: true
+        page_size:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ReportBatchStatusEnum'
+          readOnly: true
+        total_count:
+          type: integer
+          readOnly: true
+        completed_count:
+          type: integer
+          readOnly: true
+        failed_count:
+          type: integer
+          readOnly: true
+        progress_percent:
+          type: integer
+          readOnly: true
+        zip_download_url:
+          type: string
+          nullable: true
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        error_message:
+          type: string
+          readOnly: true
+        requested_by:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportBatchItem'
+          readOnly: true
+      required:
+      - academic_year
+      - class_section
+      - completed_at
+      - completed_count
+      - created_at
+      - error_message
+      - failed_count
+      - id
+      - items
+      - organization
+      - page_size
+      - progress_percent
+      - requested_by
+      - school
+      - scope
+      - started_at
+      - status
+      - term
+      - total_count
+      - zip_download_url
+    ReportBatchItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        student_name:
+          type: string
+          readOnly: true
+        national_id:
+          type: string
+          readOnly: true
+        enrollment:
+          type: string
+          format: uuid
+        report_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ReportBatchItemStatusEnum'
+        error_message:
+          type: string
+      required:
+      - enrollment
+      - id
+      - national_id
+      - report_id
+      - student_name
+    ReportBatchItemRequest:
+      type: object
+      properties:
+        enrollment:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ReportBatchItemStatusEnum'
+        error_message:
+          type: string
+      required:
+      - enrollment
+    ReportBatchItemStatusEnum:
+      enum:
+      - queued
+      - processing
+      - completed
+      - failed
+      type: string
+      description: |-
+        * `queued` - Queued
+        * `processing` - Processing
+        * `completed` - Completed
+        * `failed` - Failed
+    ReportBatchScopeEnum:
+      enum:
+      - class
+      - school
+      type: string
+      description: |-
+        * `class` - Class
+        * `school` - School
+    ReportBatchStatusEnum:
+      enum:
+      - queued
+      - processing
+      - completed
+      - partial
+      - failed
+      type: string
+      description: |-
+        * `queued` - Queued
+        * `processing` - Processing
+        * `completed` - Completed
+        * `partial` - Partially completed
+        * `failed` - Failed
     ReportDraft:
       type: object
       properties:
@@ -18693,7 +19020,7 @@ components:
           readOnly: true
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/ScopeEnum'
+          - $ref: '#/components/schemas/AttendanceScopeEnum'
           - $ref: '#/components/schemas/NullEnum'
         summary:
           allOf:
@@ -18806,14 +19133,6 @@ components:
       - code
       - name
       - organization
-    ScopeEnum:
-      enum:
-      - daily
-      - period
-      type: string
-      description: |-
-        * `daily` - روزانه
-        * `period` - زنگ/کلاس
     Score:
       type: object
       properties:
@@ -19495,7 +19814,7 @@ components:
           readOnly: true
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/ScopeEnum'
+          - $ref: '#/components/schemas/AttendanceScopeEnum'
           - $ref: '#/components/schemas/NullEnum'
         metrics:
           allOf:

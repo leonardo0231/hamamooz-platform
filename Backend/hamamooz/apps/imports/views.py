@@ -19,6 +19,7 @@ from hamamooz.apps.accounts.models import Role
 from hamamooz.apps.core.viewsets import AuditedModelViewSet
 from hamamooz.apps.organizations.models import ClassSection
 
+from .comprehensive_template import build_comprehensive_school_template
 from .models import ImportJob
 from .serializers import ImportJobCreateSerializer, ImportJobSerializer
 from .tasks import process_import_job_task
@@ -172,6 +173,13 @@ class ImportJobViewSet(AuditedModelViewSet):
             return Response(
                 {"layout": "layout باید long یا smart باشد."},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+        if template_type == ImportJob.ImportType.COMPREHENSIVE_SCHOOL:
+            return FileResponse(
+                build_comprehensive_school_template(),
+                as_attachment=True,
+                filename="comprehensive_school_template.xlsx",
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
         template_path = (
             Path(settings.BASE_DIR) / "docs" / "import_templates" / f"{template_type}_template.xlsx"

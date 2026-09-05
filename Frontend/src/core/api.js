@@ -94,6 +94,24 @@ export async function apiRequest(path, options = {}) {
   } finally { clearTimeout(timer); }
 }
 
+/**
+ * Download an authenticated response that was requested with
+ * `responseType: 'blob'`.  Report and import URLs deliberately remain API
+ * endpoints instead of public storage links, so opening them in a bare anchor
+ * would drop the in-memory access token.
+ */
+export function downloadBlob(blob, filename) {
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = filename;
+  link.hidden = true;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+}
+
 export async function login(identifier, password, remember) {
   if (config.demoMode) {
     store.patch({ user: { id: 1, username: identifier || 'manager.demo', first_name: 'مریم', last_name: 'نادری', role_assignments: [{ id: 'demo', role: 'school_manager', is_active: true }] }, bootstrapping: false });
@@ -182,11 +200,12 @@ export const dataApi = {
   students: async (query, signal) => config.demoMode ? students : results(await apiRequest('students/', { query, signal })).map(normalizeStudent),
   student: async (id, signal) => {
     if (config.demoMode) return { ...studentProfile, ...(students.find(item => item.id === id) ?? {}) };
-    const [summary, academics, attendance, evaluations] = await Promise.all([
-      apiRequest(`students/${id}/360/summary/`, { signal }), apiRequest(`students/${id}/360/academics/`, { signal }),
-      apiRequest(`students/${id}/360/attendance/`, { signal }), apiRequest(`students/${id}/360/evaluations/`, { signal }),
+    const [identity, summary, academics, attendance, evaluations] = await Promise.all([
+      apiRequest(`students/${id}/`, { signal }), apiRequest(`students/${id}/360/summary/`, { signal }),
+      apiRequest(`students/${id}/360/academics/`, { signal }), apiRequest(`students/${id}/360/attendance/`, { signal }),
+      apiRequest(`students/${id}/360/evaluations/`, { signal }),
     ]);
-    return { summary, academics, attendance, evaluations };
+    return { identity, summary, academics, attendance, evaluations };
   },
   alerts: async (query, signal) => config.demoMode ? alerts : results(await apiRequest('attendance-alerts/', { query, signal })).map(normalizeAlert),
   resource: async (tag, query, signal) => results(await apiRequest(`${tag}/`, { query, signal })),

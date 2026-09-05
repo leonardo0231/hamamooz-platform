@@ -219,6 +219,8 @@ SPECTACULAR_SETTINGS = {
         "AsyncJobStatusEnum": "hamamooz.apps.reports.models.ReportArchive.Status",
         "ImportJobStatusEnum": "hamamooz.apps.imports.models.ImportJob.Status",
         "ReportOutputFormatEnum": "hamamooz.apps.reports.models.ReportArchive.OutputFormat",
+        "AttendanceScopeEnum": "hamamooz.apps.attendance.models.AttendanceSession.Scope",
+        "ReportBatchScopeEnum": "hamamooz.apps.reports.models.ReportBatch.Scope",
     },
 }
 

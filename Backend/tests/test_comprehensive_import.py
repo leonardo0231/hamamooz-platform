@@ -27,9 +27,11 @@ def comprehensive_workbook_bytes(
     national_id="0012345680",
     student_number="103",
     score=4,
-    metric_count=74,
+    metric_count=None,
     academic_year_code=None,
 ):
+    if metric_count is None:
+        metric_count = len(METRIC_CATALOG)
     template = (
         Path(settings.BASE_DIR) / "docs" / "import_templates" / "comprehensive_school_template.xlsx"
     )
@@ -149,7 +151,7 @@ def test_comprehensive_import_creates_class_student_enrollment_and_all_metrics(b
     assert job.result_summary["students_created"] == 1
     assert job.result_summary["enrollments_created"] == 1
     assert job.result_summary["final_evaluations"] == 1
-    assert job.result_summary["metric_scores_upserted"] == 74
+    assert job.result_summary["metric_scores_upserted"] == len(METRIC_CATALOG)
 
 
 @pytest.mark.django_db
@@ -225,7 +227,7 @@ def test_comprehensive_import_upserts_existing_records_without_duplicates(base_d
     assert Student.objects.filter(national_id="0012345680").count() == 1
     assert Enrollment.objects.filter(student__national_id="0012345680").count() == 1
     evaluation = MonthlyEvaluation.objects.get(enrollment__student__national_id="0012345680")
-    assert evaluation.metric_scores.count() == 74
+    assert evaluation.metric_scores.count() == len(METRIC_CATALOG)
     assert set(evaluation.metric_scores.values_list("value", flat=True)) == {5}
     assert second.result_summary["classes_updated"] == 1
     assert second.result_summary["students_updated"] == 1
@@ -258,16 +260,13 @@ def test_comprehensive_import_reports_independent_errors_after_class_preflight(b
 
     assert job.status == ImportJob.Status.FAILED
     assert job.total_rows == 204
-    assert job.error_count > 2, job.errors
+    assert job.error_count == 2, job.errors
     assert "structural_validation" not in [error["code"] for error in job.errors]
-    school_error = next(error for error in job.errors if error["code"] == "school")
-    academic_year_error = next(error for error in job.errors if error["code"] == "academic_year")
-    assert school_error["sheet"] == "کلاس‌بندی"
-    assert school_error["row"] == 5
-    assert '"wrong-school"' in school_error["message"]
-    assert '"s1"' in school_error["message"]
-    assert '"unknown-year"' in academic_year_error["message"]
     assert any(error["sheet"] == "دانش‌آموزان" for error in job.errors)
+    assert any(error["sheet"] == "ثبت اطلاعات" for error in job.errors)
+    warning_codes = {warning["code"] for warning in job.result_summary["normalization_warnings"]}
+    assert "school_code_ignored" in warning_codes
+    assert "academic_year_fallback" in warning_codes
     assert not Student.objects.filter(national_id__startswith="9000000").exists()
 
 
@@ -322,7 +321,7 @@ def test_comprehensive_template_and_upload_api_contract(api_client, base_data):
     assert response.status_code == 201
     job = ImportJob.objects.get(pk=response.data["id"])
     assert response.data["result_summary"] == {}
-    process_import_job(job.id)
+    process_hardened_import_job(job.id)
     detail = api_client.get(f"/api/v1/imports/{job.id}/", **scope)
     assert detail.status_code == 200
     assert detail.data["result_summary"]["provisional_evaluations"] == 1
@@ -370,7 +369,7 @@ def test_comprehensive_import_cannot_move_active_enrollment_from_another_school(
     )
     job = create_comprehensive_job(base_data, comprehensive_workbook_bytes(base_data))
 
-    process_import_job(job.id)
+    process_hardened_import_job(job.id)
     job.refresh_from_db()
     other_student.refresh_from_db()
     other_enrollment.refresh_from_db()

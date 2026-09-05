@@ -4,7 +4,11 @@ from decimal import Decimal, InvalidOperation
 from django.conf import settings
 from openpyxl.utils import get_column_letter
 
-from hamamooz.apps.evaluations.catalog import FRAMEWORK_VERSION, METRIC_CATALOG
+from hamamooz.apps.evaluations.catalog import (
+    FRAMEWORK_VERSION,
+    METRIC_CATALOGS,
+    metric_catalog_for,
+)
 
 from .models import ImportJob
 
@@ -143,8 +147,9 @@ class SmartWideEvaluationAdapter:
             raise ValueError(f"متادیتای قالب هوشمند ناقص است: {', '.join(missing)}")
         if metadata["template_version"] != SMART_TEMPLATE_VERSION:
             raise ValueError(f"نسخه قالب هوشمند باید {SMART_TEMPLATE_VERSION} باشد.")
-        if metadata["framework_version"] != FRAMEWORK_VERSION:
-            raise ValueError(f"نسخه چارچوب شاخص‌ها باید {FRAMEWORK_VERSION} باشد.")
+        if metadata["framework_version"] not in METRIC_CATALOGS:
+            raise ValueError(f"نسخه چارچوب شاخص‌ها {metadata['framework_version']} پشتیبانی نمی‌شود.")
+        catalog = metric_catalog_for(metadata["framework_version"])
         if metadata["school_code"] != job.school.code:
             raise ValueError("کد مدرسه با شعبه انتخاب‌شده در سایت یکسان نیست.")
 
@@ -173,11 +178,11 @@ class SmartWideEvaluationAdapter:
             except (TypeError, ValueError) as exc:
                 raise ValueError("شماره ستون شاخص در متادیتای قالب معتبر نیست.") from exc
             metric_code = _text(row[1]).upper()
-            if metric_code not in METRIC_CATALOG:
+            if metric_code not in catalog:
                 raise ValueError("کد شاخص ناشناخته در متادیتای قالب وجود دارد.")
             if column_index in metric_columns or metric_code in seen_codes:
                 raise ValueError("نگاشت ستون شاخص در متادیتای قالب تکراری است.")
-            expected_title = METRIC_CATALOG[metric_code]["title"]
+            expected_title = catalog[metric_code]["title"]
             actual_title = _text(data_sheet.cell(2, column_index).value)
             if actual_title != expected_title or _text(row[2]) != expected_title:
                 raise ValueError(
@@ -185,14 +190,14 @@ class SmartWideEvaluationAdapter:
                 )
             metric_columns[column_index] = metric_code
             seen_codes.add(metric_code)
-        if seen_codes != set(METRIC_CATALOG):
-            raise ValueError("نگاشت ۷۴ شاخص در متادیتای قالب کامل نیست.")
+        if seen_codes != set(catalog):
+            raise ValueError(f"نگاشت {len(catalog)} شاخص در متادیتای قالب کامل نیست.")
 
         expanded = []
         source_row_count = 0
         max_source_rows = getattr(settings, "IMPORT_MAX_SMART_ROWS", settings.IMPORT_MAX_ROWS)
         max_expanded_rows = getattr(settings, "IMPORT_MAX_EXPANDED_ROWS", 100_000)
-        note_column = 5 + len(METRIC_CATALOG) + 9 + 4
+        note_column = 5 + len(catalog) + 9 + 4
         for source_row, values in enumerate(
             data_sheet.iter_rows(min_row=3, max_col=data_sheet.max_column, values_only=True),
             start=3,
@@ -268,7 +273,7 @@ class SmartWideEvaluationAdapter:
         return LoadedImportRows(
             rows=expanded,
             source_row_count=source_row_count,
-            adapter=cls.name,
+            adapter=f"{cls.name}-{metadata['framework_version']}",
         )
 
 

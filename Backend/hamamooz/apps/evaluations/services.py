@@ -6,7 +6,7 @@ from django.db.models import Prefetch
 
 from hamamooz.apps.students.models import Enrollment
 
-from .catalog import DOMAIN_DEFINITIONS, METRIC_CATALOG
+from .catalog import DOMAIN_DEFINITIONS, METRIC_CATALOG, metric_catalog_for
 from .models import MonthlyEvaluation
 
 PERFORMANCE_LEVELS = (
@@ -45,10 +45,11 @@ def _performance_level(score):
 class EvaluationAnalyticsService:
     @staticmethod
     def evaluation_summary(evaluation: MonthlyEvaluation) -> dict:
+        catalog = metric_catalog_for(evaluation.framework_version) or METRIC_CATALOG
         grouped = defaultdict(list)
         metric_scores = list(evaluation.metric_scores.all())
         for metric_score in metric_scores:
-            definition = METRIC_CATALOG.get(metric_score.metric_code)
+            definition = catalog.get(metric_score.metric_code)
             if definition is not None:
                 grouped[definition["domain_code"]].append(metric_score.value)
 
@@ -56,7 +57,7 @@ class EvaluationAnalyticsService:
         for code, (title, weight) in DOMAIN_DEFINITIONS.items():
             values = grouped[code]
             total_metrics = sum(
-                definition["domain_code"] == code for definition in METRIC_CATALOG.values()
+                definition["domain_code"] == code for definition in catalog.values()
             )
             domain_scores.append(
                 {
@@ -70,11 +71,11 @@ class EvaluationAnalyticsService:
             )
 
         completed_metrics = sum(len(values) for values in grouped.values())
-        completion_percent = round(completed_metrics / len(METRIC_CATALOG) * 100, 2)
+        completion_percent = round(completed_metrics / len(catalog) * 100, 2)
         threshold_percent = max(
             1, min(100, getattr(settings, "EVALUATION_FINAL_COMPLETION_PERCENT", 100))
         )
-        required_metrics = ceil(len(METRIC_CATALOG) * threshold_percent / 100)
+        required_metrics = ceil(len(catalog) * threshold_percent / 100)
         completion_status = "final" if completed_metrics >= required_metrics else "provisional"
         completed_domains = [item for item in domain_scores if item["score"] is not None]
         total_weight = sum(item["weight"] for item in completed_domains)

@@ -82,24 +82,45 @@ class ReportArchive(SoftDeleteModel):
 
 class ReportBatch(TimeStampedUUIDModel):
     """A durable request to generate one immutable report per enrolled student."""
+
     class Scope(models.TextChoices):
         CLASS = "class", "Class"
         SCHOOL = "school", "School"
+
     class Status(models.TextChoices):
         QUEUED = "queued", "Queued"
         PROCESSING = "processing", "Processing"
         COMPLETED = "completed", "Completed"
         PARTIAL = "partial", "Partially completed"
         FAILED = "failed", "Failed"
-    organization = models.ForeignKey("organizations.Organization", on_delete=models.PROTECT, related_name="report_batches")
-    school = models.ForeignKey("organizations.School", on_delete=models.PROTECT, related_name="report_batches")
-    academic_year = models.ForeignKey("organizations.AcademicYear", on_delete=models.PROTECT, related_name="report_batches")
-    term = models.ForeignKey("organizations.Term", on_delete=models.PROTECT, related_name="report_batches")
-    class_section = models.ForeignKey("organizations.ClassSection", null=True, blank=True, on_delete=models.PROTECT, related_name="report_batches")
+
+    organization = models.ForeignKey(
+        "organizations.Organization", on_delete=models.PROTECT, related_name="report_batches"
+    )
+    school = models.ForeignKey(
+        "organizations.School", on_delete=models.PROTECT, related_name="report_batches"
+    )
+    academic_year = models.ForeignKey(
+        "organizations.AcademicYear", on_delete=models.PROTECT, related_name="report_batches"
+    )
+    term = models.ForeignKey(
+        "organizations.Term", on_delete=models.PROTECT, related_name="report_batches"
+    )
+    class_section = models.ForeignKey(
+        "organizations.ClassSection",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="report_batches",
+    )
     scope = models.CharField(max_length=10, choices=Scope.choices)
-    page_size = models.CharField(max_length=20, default="a3_landscape")
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.QUEUED, db_index=True)
-    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="requested_report_batches")
+    page_size = models.CharField(max_length=20, default="digital_3x2")
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.QUEUED, db_index=True
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="requested_report_batches"
+    )
     zip_file = models.FileField(upload_to="reports/batches/%Y/%m/", blank=True)
     total_count = models.PositiveIntegerField(default=0)
     completed_count = models.PositiveIntegerField(default=0)
@@ -107,12 +128,23 @@ class ReportBatch(TimeStampedUUIDModel):
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     error_message = models.TextField(blank=True)
+
     class Meta:
         ordering = ["-created_at"]
-        indexes = [models.Index(fields=["school", "academic_year", "term", "status"])]
+        indexes = [
+            models.Index(
+                fields=["school", "academic_year", "term", "status"],
+                name="reports_batch_school_term_idx",
+            )
+        ]
+
     @property
     def progress_percent(self):
-        return 100 if not self.total_count else int((self.completed_count + self.failed_count) * 100 / self.total_count)
+        return (
+            100
+            if not self.total_count
+            else int((self.completed_count + self.failed_count) * 100 / self.total_count)
+        )
 
 
 class ReportBatchItem(TimeStampedUUIDModel):
@@ -121,14 +153,26 @@ class ReportBatchItem(TimeStampedUUIDModel):
         PROCESSING = "processing", "Processing"
         COMPLETED = "completed", "Completed"
         FAILED = "failed", "Failed"
+
     batch = models.ForeignKey(ReportBatch, on_delete=models.CASCADE, related_name="items")
-    enrollment = models.ForeignKey("students.Enrollment", on_delete=models.PROTECT, related_name="report_batch_items")
-    report = models.OneToOneField(ReportArchive, null=True, blank=True, on_delete=models.PROTECT, related_name="batch_item")
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.QUEUED, db_index=True)
+    enrollment = models.ForeignKey(
+        "students.Enrollment", on_delete=models.PROTECT, related_name="report_batch_items"
+    )
+    report = models.OneToOneField(
+        ReportArchive, null=True, blank=True, on_delete=models.PROTECT, related_name="batch_item"
+    )
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.QUEUED, db_index=True
+    )
     error_message = models.TextField(blank=True)
+
     class Meta:
         ordering = ["enrollment__student__last_name", "enrollment__student__first_name"]
-        constraints = [models.UniqueConstraint(fields=["batch", "enrollment"], name="uq_report_batch_enrollment")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["batch", "enrollment"], name="uq_report_batch_enrollment"
+            )
+        ]
 
 
 class ReportTemplate(SoftDeleteModel):

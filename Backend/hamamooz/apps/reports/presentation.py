@@ -91,7 +91,15 @@ def _trend(history: list[dict[str, Any]]) -> dict[str, Any]:
     points = []
     valid = [item for item in history if _number(item.get("average")) is not None]
     if not valid:
-        return {"has_data": False, "points": [], "guides": []}
+        return {
+            "has_data": False,
+            "points": [],
+            "guides": [],
+            "rank_path": "",
+            "rank_points": [],
+            "growth_path": "",
+            "growth_points": [],
+        }
     count = len(valid)
     for index, item in enumerate(valid):
         value = _number(item.get("average")) or 0
@@ -108,11 +116,60 @@ def _trend(history: list[dict[str, Any]]) -> dict[str, Any]:
             }
         )
     path = " ".join(f"{item['x']},{item['y']}" for item in points)
+
+    def relative_points(values: list[tuple[dict[str, str], float]], *, inverse: bool = False):
+        """Project a real secondary series onto the same compact SVG canvas.
+
+        Rank and percentage growth do not share the average's 10–20 scale.  A
+        local normalisation keeps them readable while their labels remain
+        explicit in the legend; we never manufacture a series when its source
+        data is missing.
+        """
+
+        if len(values) < 2:
+            return []
+        low = min(value for _, value in values)
+        high = max(value for _, value in values)
+        span = high - low
+        projected = []
+        for point, value in values:
+            ratio = 0.5 if span == 0 else (value - low) / span
+            if inverse:
+                ratio = 1 - ratio
+            y = 111 - ratio * 72
+            projected.append(
+                {
+                    "x": point["x"],
+                    "y": f"{y:.1f}",
+                    "value": _fa(value, 1),
+                }
+            )
+        return projected
+
+    rank_values = [
+        (point, rank)
+        for item, point in zip(valid, points, strict=True)
+        if (rank := _number(item.get("rank"))) is not None
+    ]
+    rank_points = relative_points(rank_values, inverse=True)
+    growth_values = []
+    previous = None
+    for item, point in zip(valid, points, strict=True):
+        average = _number(item.get("average"))
+        if average is not None and previous not in (None, 0):
+            growth_values.append((point, ((average - previous) / previous) * 100))
+        if average is not None:
+            previous = average
+    growth_points = relative_points(growth_values)
     return {
         "has_data": True,
         "points": points,
         "path": path,
         "area_path": f"30,116 {path} 330,116",
+        "rank_path": " ".join(f"{item['x']},{item['y']}" for item in rank_points),
+        "rank_points": rank_points,
+        "growth_path": " ".join(f"{item['x']},{item['y']}" for item in growth_points),
+        "growth_points": growth_points,
         "guides": [
             {"value": _fa(float(value), 0), "y": f"{116 - ((value - 10) / 10 * 86):.1f}"}
             for value in (10, 12.5, 15, 17.5, 20)
@@ -143,7 +200,12 @@ def _radar(items: list[dict[str, Any]]) -> dict[str, Any]:
         labels.append({"x": f"{label_x:.1f}", "y": f"{label_y:.1f}", "title": item["title"]})
     grids = []
     for scale in (0.25, 0.5, 0.75, 1):
-        grids.append(" ".join(f"{x:.1f},{y:.1f}" for x, y in (point(index, radius * scale) for index in range(count))))
+        grids.append(
+            " ".join(
+                f"{x:.1f},{y:.1f}"
+                for x, y in (point(index, radius * scale) for index in range(count))
+            )
+        )
     return {
         "has_data": True,
         "labels": labels,
@@ -153,7 +215,9 @@ def _radar(items: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _bars(items: list[dict[str, Any]], *, limit: int = 6, inverse: bool = False) -> list[dict[str, Any]]:
+def _bars(
+    items: list[dict[str, Any]], *, limit: int = 6, inverse: bool = False
+) -> list[dict[str, Any]]:
     valid = [item for item in items if item.get("value") is not None]
     sorted_items = sorted(valid, key=lambda item: item["value"], reverse=not inverse)[:limit]
     return [
@@ -166,9 +230,18 @@ def _bars(items: list[dict[str, Any]], *, limit: int = 6, inverse: bool = False)
     ]
 
 
-def build_report_visuals(report: dict[str, Any]) -> dict[str, Any]:
-    """Build a compact visual view model from a frozen report snapshot."""
+def build_report_visuals(
+    report: dict[str, Any], *, content_overrides: dict[str, str] | None = None
+) -> dict[str, Any]:
+    """Build a compact visual view model from a frozen report snapshot.
+
+    Draft-level copy is intentionally accepted only as plain, already-validated
+    text.  It is folded into view data here rather than being interpolated as
+    template source, so the immutable PDF stays safe and the approved override
+    is visible in its intended recommendation areas.
+    """
     context = report.get("product_context") or {}
+    overrides = content_overrides if isinstance(content_overrides, dict) else {}
     subjects = []
     for row in report.get("subjects") or []:
         average = _number(row.get("average"))
@@ -188,7 +261,7 @@ def build_report_visuals(report: dict[str, Any]) -> dict[str, Any]:
     attendance_rate = _number(attendance.get("attendance_rate"))
     metrics = _metric_items(context)
     metric_map = {item["code"]: item for item in metrics}
-    behavior = [item for item in metrics if item["code"].startswith(("DEV_", "CHR_", "DIS_"))][:6]
+    behavior = [item for item in metrics if item["code"].startswith(("DEV_", "CHR_", "DIS_"))][:10]
     academic = [item for item in metrics if item["code"].startswith(("EDU_", "PER_"))][:6]
 
     radar_items = []
@@ -197,7 +270,12 @@ def build_report_visuals(report: dict[str, Any]) -> dict[str, Any]:
         radar_items.append({"title": "آموزشی", "value": academic_average * 5})
     if attendance_rate is not None:
         radar_items.append({"title": "حضور", "value": attendance_rate})
-    for code, title in (("DEV_02", "مسئولیت"), ("EDU_05", "تمرکز"), ("DEV_01", "همکاری"), ("PER_01", "مدیریت زمان")):
+    for code, title in (
+        ("DEV_02", "مسئولیت"),
+        ("EDU_05", "تمرکز"),
+        ("DEV_01", "همکاری"),
+        ("PER_01", "مدیریت زمان"),
+    ):
         if code in metric_map:
             radar_items.append({"title": title, "value": metric_map[code]["value"]})
     radar_items = radar_items[:6]
@@ -218,9 +296,12 @@ def build_report_visuals(report: dict[str, Any]) -> dict[str, Any]:
         {
             "icon": activity_icons.get(item.get("kind"), "●"),
             "title": item.get("title", "فعالیت مدرسه"),
-            "text": item.get("result") or (f"رتبه {_fa(_number(item.get('placement')))}" if item.get("placement") else "ثبت‌شده"),
+            "text": item.get("result")
+            or (
+                f"رتبه {_fa(_number(item.get('placement')))}" if item.get("placement") else "ثبت‌شده"
+            ),
         }
-        for item in (context.get("activities") or [])[:6]
+        for item in (context.get("activities") or [])[:7]
     ]
     all_recommendations = [
         item
@@ -244,39 +325,61 @@ def build_report_visuals(report: dict[str, Any]) -> dict[str, Any]:
     ]
     behavior_events = context.get("behavior_events") or []
     skills21 = [
-        {"title": item["title"], "stars": max(0, min(5, round(item["value"] / 20))), "value": _fa(item["value"], 0)}
+        {
+            "title": item["title"],
+            "stars": max(0, min(5, round(item["value"] / 20))),
+            "value": _fa(item["value"], 0),
+        }
         for item in metrics
         if item["code"].startswith(("PER_", "DEV_", "CHR_"))
-    ][:6]
+    ][:9]
     counselor = [
         item if isinstance(item, str) else item.get("explanation")
         for item in (context.get("counselor_report") or context.get("analytics_signals") or [])
     ]
-    counselor = [item for item in counselor if item][:4]
+    counselor = [item for item in counselor if item][:8]
     support = [
         item if isinstance(item, str) else item.get("text")
         for item in (context.get("support_notes") or [])
     ]
     support = [item for item in support if item][:3]
-    awards = [
-        item for item in activities
-        if item.get("text") and item.get("text") != "Ø«Ø¨Øªâ€ŒØ´Ø¯Ù‡"
-    ][:4]
+    recommendation_override = overrides.get("recommendations")
+    if isinstance(recommendation_override, str) and recommendation_override.strip():
+        recommendations = [recommendation_override.strip(), *recommendations]
+        support = [recommendation_override.strip(), *support]
+    if not support:
+        # Parent-facing approved recommendations are the closest authoritative
+        # source for the family-support panel when a school has not registered
+        # a separate support note yet.  Never invent a recommendation.
+        support = recommendations[:3]
+    awards = [item for item in activities if item.get("text") and item.get("text") != "ثبت‌شده"][:5]
 
     return {
         "trend": _trend(report.get("history") or []),
         "radar": _radar(radar_items),
         "subjects": subjects,
         "strengths": _bars(
-            [{"title": item["title"], "value": item["average"] * 5} for item in subjects if item["average"] is not None]
+            [
+                {"title": item["title"], "value": item["average"] * 5}
+                for item in subjects
+                if item["average"] is not None
+            ]
         ),
         "improvements": _bars(
-            [{"title": item["title"], "value": item["average"] * 5} for item in subjects if item["average"] is not None],
+            [
+                {"title": item["title"], "value": item["average"] * 5}
+                for item in subjects
+                if item["average"] is not None
+            ],
             inverse=True,
         ),
         "behavior": [
-            {"title": item["title"], "stars": max(0, min(5, round(item["value"] / 20))), "value": _fa(item["value"], 0)}
-            for item in behavior
+            {
+                "title": item["title"],
+                "stars": max(0, min(5, round(item["value"] / 20))),
+                "value": _fa(item["value"], 0),
+            }
+            for item in behavior[:10]
         ],
         "readiness": _bars(readiness),
         "activities": activities,
@@ -285,7 +388,7 @@ def build_report_visuals(report: dict[str, Any]) -> dict[str, Any]:
         "counselor": counselor,
         "teacher_recommendations": teacher_recommendations,
         "support": support,
-        "recommendations": recommendations,
+        "recommendations": recommendations[:4],
         "follow_ups": follow_ups,
         "attendance": {
             "has_data": attendance_rate is not None,
@@ -298,7 +401,11 @@ def build_report_visuals(report: dict[str, Any]) -> dict[str, Any]:
             "average": _fa(academic_average, 2),
             "rank": _fa(_number(report.get("summary", {}).get("class_rank"))),
             "status": report.get("summary", {}).get("status_label", "—"),
-            "behavior_positive": _fa(float(sum(item.get("polarity") == "positive" for item in behavior_events))),
-            "behavior_follow_up": _fa(float(sum(item.get("polarity") == "negative" for item in behavior_events))),
+            "behavior_positive": _fa(
+                float(sum(item.get("polarity") == "positive" for item in behavior_events))
+            ),
+            "behavior_follow_up": _fa(
+                float(sum(item.get("polarity") == "negative" for item in behavior_events))
+            ),
         },
     }

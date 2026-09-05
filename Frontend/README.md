@@ -15,10 +15,12 @@
 
 ## اجرا
 
-پیش‌نیاز فقط Node.js 20 یا جدیدتر است و نصب package لازم نیست:
+پیش‌نیاز Node.js 20 یا جدیدتر است. در هر checkout تازه (و پس از تغییر
+`package-lock.json`) ابتدا dependencyها را نصب کنید:
 
 ```bash
 cd Frontend
+npm ci
 npm run dev
 ```
 
@@ -35,6 +37,7 @@ http://localhost:5173/?demo=1
 ## کنترل کیفیت
 
 ```bash
+npm ci
 npm run lint
 npm test
 npm run build

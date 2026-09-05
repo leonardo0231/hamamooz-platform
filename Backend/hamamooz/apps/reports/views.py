@@ -24,7 +24,7 @@ from .serializers import (
     ReportPreviewSerializer,
     ReportTemplateSerializer,
 )
-from .services import build_report_snapshot, render_report_draft, render_report_html
+from .services import build_report_render_snapshot, render_report_draft, render_report_html
 from .tasks import generate_report_batch_task, generate_report_task
 
 REPORTERS = [
@@ -96,7 +96,7 @@ class ReportArchiveViewSet(AuditedModelViewSet):
         serializer = ReportPreviewSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        snapshot = build_report_snapshot(
+        snapshot = build_report_render_snapshot(
             data["report_type"],
             data["term"],
             enrollment=data.get("enrollment"),
@@ -166,20 +166,31 @@ class ReportBatchViewSet(AuditedModelViewSet):
     def get_queryset(self):
         school_ids = selected_school_ids(self.request)
         class_ids = allowed_class_ids(self.request.user, school_ids)
-        return (ReportBatch.objects.filter(school_id__in=school_ids)
-                .filter(Q(scope=ReportBatch.Scope.SCHOOL) | Q(class_section_id__in=class_ids))
-                .select_related("school", "academic_year", "term", "class_section", "requested_by")
-                .prefetch_related("items__enrollment__student", "items__report"))
+        return (
+            ReportBatch.objects.filter(school_id__in=school_ids)
+            .filter(Q(scope=ReportBatch.Scope.SCHOOL) | Q(class_section_id__in=class_ids))
+            .select_related("school", "academic_year", "term", "class_section", "requested_by")
+            .prefetch_related("items__enrollment__student", "items__report")
+        )
 
     def create(self, request, *args, **kwargs):
         serializer = ReportBatchCreateSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         batch = serializer.save()
-        record_audit(action="report.batch_queued", actor=request.user, request=request, entity=batch,
-                     organization_id=batch.organization_id, school_id=batch.school_id,
-                     metadata={"scope": batch.scope, "total_count": batch.total_count})
+        record_audit(
+            action="report.batch_queued",
+            actor=request.user,
+            request=request,
+            entity=batch,
+            organization_id=batch.organization_id,
+            school_id=batch.school_id,
+            metadata={"scope": batch.scope, "total_count": batch.total_count},
+        )
         transaction.on_commit(lambda: generate_report_batch_task.delay(str(batch.id)))
-        return Response(ReportBatchSerializer(batch, context={"request": request}).data, status=status.HTTP_201_CREATED)
+        return Response(
+            ReportBatchSerializer(batch, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     @action(detail=True, methods=["get"])
     def download(self, request, pk=None):
@@ -187,14 +198,27 @@ class ReportBatchViewSet(AuditedModelViewSet):
         if not batch.zip_file:
             return Response({"detail": "Batch ZIP is not ready."}, status=409)
         batch.zip_file.open("rb")
-        return FileResponse(batch.zip_file, as_attachment=True, filename=f"report-batch-{batch.id}.zip", content_type="application/zip")
+        return FileResponse(
+            batch.zip_file,
+            as_attachment=True,
+            filename=f"report-batch-{batch.id}.zip",
+            content_type="application/zip",
+        )
 
     @action(detail=True, methods=["post"])
     def release(self, request, pk=None):
         batch = self.get_object()
-        ReportArchive.objects.filter(batch_item__batch=batch, status=ReportArchive.Status.COMPLETED, released_at__isnull=True).update(released_by=request.user, released_at=timezone.now())
-        record_audit(action="report.batch_released", actor=request.user, request=request, entity=batch,
-                     organization_id=batch.organization_id, school_id=batch.school_id)
+        ReportArchive.objects.filter(
+            batch_item__batch=batch, status=ReportArchive.Status.COMPLETED, released_at__isnull=True
+        ).update(released_by=request.user, released_at=timezone.now())
+        record_audit(
+            action="report.batch_released",
+            actor=request.user,
+            request=request,
+            entity=batch,
+            organization_id=batch.organization_id,
+            school_id=batch.school_id,
+        )
         return Response(ReportBatchSerializer(batch, context={"request": request}).data)
 
 

@@ -9,7 +9,8 @@ const primaryNavigation = [
   ['dashboard', '/', 'داشبورد', 'home'], ['students', '/students', 'دانش‌آموزان', 'users'],
   ['performance', '/performance', 'عملکرد آموزشی', 'chart'], ['attendance', '/attendance', 'حضور و غیاب', 'calendar'],
   ['alerts', '/alerts', 'مرکز هشدارها', 'alert', '۷'], ['suggestions', '/suggestions', 'پیشنهادهای هوشمند', 'sparkles'],
-  ['reports', '/reports', 'گزارش‌ها', 'report'], ['settings', '/settings', 'تنظیمات', 'settings'],
+  ['reports', '/reports', 'گزارش‌ها', 'report'], ['imports', '/imports', 'ورود اطلاعات', 'upload'],
+  ['settings', '/settings', 'تنظیمات', 'settings'],
 ];
 
 function Link({ href, children, className = '', onClick, ...props }) {
