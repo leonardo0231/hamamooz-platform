@@ -30,6 +30,8 @@ x-backend-environment: &backend-environment
 x-backend: &backend
   build:
     context: ./Backend
+    args:
+      PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
   environment: *backend-environment
   restart: unless-stopped
   init: true
