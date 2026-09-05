@@ -80,6 +80,7 @@ class AcademicYear(SoftDeleteModel):
 
 class Term(SoftDeleteModel):
     class Code(models.TextChoices):
+        SUMMER = "summer", "تابستان"
         FIRST = "first", "نوبت اول"
         SECOND = "second", "نوبت دوم"
 
