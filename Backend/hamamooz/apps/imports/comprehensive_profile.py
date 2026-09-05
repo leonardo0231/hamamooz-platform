@@ -47,7 +47,7 @@ def _label(value) -> str:
 
 
 def _json_scalar(value):
-    if value is None or isinstance(value, (str, int, bool)):
+    if value is None or isinstance(value, str | int | bool):
         return value
     if isinstance(value, float):
         return value if math.isfinite(value) else str(value)
