@@ -8,6 +8,7 @@ from rest_framework.viewsets import ModelViewSet
 from .dynamic_engine import inspect_uploaded_workbook
 from .models import ImportJob
 from .serializers import ImportJobCreateSerializer, ImportJobSerializer
+from .services.import_executor import ImportExecutor
 
 
 class ImportJobViewSet(ModelViewSet):
@@ -23,21 +24,13 @@ class ImportJobViewSet(ModelViewSet):
     def preview(self, request, pk=None):
         job = get_object_or_404(ImportJob, pk=pk)
 
-        if job.status not in [
-            ImportJob.Status.UPLOADED,
-            ImportJob.Status.FAILED,
-        ]:
-            return Response(
-                {"detail": "Only uploaded imports can be analyzed."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        if job.status not in [ImportJob.Status.UPLOADED, ImportJob.Status.FAILED]:
+            return Response({"detail": "Only uploaded imports can be analyzed."}, status=400)
 
         try:
             job.status = ImportJob.Status.ANALYZING
             job.save(update_fields=["status", "updated_at"])
-
             profile = inspect_uploaded_workbook(job.source_file.path)
-
             summary = {
                 "students": 0,
                 "classes": [],
@@ -45,42 +38,32 @@ class ImportJobViewSet(ModelViewSet):
                 "periods": len(profile.periods),
                 "sheets": profile.sheets,
             }
-
             job.preview_summary = summary
             job.status = ImportJob.Status.PREVIEW_READY
             job.errors = []
             job.save(update_fields=["status", "preview_summary", "errors", "updated_at"])
-
-            return Response({
-                "summary": summary,
-                "warnings": [],
-                "errors": [],
-            })
-
+            return Response({"summary": summary, "warnings": [], "errors": []})
         except Exception as exc:
             job.status = ImportJob.Status.FAILED
             job.errors = [{"message": str(exc)}]
             job.save(update_fields=["status", "errors", "updated_at"])
-
-            return Response(
-                {
-                    "summary": {},
-                    "warnings": [],
-                    "errors": job.errors,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"summary": {}, "warnings": [], "errors": job.errors}, status=400)
 
     @action(detail=True, methods=["post"])
     def confirm(self, request, pk=None):
         job = get_object_or_404(ImportJob, pk=pk)
 
         if job.status != ImportJob.Status.PREVIEW_READY:
-            return Response(
-                {"detail": "Only preview-ready imports can be confirmed."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"detail": "Only preview-ready imports can be confirmed."}, status=400)
 
         job.status = ImportJob.Status.CONFIRMED
         job.save(update_fields=["status", "updated_at"])
-        return Response(ImportJobSerializer(job).data)
+
+        try:
+            summary = ImportExecutor(job).execute()
+            return Response({"status": job.status, "summary": summary})
+        except Exception as exc:
+            job.status = ImportJob.Status.FAILED
+            job.errors = [{"message": str(exc)}]
+            job.save(update_fields=["status", "errors", "updated_at"])
+            return Response({"errors": job.errors}, status=status.HTTP_400_BAD_REQUEST)
