@@ -26,47 +26,18 @@ class ImportJobSerializer(serializers.ModelSerializer):
     class Meta:
         model = ImportJob
         fields = [
-            "id",
-            "organization",
-            "organization_name",
-            "school",
-            "school_name",
-            "import_type",
-            "status",
-            "status_display",
-            "source_file",
-            "checksum",
-            "requested_by",
-            "requested_by_name",
-            "total_rows",
-            "successful_rows",
-            "error_count",
-            "errors",
-            "result_summary",
-            "started_at",
-            "finished_at",
-            "created_at",
-            "updated_at",
+            "id", "organization", "organization_name", "school", "school_name",
+            "import_type", "status", "status_display", "source_file", "checksum",
+            "requested_by", "requested_by_name", "total_rows", "successful_rows",
+            "error_count", "errors", "result_summary", "preview_summary",
+            "started_at", "finished_at", "created_at", "updated_at",
         ]
         read_only_fields = [
-            "id",
-            "organization",
-            "organization_name",
-            "school_name",
-            "status",
-            "status_display",
-            "checksum",
-            "requested_by",
-            "requested_by_name",
-            "total_rows",
-            "successful_rows",
-            "error_count",
-            "errors",
-            "result_summary",
-            "started_at",
-            "finished_at",
-            "created_at",
-            "updated_at",
+            "id", "organization", "organization_name", "school_name", "status",
+            "status_display", "checksum", "requested_by", "requested_by_name",
+            "total_rows", "successful_rows", "error_count", "errors",
+            "result_summary", "preview_summary", "started_at", "finished_at",
+            "created_at", "updated_at",
         ]
 
     def validate(self, attrs):
@@ -79,54 +50,41 @@ class ImportJobSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"school": "به این شعبه دسترسی ندارید."})
 
         if import_type != ImportJob.ImportType.COMPREHENSIVE_SCHOOL:
-            raise serializers.ValidationError(
-                {
-                    "import_type": (
-                        "ورود اطلاعات جدید فقط از «فایل جامع مدرسه» انجام می‌شود. "
-                        "برای ثبت تکی از بخش «ثبت و ویرایش دستی» استفاده کنید."
-                    )
-                }
-            )
+            raise serializers.ValidationError({"import_type": "فقط فایل جامع مدرسه مجاز است."})
 
-        extension = Path(source.name).suffix.lower()
-        if extension != ".xlsx":
-            raise serializers.ValidationError(
-                {"source_file": "فایل جامع مدرسه فقط با قالب XLSX پذیرفته می‌شود."}
-            )
-        if (
-            attrs.get("import_type") == ImportJob.ImportType.COMPREHENSIVE_SCHOOL
-            and extension != ".xlsx"
-        ):
-            raise serializers.ValidationError(
-                {"source_file": "فایل جامع مدرسه فقط با قالب XLSX پذیرفته می‌شود."}
-            )
+        if Path(source.name).suffix.lower() != ".xlsx":
+            raise serializers.ValidationError({"source_file": "فقط فایل XLSX پذیرفته می‌شود."})
+
         if source.size > 10 * 1024 * 1024:
-            raise serializers.ValidationError(
-                {"source_file": "حجم فایل نباید بیشتر از ۱۰ مگابایت باشد."}
-            )
+            raise serializers.ValidationError({"source_file": "حجم فایل بیشتر از ۱۰ مگابایت است."})
 
         checksum = uploaded_file_checksum(source)
         attrs["_checksum"] = checksum
-        duplicate = ImportJob.objects.filter(
+
+        duplicate_states = [
+            ImportJob.Status.UPLOADED,
+            ImportJob.Status.ANALYZING,
+            ImportJob.Status.PREVIEW_READY,
+            ImportJob.Status.CONFIRMED,
+            ImportJob.Status.PROCESSING,
+            ImportJob.Status.COMPLETED,
+        ]
+
+        if ImportJob.objects.filter(
             organization=school.organization,
             school=school,
             import_type=import_type,
             checksum=checksum,
-            status__in=[
-                ImportJob.Status.QUEUED,
-                ImportJob.Status.PROCESSING,
-                ImportJob.Status.COMPLETED,
-            ],
-        ).exists()
-        if duplicate:
-            raise serializers.ValidationError(
-                "این فایل قبلاً برای همین شعبه پردازش یا در صف پردازش ثبت شده است."
-            )
+            status__in=duplicate_states,
+        ).exists():
+            raise serializers.ValidationError("این فایل قبلاً ثبت یا پردازش شده است.")
+
         return attrs
 
     def create(self, validated_data):
         checksum = validated_data.pop("_checksum")
         school = validated_data["school"]
+
         try:
             with transaction.atomic():
                 return ImportJob.objects.create(
@@ -136,20 +94,12 @@ class ImportJobSerializer(serializers.ModelSerializer):
                     **validated_data,
                 )
         except IntegrityError as exc:
-            raise serializers.ValidationError(
-                "این فایل قبلاً برای همین شعبه پردازش یا در صف پردازش ثبت شده است."
-            ) from exc
+            raise serializers.ValidationError("این فایل قبلاً ثبت شده است.") from exc
 
 
 class ImportJobCreateSerializer(ImportJobSerializer):
     import_type = serializers.ChoiceField(
         choices=[
-            (
-                ImportJob.ImportType.COMPREHENSIVE_SCHOOL,
-                "فایل جامع مدرسه",
-            )
-        ],
-        error_messages={
-            "invalid_choice": "ورود اطلاعات جدید فقط از «فایل جامع مدرسه» انجام می‌شود."
-        },
+            (ImportJob.ImportType.COMPREHENSIVE_SCHOOL, "فایل جامع مدرسه")
+        ]
     )
