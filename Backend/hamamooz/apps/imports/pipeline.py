@@ -5,19 +5,23 @@ from django.db import transaction
 from django.utils import timezone
 
 from . import services
-from .comprehensive_flexible import validate_flexible_hardened_comprehensive_workbook
-from .comprehensive_hardening import (
-    apply_hardened_comprehensive_workbook,
-    enrich_comprehensive_rows,
+from .comprehensive_hardening import enrich_comprehensive_rows
+from .comprehensive_profile import enrich_template_profile
+from .comprehensive_runtime import (
+    ComprehensiveValidationFailed,
+    apply_template_aware_comprehensive_workbook,
+    ensure_reference_data_from_workbook,
+    validate_template_aware_comprehensive_workbook,
 )
 from .models import ImportJob
 
 
 def process_import_job(job_id):
-    """Process new comprehensive imports through the identity-aware flexible pipeline.
+    """Process comprehensive imports as a template-driven, atomic pipeline.
 
-    Historical non-comprehensive jobs are still delegated to the legacy service so old failed
-    jobs remain retryable, while the public serializer prevents creating new legacy imports.
+    Historical non-comprehensive jobs still use the legacy service. Comprehensive workbooks
+    infer their academic year, grade levels and active terms from file content, so imports do
+    not depend on demo seed data being present.
     """
 
     probe = ImportJob.all_objects.get(pk=job_id)
@@ -57,32 +61,33 @@ def process_import_job(job_id):
 
     try:
         loaded = enrich_comprehensive_rows(job, services._load_rows(job))
-        prepared, errors = validate_flexible_hardened_comprehensive_workbook(job, loaded.rows)
-        if errors:
-            with transaction.atomic():
-                locked_job = ImportJob.objects.select_for_update().get(pk=job_id)
-                if locked_job.status == ImportJob.Status.CANCELLED:
-                    return locked_job
-                locked_job.status = ImportJob.Status.FAILED
-                locked_job.total_rows = loaded.source_row_count
-                locked_job.error_count = len(errors)
-                locked_job.errors = errors[:1000]
-                locked_job.result_summary = {
-                    "warning_count": len(prepared.get("warnings", [])),
-                    "normalization_warnings": prepared.get("warnings", [])[:1000],
-                }
-                locked_job.finished_at = timezone.now()
-                locked_job.save()
-                return locked_job
+        loaded, workbook_profile = enrich_template_profile(job, loaded)
 
         with transaction.atomic():
             locked_job = ImportJob.objects.select_for_update().get(pk=job_id)
             if locked_job.status == ImportJob.Status.CANCELLED:
                 return locked_job
-            summary = apply_hardened_comprehensive_workbook(locked_job, prepared)
+
+            _academic_year, reference_summary = ensure_reference_data_from_workbook(
+                locked_job, loaded.rows
+            )
+            prepared, errors = validate_template_aware_comprehensive_workbook(
+                locked_job, loaded.rows
+            )
+            if errors:
+                raise ComprehensiveValidationFailed(
+                    prepared=prepared,
+                    errors=errors,
+                    profile=workbook_profile,
+                )
+
+            summary = apply_template_aware_comprehensive_workbook(locked_job, prepared)
             warnings = prepared.get("warnings", [])
             summary["warning_count"] = len(warnings)
             summary["normalization_warnings"] = warnings[:1000]
+            summary["reference_data"] = reference_summary
+            summary["workbook_profile"] = workbook_profile
+
             locked_job.status = ImportJob.Status.COMPLETED
             locked_job.total_rows = loaded.source_row_count
             locked_job.successful_rows = loaded.source_row_count
@@ -92,10 +97,34 @@ def process_import_job(job_id):
             locked_job.finished_at = timezone.now()
             locked_job.save()
             return locked_job
+
+    except ComprehensiveValidationFailed as exc:
+        with transaction.atomic():
+            locked_job = ImportJob.objects.select_for_update().get(pk=job_id)
+            if locked_job.status == ImportJob.Status.CANCELLED:
+                return locked_job
+            warnings = exc.prepared.get("warnings", [])
+            locked_job.status = ImportJob.Status.FAILED
+            locked_job.total_rows = loaded.source_row_count
+            locked_job.error_count = len(exc.errors)
+            locked_job.errors = exc.errors[:1000]
+            locked_job.result_summary = {
+                "warning_count": len(warnings),
+                "normalization_warnings": warnings[:1000],
+                "quarantined_students": exc.prepared.get("quarantined_students", []),
+                "workbook_profile": exc.profile,
+            }
+            locked_job.finished_at = timezone.now()
+            locked_job.save()
+            return locked_job
+
     except OSError:
-        job.status = ImportJob.Status.QUEUED
-        job.save(update_fields=["status", "updated_at"])
+        with transaction.atomic():
+            locked_job = ImportJob.objects.select_for_update().get(pk=job_id)
+            locked_job.status = ImportJob.Status.QUEUED
+            locked_job.save(update_fields=["status", "updated_at"])
         raise
+
     except Exception as exc:
         with transaction.atomic():
             locked_job = ImportJob.objects.select_for_update().get(pk=job_id)
