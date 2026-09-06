@@ -8,6 +8,13 @@ from .catalog import FRAMEWORK_VERSION
 
 
 class MonthlyEvaluation(SoftDeleteModel):
+    """Legacy monthly evaluation model.
+
+    Kept during the data migration window so existing installations can be
+    migrated safely. New imports and report-card code must use
+    AssessmentPeriod/Indicator/AssessmentRecord instead of month_no.
+    """
+
     enrollment = models.ForeignKey(
         "students.Enrollment",
         on_delete=models.PROTECT,
@@ -51,6 +58,8 @@ class MonthlyEvaluation(SoftDeleteModel):
 
 
 class MetricScore(TimeStampedUUIDModel):
+    """Legacy metric score storage paired with MonthlyEvaluation."""
+
     evaluation = models.ForeignKey(
         MonthlyEvaluation,
         on_delete=models.CASCADE,
@@ -74,3 +83,16 @@ class MetricScore(TimeStampedUUIDModel):
             ),
         ]
         indexes = [models.Index(fields=["metric_code", "value"])]
+
+
+# Importing these models from the app's canonical models module is required for
+# Django model discovery and for migrations to have a real model state.
+from .dynamic_models import AssessmentPeriod, AssessmentRecord, Indicator  # noqa: E402,F401
+
+__all__ = [
+    "MonthlyEvaluation",
+    "MetricScore",
+    "AssessmentPeriod",
+    "Indicator",
+    "AssessmentRecord",
+]

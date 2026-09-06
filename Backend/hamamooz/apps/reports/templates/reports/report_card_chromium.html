@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<style>
+@page { size: A4; margin: 12mm; }
+body { font-family: Vazirmatn, Arial, sans-serif; direction: rtl; }
+.header { display:flex; justify-content:space-between; }
+.card { border-radius:12px; padding:16px; margin:12px 0; }
+.chart { height:160px; }
+</style>
+</head>
+<body>
+{% for report in reports %}
+<section>
+<div class="header">
+<h1>{{ report.student.full_name }}</h1>
+<img width="90" src="{{ report.student.photo_url }}">
+</div>
+<p>کد ملی: {{ report.student.national_id }}</p>
+<p>کلاس: {{ report.academic.class }}</p>
+<h2>نتایج ارزیابی</h2>
+{% for subject in report.subjects %}
+<div class="card">
+{{ subject.title }} : {{ subject.average }}
+</div>
+{% endfor %}
+</section>
+{% endfor %}
+</body>
+</html>
