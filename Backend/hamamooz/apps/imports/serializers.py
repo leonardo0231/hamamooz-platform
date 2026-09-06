@@ -6,6 +6,7 @@ from rest_framework import serializers
 
 from hamamooz.apps.accounts.access import accessible_school_ids
 
+from .defaults import get_default_school
 from .models import ImportJob
 
 
@@ -41,8 +42,9 @@ class ImportJobSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
+        school = get_default_school()
+        attrs["school"] = school
         source = attrs.get("source_file")
-        school = attrs.get("school")
         import_type = attrs.get("import_type")
         request = self.context["request"]
 
