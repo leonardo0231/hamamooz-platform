@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.decorators import action
@@ -9,6 +10,7 @@ from .dynamic_engine import inspect_uploaded_workbook
 from .models import ImportJob
 from .serializers import ImportJobCreateSerializer, ImportJobSerializer
 from .services.import_executor import ImportExecutor
+from .tasks import process_import_job_task
 
 
 class ImportJobViewSet(ModelViewSet):
@@ -19,6 +21,12 @@ class ImportJobViewSet(ModelViewSet):
         if self.action == "create":
             return ImportJobCreateSerializer
         return ImportJobSerializer
+
+    def perform_create(self, serializer):
+        """Queue the uploaded workbook after the database transaction commits."""
+
+        job = serializer.save()
+        transaction.on_commit(lambda: process_import_job_task.delay(str(job.id)))
 
     @action(detail=True, methods=["post"])
     def preview(self, request, pk=None):
