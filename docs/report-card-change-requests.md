@@ -4,7 +4,7 @@
 
 **Working branch:** `codex/mvp-report-card`
 
-**Last curated:** cycle 8 · 2026-09-08
+**Last curated:** cycle 9 · 2026-09-08
 
 This register is the hand-off between the strict school-VP review agent, the
 change-request curator, and the implementation agent. Every request stays in
@@ -53,18 +53,16 @@ the report sheet from the app shell. There are no report PDF or ZIP download
 controls in the frontend. Vite builds both the application and standalone
 report entries into a local production bundle.
 
-The selected target for C7-01 is literal React/ReactDOM in the browser; this
-does not claim a Next.js migration or a server-side React PDF. A
-Playwright/Chromium worker is still unavailable in this checkout. The public
-Django `render_report_pdf` path now delegates to an explicit Chromium
-boundary and raises a clear unavailable error when Playwright or its browser
-bundle is missing; it never silently falls back to a legacy engine. This bounded
-step still renders the approved Django snapshot HTML, not the React bundle,
-and therefore makes no claim of server-side React rendering. Chromium runtime
-provisioning and deterministic PDF verification remain saved separately as
-C7-03. A final “all outputs are React” approval remains blocked until the
-Chromium architecture is deployed, or the school explicitly waives that
-finding.
+The selected target for C7-01 is literal React/ReactDOM in the browser;
+Next.js is not required for this report surface. The standalone Vite bundle is
+the canonical report entry. The production `render_report_pdf` path injects an
+authorized snapshot into that React entry, waits for `__REPORT_READY__`, and
+prints A3 landscape through Playwright/Chromium. Missing Playwright, Chromium,
+or the configured frontend URL raises an explicit `ReportRendererUnavailable`;
+there is no production WeasyPrint or legacy-engine fallback. The API preview
+also returns a React hand-off contract (renderer, A3 layout, frontend/print
+URL, and snapshot); its compatibility `html` field is a non-rendering marker,
+not Django report markup.
 
 ### Cycle-8 React/Vite migration evidence
 
@@ -217,6 +215,9 @@ school-owned input is required; **In review** means the VP loop is active;
 | Cycle-8 strict VP review · 2026-09-08 · remote head [`967824e7`](https://github.com/leonardo0231/hamamooz-platform/commit/967824e7bf5e216355f321dd498246142d869784) | **CONDITIONAL — INPUTS/INFRASTRUCTURE REQUIRED (NOT APPROVED)** | Passed: React 19/ReactDOM + Vite migration, inline SVG report charts, fixed A3 layout, radar/readiness, fallbacks, grouped recommendations, stickers, signatures, and local evidence of 23 frontend tests, lint, and Vite build. Remaining blockers: server `render_report_pdf` still uses WeasyPrint; Playwright/Chromium is not wired/provisioned; no real Chrome A3 artifact; school-owned photo/logo/grades/signers are missing; and backend CI is unverified with the previous run red. C7-01 remains a Next.js decision/waiver if Next is mandatory; C7-02–C7-06 and R7-CI-01 remain open. |
 | Cycle-8 snapshot/CI follow-up · 2026-09-08 · remote head [`271880cc`](https://github.com/leonardo0231/hamamooz-platform/commit/271880cc810c3e7257d075331c98df9b9833496e) | **CONDITIONAL — INPUTS/INFRASTRUCTURE REQUIRED (NOT APPROVED)** | Secure snapshot injection (`fbd09fe`) and its contract test (`271880cc`) are present; the generated evaluations migration was added in `ee55f36` after the earlier backend failure. Frontend CI run 34236414092 passed; backend CI run 34236414165 failed before that migration. The current head has no associated workflow run/status in the present API check. WeasyPrint replacement, Chromium provisioning and real Chrome A3 evidence, school-owned photo/logo/grades/signers, and a green post-migration backend CI run remain required. |
 | Cycle-8 C7-02/C7-03 renderer-boundary executor · 2026-09-08 · commits [`4441057d`](https://github.com/leonardo0231/hamamooz-platform/commit/4441057d828191a88cd553f60ec642f70f3c46fa) → [`da81f812`](https://github.com/leonardo0231/hamamooz-platform/commit/da81f8129890d83d5c73ede07b1398e4776a947f) → [`2c7700d7`](https://github.com/leonardo0231/hamamooz-platform/commit/2c7700d7ea3a87d2207a4673123b300d2a0df3a3) → [`d1932890`](https://github.com/leonardo0231/hamamooz-platform/commit/d19328901664154c0142a651f8e9852b2f39ee82) → [`55c255c1`](https://github.com/leonardo0231/hamamooz-platform/commit/55c255c1e1251c81e068a7bba68c6697a5a7bc4c) | **PARTIAL IMPLEMENTATION — VP REVIEW PENDING** | `render_report_pdf` now selects the Chromium renderer through `rendering.render_production_report_pdf`; missing Playwright/Chromium raises `ReportRendererUnavailable`, with no WeasyPrint fallback. The renderer preserves A3 landscape PDF options, injects the application base URL for local fonts/assets, waits for document fonts, and has three focused boundary tests passing. This is Chromium over Django snapshot HTML, not server-side React; the Playwright dependency/browser bundle, real Chrome A3 artifact, school-owned assets/data, and backend CI remain open. |
+
+| Cycle-9 React/Chromium production executor · 2026-09-08 · commits [`4a003721`](https://github.com/leonardo0231/hamamooz-platform/commit/4a00372131908dbf0c75dec27488f044da1de6cd) → [`42ba0290`](https://github.com/leonardo0231/hamamooz-platform/commit/42ba0290cdf6b2bda3674970dbf0ce0d4fd28e11) → [`fc45fbe8`](https://github.com/leonardo0231/hamamooz-platform/commit/fc45fbe885107c76457f3b2ea2058864edcbdd8a) | **IMPLEMENTED; CI/A3/input verification pending** | Production PDF now loads the built React report entry, injects the frozen snapshot before module execution, waits for readiness/fonts/images, and prints A3 landscape with Chromium. Playwright is pinned and provisioned in Docker/CI; no WeasyPrint fallback exists. |
+| Cycle-9 React-only preview contract · 2026-09-08 · commits [`67afb78a`](https://github.com/leonardo0231/hamamooz-platform/commit/67afb78a0b3663cb112af67c3e45d5fe4e225e11) → [`692eed9b`](https://github.com/leonardo0231/hamamooz-platform/commit/692eed9b48f65adf648ac655e7c2630f98dce0f6) | **IMPLEMENTED; CI pending** | `/reports/preview/` no longer calls the Django report template. It returns the React renderer contract and the authorized snapshot; the legacy `html` key is retained only as a non-rendering compatibility marker. |
 
 ### VP-02 exact blockers preserved by the curator
 
