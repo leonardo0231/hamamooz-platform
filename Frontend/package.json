@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "RTL Preact frontend for the HamAmoz school intelligence platform",
+  "description": "RTL React-compatible Preact frontend with browser-native report printing for the HamAmoz school intelligence platform",
   "scripts": {
     "clean": "node scripts/clean.mjs",
     "build": "node scripts/build.mjs",
