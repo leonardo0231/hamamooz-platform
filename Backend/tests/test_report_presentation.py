@@ -81,3 +81,34 @@ def test_approved_parent_copy_is_visible_in_both_recommendation_areas():
 
     assert visuals["recommendations"][0] == "متن نهاییِ تأییدشده برای خانواده."
     assert visuals["support"][0] == "متن نهاییِ تأییدشده برای خانواده."
+
+
+def test_all_available_evaluation_domains_are_retained_in_report_visuals():
+    domains = [
+        {"code": code, "title": title, "score": score, "completed_metrics": 1, "total_metrics": 2}
+        for code, title, score in [
+            ("EDU", "آموزشی", 18),
+            ("DEV", "پرورشی", 16),
+            ("CHR", "تربیتی", 15),
+            ("DIS", "انضباطی", 14),
+            ("CUL", "فرهنگی", 17),
+            ("RES", "پژوهشی", 13),
+            ("SPT", "ورزشی", 19),
+            ("ART", "هنری", 12),
+            ("PER", "مهارت‌های فردی", 16),
+        ]
+    ]
+
+    visuals = build_report_visuals(
+        {
+            "summary": {"average": "18.00"},
+            "subjects": [],
+            "product_context": {"evaluation_analysis": {"domain_scores": domains}},
+        }
+    )
+
+    assert [item["code"] for item in visuals["domains"]] == [item["code"] for item in domains]
+    assert all(item["has_data"] for item in visuals["domains"])
+    assert visuals["domains"][4]["value"] == 85
+    assert visuals["radar"]["has_data"] is True
+    assert len(visuals["radar"]["labels"]) == 9
