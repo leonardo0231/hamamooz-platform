@@ -115,18 +115,21 @@ test('standalone report entry exposes a readiness marker for browser print autom
   assert.match(sampleScript, /printAnalyticalReport/);
   assert.match(styles, /body\.report-printing \.sidebar/);
   assert.match(styles, /height:\s*calc\(297mm - 12mm\)/);
-  assert.match(styles, /grid-template-rows:\s*175px 155px 248px 90px 65px 55px/);
-  assert.match(styles, /\.echart--radar \{ height: 216px; min-height: 216px; padding-bottom: 90px; \}/);
+  assert.match(styles, /grid-template-rows:\s*160px 130px 270px 120px 60px 48px/);
+  assert.match(styles, /\.echart--radar \{ height: 242px; min-height: 242px; padding-bottom: 72px; \}/);
   assert.match(styles, /\.echart__svg--radar text \{ font-size: 20px; \}/);
-  assert.match(styles, /\.report-radar-legend \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\); height: 90px;/);
+  assert.match(styles, /\.echart--radar \.echart__svg \{ display: block; width: 100%; min-width: 0; height: 170px; min-height: 170px; \}/);
+  assert.match(styles, /\.report-radar-legend \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\); height: 72px;/);
   assert.match(styles, /\.report-radar-legend span \{ display: flex; align-items: flex-start; min-width: 0; gap: 4px;/);
   assert.match(styles, /\.report-radar-legend em \{ flex: 1 1 auto; min-width: 0; overflow: visible; overflow-wrap: anywhere; text-overflow: clip; white-space: normal/);
   assert.match(styles, /\.report-radar-legend b \{ flex: none;/);
   assert.doesNotMatch(styles, /@media print[\s\S]*?\.report-radar-legend span \{[^}]*flex-wrap:\s*nowrap/);
-  assert.match(styles, /\.report-recommendation-group \{ min-height: 0; overflow: hidden;/);
-  assert.doesNotMatch(styles, /\.report-recommendation-group \{[^}]*overflow: visible/);
+  assert.match(styles, /\.report-recommendation-group \{ min-height: 0; overflow: visible;/);
   assert.match(styles, /\.analytical-sheet__footer \{ flex: 0 0 86px; min-height: 86px; max-height: 86px; margin-top: auto/);
   assert.match(styles, /\.report-recommendation-group \.report-bullet-list li \{ white-space: normal; overflow-wrap: anywhere;/);
+  assert.match(styles, /\.analytical-recommendations \.analytical-panel__body \{ padding: 0; overflow: visible; \}/);
+  assert.match(styles, /\.analytical-sheet__grid \{ flex: 0 0 827px; height: 827px; min-height: 827px;[\s\S]*overflow: visible; \}/);
+  assert.match(sample, /\.report-sample--print \.report-sample\{display:flex;flex-direction:column;[\s\S]*overflow:visible/);
   assert.doesNotMatch(page, /React\/Preact/);
 });
 
