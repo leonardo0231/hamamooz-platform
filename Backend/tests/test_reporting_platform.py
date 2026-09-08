@@ -5,6 +5,8 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from hamamooz.apps.recommendations.models import Recommendation
+from hamamooz.apps.evaluations.catalog import DOMAIN_DEFINITIONS
+from hamamooz.apps.evaluations.models import MetricScore, MonthlyEvaluation
 from hamamooz.apps.reports.models import ReportArchive, ReportDraft, ReportTemplate
 from hamamooz.apps.reports.services import (
     build_draft_snapshot,
@@ -128,6 +130,40 @@ def test_report_snapshot_never_includes_counselor_audience_recommendations(base_
 
     recommendations = snapshot["reports"][0]["product_context"]["approved_recommendations"]
     assert [item["audience"] for item in recommendations] == [Recommendation.Audience.PARENT]
+
+
+@pytest.mark.django_db
+def test_report_snapshot_includes_canonical_nine_domain_analysis_without_counseling_data(base_data):
+    enrollment = base_data["enrollments"][0]
+    evaluation = MonthlyEvaluation.objects.create(
+        enrollment=enrollment,
+        month_no=1,
+        framework_version="2.0",
+        recorded_by=base_data["manager"],
+    )
+    # One available metric in every catalog domain is enough to prove that the
+    # report carries partial analysis explicitly; the service still marks it
+    # provisional until the configured completion threshold is met.
+    for code in [f"{domain}_01" for domain in DOMAIN_DEFINITIONS]:
+        MetricScore.objects.create(evaluation=evaluation, metric_code=code, value=4)
+
+    template = ReportTemplate.objects.create(
+        organization=base_data["organization"],
+        school=base_data["school1"],
+        code="nine-domain-analysis",
+        title="Nine domain analysis",
+        report_type=ReportArchive.ReportType.STUDENT_REPORT_CARD,
+        blocks=["student_identity", "evaluation_radar"],
+    )
+    snapshot = build_draft_snapshot(template, term=base_data["term"], enrollment=enrollment)
+    context = snapshot["reports"][0]["product_context"]
+    analysis = context["evaluation_analysis"]
+
+    assert [item["code"] for item in analysis["domain_scores"]] == list(DOMAIN_DEFINITIONS)
+    assert all(item["score"] == 16 for item in analysis["domain_scores"])
+    assert len(context["latest_evaluation"]["metrics"]) == len(DOMAIN_DEFINITIONS)
+    assert "counseling" not in context
+    assert "counselor_report" not in context
 
 
 @pytest.mark.django_db
