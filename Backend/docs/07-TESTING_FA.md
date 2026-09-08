@@ -14,7 +14,7 @@
 | Service | invariant و transaction | انتقال، bulk score، finalize |
 | API | auth، Scope، serializer و response | workflowهای کامل |
 | Security regression | جلوگیری از نشت و escalation | cross-school, role management |
-| Integration | PostgreSQL، Redis، storage و PDF | locking، task، WeasyPrint |
+| Integration | PostgreSQL، Redis، storage و PDF | locking، task، Chromium/Playwright |
 | Operational | command و backup/restore | seed، template، retention |
 
 ## حوزه‌های پوشش موجود
@@ -65,17 +65,18 @@ SQLite مرجع معتبر برای `select_for_update` و race condition نیس
 - constraintهای partial/conditional unique
 - migrationهای داده و schema
 
-## WeasyPrint
+## Chromium/Playwright
 
-روی Windows به Pango/GObject نیاز است:
+PDF رسمی فقط با Chromium تولید می‌شود. در Image باید browser bundle و
+فونت‌های محلی provision شده باشند:
 
-```bat
-set WEASYPRINT_DLL_DIRECTORIES=C:\msys64\mingw64\bin
-python -c "from weasyprint import HTML; print('WeasyPrint OK')"
+```bash
+docker compose exec web python -c \
+  "from playwright.sync_api import sync_playwright; p=sync_playwright().start(); b=p.chromium.launch(headless=True); print('Chromium OK'); b.close(); p.stop()"
 ```
 
-Image لینوکسی پروژه مسیر مرجع برای حذف تفاوت native است.
-
+در نبود Playwright یا browser bundle، تست باید خطای صریح
+`ReportRendererUnavailable` بدهد؛ fallback به renderer قدیمی مجاز نیست.
 ## Contract و Documentation test
 
 - Schema باید از همان Commit تولید شود.
