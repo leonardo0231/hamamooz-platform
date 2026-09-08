@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import {
+  normalizeReportDomainPercent,
+  normalizeReportDomainScores,
+  normalizeReportMetricValue,
+  normalizeReportSubjectScore,
+} from '../src/components/analytical-report.js';
 
 const report = await readFile(new URL('../src/components/analytical-report.js', import.meta.url), 'utf8');
 const chart = await readFile(new URL('../src/components/echart.js', import.meta.url), 'utf8');
@@ -19,6 +25,41 @@ test('analytical report preserves all nine analysis domains and marks missing da
   assert.match(report, /ثبت نشده/);
   assert.doesNotMatch(report, /radarItems\s*=\s*items\.slice\(0,\s*6\)/);
   assert.doesNotMatch(report, /radarItems\.slice\(0,\s*6\)/);
+});
+
+test('React data boundary rejects ambiguous metric values without hiding their rows', () => {
+  assert.equal(normalizeReportMetricValue(0), 0);
+  assert.equal(normalizeReportMetricValue('5'), 100);
+  for (const value of [3.5, -1, 'ندارد', '20', '']) {
+    assert.equal(normalizeReportMetricValue(value), null, `value ${String(value)} must stay unavailable`);
+  }
+
+  assert.equal(normalizeReportSubjectScore({ average: '18.75' }), 18.75);
+  assert.equal(normalizeReportSubjectScore({ average: -1 }), null);
+  assert.equal(normalizeReportSubjectScore({ average: 21 }), null);
+
+  assert.equal(normalizeReportDomainPercent({ score: 0 }), 0);
+  assert.equal(normalizeReportDomainPercent({ score: 18.5 }), 92.5);
+  assert.equal(normalizeReportDomainPercent({ score: -1 }), null);
+  assert.equal(normalizeReportDomainPercent({ value: 18 }), null);
+  assert.equal(normalizeReportDomainPercent({ value: 18, value_unit: 'score_20' }), 90);
+  assert.equal(normalizeReportDomainPercent({ value: 90, value_unit: 'percent' }), 90);
+
+  const domains = normalizeReportDomainScores([{ code: 'EDU', score: 0, completed_metrics: 0 }]);
+  assert.equal(domains.length, 9);
+  assert.equal(domains[0].value, 0);
+  assert.equal(domains[0].hasData, true);
+  assert.equal(domains[1].hasData, false);
+});
+
+test('invalid EDU metrics remain printable as explicit missing rows', () => {
+  assert.match(report, /hasData: value !== null/);
+  assert.doesNotMatch(report, /\.filter\(item => item\.value !== null\)/);
+  assert.match(report, /report-rating-missing/);
+  assert.match(report, /Number\.isInteger\(numeric\)/);
+  assert.match(report, /numeric < 0 \|\| numeric > 5/);
+  assert.match(report, /value_unit \?\? item\.unit \?\? item\.scale/);
+  assert.match(report, /score >= 0 && score <= 20/);
 });
 
 test('report uses semantic SVG icons and has no CSS-text sticker fallback', () => {
