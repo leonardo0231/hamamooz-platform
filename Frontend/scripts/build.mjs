@@ -1,29 +1,29 @@
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { build } from 'vite';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const source = resolve(root, 'src');
 const output = resolve(root, 'dist');
 
-await rm(output, { recursive: true, force: true });
-await mkdir(output, { recursive: true });
-await cp(source, output, { recursive: true });
-await cp(resolve(root, 'public'), output, { recursive: true });
-
-// Report charts are inline SVG in the report component.  Do not copy a
-// canvas/chart runtime into the production bundle: the same DOM must be used
-// for screen preview and the browser's A3 print dialog, even when the school
-// network cannot install optional npm packages.
+await build({
+  configFile: resolve(root, 'vite.config.mjs'),
+  mode: 'production',
+});
 
 const index = await readFile(resolve(output, 'index.html'), 'utf8');
+const reportSample = await readFile(resolve(output, 'report-sample.html'), 'utf8');
 if (!index.includes('dir="rtl"') || !index.includes('type="module"')) {
   throw new Error('Build validation failed: RTL document or module entry is missing.');
+}
+if (!reportSample.includes('A3 landscape') || !reportSample.includes('type="module"')) {
+  throw new Error('Build validation failed: standalone A3 report entry is missing.');
 }
 
 await writeFile(resolve(output, 'build-meta.json'), JSON.stringify({
   app: 'hamamooz-frontend',
-  architecture: 'preact-esm-react-compatible-report',
+  architecture: 'react-esm-vite-htm-svg-report',
+  entries: ['index.html', 'report-sample.html'],
   builtAt: new Date().toISOString(),
 }, null, 2));
 
