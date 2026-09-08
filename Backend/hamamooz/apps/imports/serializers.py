@@ -31,18 +31,49 @@ class ImportJobSerializer(serializers.ModelSerializer):
     class Meta:
         model = ImportJob
         fields = [
-            "id", "organization", "organization_name", "school", "school_name",
-            "import_type", "status", "status_display", "source_file", "checksum",
-            "requested_by", "requested_by_name", "total_rows", "successful_rows",
-            "error_count", "errors", "result_summary", "preview_summary",
-            "started_at", "finished_at", "created_at", "updated_at",
+            "id",
+            "organization",
+            "organization_name",
+            "school",
+            "school_name",
+            "import_type",
+            "status",
+            "status_display",
+            "source_file",
+            "checksum",
+            "requested_by",
+            "requested_by_name",
+            "total_rows",
+            "successful_rows",
+            "error_count",
+            "errors",
+            "result_summary",
+            "preview_summary",
+            "started_at",
+            "finished_at",
+            "created_at",
+            "updated_at",
         ]
         read_only_fields = [
-            "id", "organization", "organization_name", "school_name", "status",
-            "status_display", "checksum", "requested_by", "requested_by_name",
-            "total_rows", "successful_rows", "error_count", "errors",
-            "result_summary", "preview_summary", "started_at", "finished_at",
-            "created_at", "updated_at",
+            "id",
+            "organization",
+            "organization_name",
+            "school_name",
+            "status",
+            "status_display",
+            "checksum",
+            "requested_by",
+            "requested_by_name",
+            "total_rows",
+            "successful_rows",
+            "error_count",
+            "errors",
+            "result_summary",
+            "preview_summary",
+            "started_at",
+            "finished_at",
+            "created_at",
+            "updated_at",
         ]
 
     def validate(self, attrs):
@@ -113,7 +144,5 @@ class ImportJobSerializer(serializers.ModelSerializer):
 
 class ImportJobCreateSerializer(ImportJobSerializer):
     import_type = serializers.ChoiceField(
-        choices=[
-            (ImportJob.ImportType.COMPREHENSIVE_SCHOOL, "فایل جامع مدرسه")
-        ]
+        choices=[(ImportJob.ImportType.COMPREHENSIVE_SCHOOL, "فایل جامع مدرسه")]
     )
