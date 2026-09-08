@@ -26,13 +26,21 @@ class ImportJob(SoftDeleteModel):
         FAILED = "failed", "ناموفق"
         CANCELLED = "cancelled", "لغوشده"
 
-    organization = models.ForeignKey("organizations.Organization", on_delete=models.PROTECT, related_name="import_jobs")
-    school = models.ForeignKey("organizations.School", on_delete=models.PROTECT, related_name="import_jobs")
+    organization = models.ForeignKey(
+        "organizations.Organization", on_delete=models.PROTECT, related_name="import_jobs"
+    )
+    school = models.ForeignKey(
+        "organizations.School", on_delete=models.PROTECT, related_name="import_jobs"
+    )
     import_type = models.CharField(max_length=30, choices=ImportType.choices)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.UPLOADED, db_index=True)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.UPLOADED, db_index=True
+    )
     source_file = models.FileField(upload_to="imports/%Y/%m/")
     checksum = models.CharField(max_length=64, db_index=True)
-    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="import_jobs")
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="import_jobs"
+    )
     total_rows = models.PositiveIntegerField(default=0)
     successful_rows = models.PositiveIntegerField(default=0)
     error_count = models.PositiveIntegerField(default=0)
@@ -47,7 +55,17 @@ class ImportJob(SoftDeleteModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["organization", "school", "import_type", "checksum"],
-                condition=models.Q(is_deleted=False, status__in=["uploaded", "analyzing", "preview_ready", "confirmed", "processing", "completed"]),
+                condition=models.Q(
+                    is_deleted=False,
+                    status__in=[
+                        "uploaded",
+                        "analyzing",
+                        "preview_ready",
+                        "confirmed",
+                        "processing",
+                        "completed",
+                    ],
+                ),
                 name="uq_active_import_file_scope",
             )
         ]
