@@ -149,8 +149,9 @@ function RadarChart({ option, label, className }) {
   </svg><div class="report-radar-legend" aria-label="راهنمای شماره‌گذاری ارزیابی مهارت‌ها">${indicators.map((item, index) => {
     const value = numeric(values[index]);
     const available = value !== null;
-    const text = available ? `${formatMetricValue(value)}٪` : 'ثبت نشده';
-    return html`<span key=${`radar-legend-${index}`} class=${available ? 'is-available' : 'is-missing'} aria-label=${`${item.title ?? item.name}: ${text}`}><i>${index + 1}</i><em>${item.title ?? item.name}</em><b>${text}</b></span>`;
+    const displayText = available ? `${formatMetricValue(value)}٪` : '—';
+    const accessibleText = available ? displayText : 'ثبت نشده';
+    return html`<span key=${`radar-legend-${index}`} class=${available ? 'is-available' : 'is-missing'} aria-label=${`${item.title ?? item.name}: ${accessibleText}`}><i>${index + 1}</i><em>${item.title ?? item.name}</em><b>${displayText}</b></span>`;
   })}</div>`});
 }
 
