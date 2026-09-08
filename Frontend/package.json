@@ -3,17 +3,23 @@
   "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "RTL React-compatible Preact frontend with browser-native report printing for the HamAmoz school intelligence platform",
+  "description": "RTL React frontend with browser-native report printing for the HamAmoz school intelligence platform",
   "scripts": {
     "clean": "node scripts/clean.mjs",
     "build": "node scripts/build.mjs",
-    "dev": "node scripts/serve.mjs src 5173",
-    "preview": "node scripts/serve.mjs dist 4173",
+    "dev": "vite --config vite.config.mjs --host 0.0.0.0 --port 5173",
+    "preview": "vite preview --config vite.config.mjs --host 0.0.0.0 --port 4173",
     "lint": "node scripts/lint.mjs",
     "test": "node --test tests/*.test.mjs && node scripts/build.mjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": "^20.19.0 || >=22.12.0"
   },
-  "dependencies": {}
+  "dependencies": {
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "vite": "8.2.2"
+  }
 }
