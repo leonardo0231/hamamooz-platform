@@ -87,6 +87,61 @@ def _metric_items(context: dict[str, Any]) -> list[dict[str, Any]]:
     return normalized
 
 
+def _domain_items(context: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return the canonical nine-domain analysis in report-friendly units.
+
+    ``EvaluationAnalyticsService`` stores domain scores on a 0–20 scale while
+    the report visuals use percentages.  Preserve both values and retain
+    domains with no score so the report can distinguish "not assessed" from a
+    zero result.  A metric-only fallback keeps old frozen snapshots readable.
+    """
+    analysis = context.get("evaluation_analysis") or context.get("analysis") or {}
+    rows = analysis.get("domain_scores") or []
+    if not rows:
+        # Older snapshots do not have the service result.  Group the latest
+        # metric values by their persisted domain metadata where available.
+        latest = (context.get("evaluations") or [])[-1:]
+        grouped: dict[str, list[float]] = {}
+        titles: dict[str, str] = {}
+        for evaluation in latest:
+            metrics = evaluation.get("metrics") or []
+            for metric in metrics:
+                code = str(metric.get("domain_code") or metric.get("code") or "")
+                domain_code = code.split("_", 1)[0]
+                if not domain_code:
+                    continue
+                raw = _number(metric.get("value"))
+                if raw is None:
+                    continue
+                grouped.setdefault(domain_code, []).append(raw * 4)
+                titles.setdefault(domain_code, metric.get("domain_title") or domain_code)
+        rows = [
+            {"code": code, "title": titles[code], "score": sum(values) / len(values)}
+            for code, values in grouped.items()
+        ]
+    domains = []
+    for item in rows:
+        score = _number(item.get("score"))
+        # Some integrations persist percentages under ``value``.  The
+        # analytics service's score is always 0–20, so prefer score when given.
+        value = score * 5 if score is not None and score <= 20 else _number(item.get("value"))
+        if value is not None:
+            value = max(0, min(100, value))
+        domains.append(
+            {
+                "code": item.get("code") or "",
+                "title": item.get("title") or item.get("domain_title") or "—",
+                "score": score,
+                "value": value,
+                "percent": _percent(value) if value is not None else None,
+                "completed_metrics": item.get("completed_metrics", 0),
+                "total_metrics": item.get("total_metrics", 0),
+                "has_data": value is not None,
+            }
+        )
+    return domains
+
+
 def _trend(history: list[dict[str, Any]]) -> dict[str, Any]:
     points = []
     valid = [item for item in history if _number(item.get("average")) is not None]
@@ -197,7 +252,16 @@ def _radar(items: list[dict[str, Any]]) -> dict[str, Any]:
         value_x, value_y = point(index, radius * item["value"] / 100)
         outline.append(f"{x:.1f},{y:.1f}")
         values.append(f"{value_x:.1f},{value_y:.1f}")
-        labels.append({"x": f"{label_x:.1f}", "y": f"{label_y:.1f}", "title": item["title"]})
+        labels.append(
+            {
+                "x": f"{label_x:.1f}",
+                "y": f"{label_y:.1f}",
+                "title": item["title"],
+                # Keep the numeric key beside every axis label so the printed
+                # chart remains interpretable without colour or hover state.
+                "value": _fa(item["value"], 0),
+            }
+        )
     grids = []
     for scale in (0.25, 0.5, 0.75, 1):
         grids.append(
@@ -260,25 +324,36 @@ def build_report_visuals(
     attendance = context.get("attendance") or {}
     attendance_rate = _number(attendance.get("attendance_rate"))
     metrics = _metric_items(context)
+    domains = _domain_items(context)
     metric_map = {item["code"]: item for item in metrics}
     behavior = [item for item in metrics if item["code"].startswith(("DEV_", "CHR_", "DIS_"))][:10]
     academic = [item for item in metrics if item["code"].startswith(("EDU_", "PER_"))][:6]
 
-    radar_items = []
+    # Prefer the canonical nine domains when available.  This makes the radar
+    # and its companion list reflect exactly what the analysis service knows,
+    # instead of silently dropping cultural, research, sport and arts data.
+    radar_items = [
+        {"title": item["title"], "value": item["value"]}
+        for item in domains
+        if item["has_data"]
+    ]
+    if len(radar_items) < 3:
+        radar_items = []
+        academic_average = _number(report.get("summary", {}).get("average"))
+        if academic_average is not None:
+            radar_items.append({"title": "آموزشی", "value": academic_average * 5})
+        if attendance_rate is not None:
+            radar_items.append({"title": "حضور", "value": attendance_rate})
+        for code, title in (
+            ("DEV_02", "مسئولیت"),
+            ("EDU_05", "تمرکز"),
+            ("DEV_01", "همکاری"),
+            ("PER_01", "مدیریت زمان"),
+        ):
+            if code in metric_map:
+                radar_items.append({"title": title, "value": metric_map[code]["value"]})
+        radar_items = radar_items[:6]
     academic_average = _number(report.get("summary", {}).get("average"))
-    if academic_average is not None:
-        radar_items.append({"title": "آموزشی", "value": academic_average * 5})
-    if attendance_rate is not None:
-        radar_items.append({"title": "حضور", "value": attendance_rate})
-    for code, title in (
-        ("DEV_02", "مسئولیت"),
-        ("EDU_05", "تمرکز"),
-        ("DEV_01", "همکاری"),
-        ("PER_01", "مدیریت زمان"),
-    ):
-        if code in metric_map:
-            radar_items.append({"title": title, "value": metric_map[code]["value"]})
-    radar_items = radar_items[:6]
 
     readiness = academic or [
         {"title": item["title"], "value": item["average"] * 5}
@@ -292,9 +367,18 @@ def build_report_visuals(
         "cultural": "✦",
         "art": "✎",
     }
+    activity_badges = {
+        "sport": "SPORT",
+        "research": "EDU",
+        "competition": "AWARD",
+        "cultural": "CULT",
+        "art": "ART",
+    }
     activities = [
         {
             "icon": activity_icons.get(item.get("kind"), "●"),
+            "kind": item.get("kind") or "school",
+            "badge": activity_badges.get(item.get("kind"), "ACT"),
             "title": item.get("title", "فعالیت مدرسه"),
             "text": item.get("result")
             or (
@@ -357,6 +441,8 @@ def build_report_visuals(
     return {
         "trend": _trend(report.get("history") or []),
         "radar": _radar(radar_items),
+        "domains": domains,
+        "domain_scores": domains,
         "subjects": subjects,
         "strengths": _bars(
             [
