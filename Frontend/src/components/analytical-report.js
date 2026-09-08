@@ -9,7 +9,11 @@ const clamp = (value, min = 0, max = 100) => {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? Math.max(min, Math.min(max, numeric)) : null;
 };
-const isNumber = value => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
+const isNumber = value => {
+  if (typeof value !== 'number' && typeof value !== 'string') return false;
+  if (typeof value === 'string' && value.trim() === '') return false;
+  return Number.isFinite(Number(value));
+};
 const reportNumber = value => html`<bdi class="report-number" dir="ltr">${fa(value)}</bdi>`;
 const assetUrl = value => {
   if (!value) return '';
@@ -19,7 +23,7 @@ const assetUrl = value => {
 };
 
 /**
- * Print the report that is already rendered by the Preact tree.  The print
+ * Print the report that is already rendered by the React tree.  The print
  * stylesheet isolates the A3 report sheet from the application chrome, so the
  * browser is the only document renderer involved in the final output.
  */
@@ -171,13 +175,23 @@ const demo = {
 
 function titleForMetric(code) { return metricTitles[code] ?? String(code || '').replace('_', ' '); }
 function metricValue(value) {
+  // MonthlyEvaluation/MetricScore is an explicit 0–5 integer rubric.  Do not
+  // infer a unit from the magnitude: EDU_01 in the source workbooks is a
+  // 0–20 academic score, while EDU_02 can be decimal, negative, or «ندارد».
+  // Those values are not this rubric and must remain unavailable until the
+  // school approves a mapping.
+  if (typeof value !== 'number' && typeof value !== 'string') return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
   const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return null;
-  return clamp(numeric <= 5 ? numeric * 20 : numeric);
+  if (!Number.isFinite(numeric) || !Number.isInteger(numeric) || numeric < 0 || numeric > 5) return null;
+  return numeric * 20;
 }
 function numericSubject(row) {
-  if (isNumber(row)) return Number(row);
-  return isNumber(row?.average) ? Number(row.average) : null;
+  const value = isNumber(row) ? Number(row) : isNumber(row?.average) ? Number(row.average) : null;
+  // Academic subjects are already on the official 0–20 scale.  Reject an
+  // out-of-range value instead of allowing a later percentage clamp to turn
+  // a corrupt negative score into a visible zero.
+  return value !== null && value >= 0 && value <= 20 ? value : null;
 }
 
 function metricDomainCode(item) {
@@ -188,17 +202,39 @@ function metricDomainCode(item) {
 
 function domainPercent(item) {
   if (!item || item.has_data === false || item.hasData === false) return null;
-  const raw = isNumber(item.percent) ? Number(item.percent)
-    : isNumber(item.score) ? Number(item.score)
-      : isNumber(item.value) ? Number(item.value) : null;
-  if (raw === null) return null;
-  // The API's canonical domain score is 0–20; older snapshots sometimes
-  // already contain percentages in `value`/`percent`.
-  const percentage = isNumber(item.percent) || (isNumber(item.value) && !isNumber(item.score) && Number(item.value) > 20)
-    ? raw
-    : raw <= 20 ? raw * 5 : raw;
-  return clamp(percentage);
+  if (isNumber(item.score)) {
+    const score = Number(item.score);
+    return score >= 0 && score <= 20 ? score * 5 : null;
+  }
+  if (isNumber(item.percent)) {
+    const percent = Number(item.percent);
+    return percent >= 0 && percent <= 100 ? percent : null;
+  }
+  // A bare `value` is ambiguous (it may be a 0–20 score or a percentage).
+  // Only accept it when the producer declares its unit/scale explicitly;
+  // otherwise keeping the domain missing is safer than silently converting it.
+  if (isNumber(item.value)) {
+    const value = Number(item.value);
+    const unit = String(item.value_unit ?? item.unit ?? item.scale ?? '').trim().toLowerCase();
+    if (['percent', 'percentage', '%', 'درصد'].includes(unit)) {
+      return value >= 0 && value <= 100 ? value : null;
+    }
+    if (['score_20', '0-20', '20'].includes(unit)) {
+      return value >= 0 && value <= 20 ? value * 5 : null;
+    }
+  }
+  return null;
 }
+
+// Export the boundary normalizers so the React report contract can be tested
+// without mounting a browser document.  They intentionally return null for
+// values whose unit or range is not authoritative.
+export {
+  metricValue as normalizeReportMetricValue,
+  numericSubject as normalizeReportSubjectScore,
+  domainPercent as normalizeReportDomainPercent,
+  normalizeDomainScores as normalizeReportDomainScores,
+};
 
 function normalizeDomainScores(rows, metricRows = []) {
   const hasAuthoritativeRows = Array.isArray(rows) && rows.length > 0;
@@ -210,7 +246,11 @@ function normalizeDomainScores(rows, metricRows = []) {
     for (const item of metricRows) {
       const code = metricDomainCode(item);
       if (!code) continue;
-      const value = metricValue(item.value);
+      // mapSnapshot has already converted valid rubric scores to percentages;
+      // applying metricValue a second time would discard every value above 5.
+      const value = item.hasData === false || !isNumber(item.value)
+        ? null
+        : Number(item.value) >= 0 && Number(item.value) <= 100 ? Number(item.value) : null;
       if (value !== null) metricGroups.set(code, [...(metricGroups.get(code) ?? []), value]);
     }
   }
@@ -246,19 +286,27 @@ function mapSnapshot(snapshot) {
   const metrics = Array.isArray(rawMetrics)
     ? rawMetrics
     : Object.entries(rawMetrics).map(([code, value]) => ({ code, title: titleForMetric(code), value }));
-  const metricRows = metrics.map(item => ({
-    ...item,
-    code: item.code ?? item.metric_code,
-    title: item.title ?? titleForMetric(item.code ?? item.metric_code),
-    value: metricValue(item.value),
-  })).filter(item => item.value !== null);
+  const metricRows = metrics.map(item => {
+    const code = item?.code ?? item?.metric_code;
+    const value = metricValue(item?.value);
+    return {
+      ...item,
+      code,
+      title: item?.title ?? titleForMetric(code),
+      value,
+      hasData: value !== null,
+    };
+  }).filter(item => item.code);
   const behavior = metricRows.filter(item => /^(DEV|CHR|DIS)_/.test(item.code ?? ''));
   const skills21 = metricRows.filter(item => /^PER_/.test(item.code ?? ''));
   const subjectRows = (report.subjects ?? []).map(item => ({
     title: item.title, current: numericSubject(item), first: numericSubject(item.first), previous: numericSubject(item.previous),
     continuous: numericSubject(item.continuous), midterm: numericSubject(item.midterm), final: numericSubject(item.final), passed: item.passed,
   }));
-  const history = (report.history ?? []).filter(item => isNumber(item.average)).map(item => ({ label: item.label, average: Number(item.average), rank: item.rank ?? null }));
+  const history = (report.history ?? []).map(item => {
+    const average = numericSubject(item?.average);
+    return average === null ? null : { label: item.label, average, rank: item.rank ?? null };
+  }).filter(Boolean);
   const academic = metricRows.filter(item => /^EDU_/.test(item.code ?? ''));
   const strengths = [...subjectRows].filter(item => isNumber(item.current)).sort((a, b) => b.current - a.current).slice(0, 6).map(item => ({ title: item.title, value: clamp(item.current * 5) }));
   const improvements = [...subjectRows].filter(item => isNumber(item.current)).sort((a, b) => a.current - b.current).slice(0, 6).map(item => ({ title: item.title, value: clamp(item.current * 5) }));
@@ -283,7 +331,7 @@ function mapSnapshot(snapshot) {
     schoolLogoUrl: assetUrl(report.school?.logo_url || organization.logo_url || context.school_logo_url),
     student: { name: report.student?.full_name ?? 'دانش‌آموز', nationalId: report.student?.national_id ?? '—', number: report.student?.student_number ?? '—', initial: (report.student?.full_name ?? 'د').slice(0, 1), photoUrl: assetUrl(report.student?.photo_url || report.student?.photo) },
     academic: { year: report.academic?.year ?? '—', grade: report.academic?.grade ?? '—', className: report.academic?.class ?? '—', term: report.academic?.term ?? '—' },
-    average: isNumber(report.summary?.average) ? Number(report.summary.average) : null, rank: report.summary?.class_rank ?? null, history,
+    average: numericSubject(report.summary?.average), rank: report.summary?.class_rank ?? null, history,
     subjects: subjectRows, skills: behavior, skills21, readiness: academic, domainScores,
     strengths, improvements, activities, awards,
     counselor: (context.counselor_report?.items ?? context.analytics_signals ?? []).map(item => typeof item === 'string' ? item : item.explanation).filter(Boolean).slice(0, 4),
@@ -334,8 +382,20 @@ function Panel({ title, tone = 'teal', className = '', children, action, href })
 }
 function Empty({ message = 'داده کافی نیست' }) { return html`<p class="analytical-empty">${message}</p>`; }
 function Stars({ value }) {
-  const rounded = Math.round((Number(value) || 0) / 20);
+  if (!isNumber(value)) return html`<span class="report-rating-missing" role="status" aria-label="امتیاز ثبت نشده">ثبت نشده</span>`;
+  const rounded = Math.round(Number(value) / 20);
   return html`<span class="report-stars" aria-label=${`${fa(value)} درصد`}>${[1, 2, 3, 4, 5].map(index => html`<${Icon} name="star" size=${15} className=${index <= rounded ? 'is-on' : ''}/>` )}</span>`;
+}
+function MetricPercent({ value }) {
+  return isNumber(value)
+    ? html`${reportNumber(value)}٪`
+    : html`<span class="report-rating-missing" role="status">ثبت نشده</span>`;
+}
+function SubjectStatus({ subject }) {
+  if (!isNumber(subject.current)) return html`<span class="report-rating-missing" role="status">ثبت نشده</span>`;
+  return subject.passed === false
+    ? html`<b class="is-alert">پیگیری</b>`
+    : html`<b class="is-ok">قبول</b>`;
 }
 function MissingPhoto() {
   return html`<span class="report-avatar-fallback" role="img" aria-label="عکس دانش‌آموز ثبت نشده"><${Icon} name="user" size=${40}/><small>عکس ثبت نشده</small></span>`;
@@ -391,14 +451,14 @@ export function AnalyticalReport({ snapshot, loading = false }) {
       <${Panel} title="مشخصات دانش‌آموز" className="analytical-identity" tone="navy"><div class="report-portrait"><${StudentPhoto} report=${report}/></div><dl class="report-identity-list"><div><dt>نام و نام خانوادگی</dt><dd>${report.student.name}</dd></div><div><dt>کد ملی</dt><dd><bdi dir="ltr">${report.student.nationalId}</bdi></dd></div><div><dt>شماره دانش‌آموزی</dt><dd><bdi dir="ltr">${report.student.number}</bdi></dd></div><div><dt>پایه و کلاس</dt><dd>${report.academic.grade} · ${report.academic.className}</dd></div></dl><div class="report-mini-kpis"><span><small>معدل کل</small><strong>${isNumber(report.average) ? reportNumber(report.average) : '—'}</strong></span><span><small>رتبه کلاس</small><strong>${report.rank ? reportNumber(report.rank) : '—'}</strong></span></div></${Panel}>
       <${Panel} title="نمودار روند رشد سه‌ساله" className="analytical-trend" action="میانگین و رتبه"><div class="trend-caption">مقایسهٔ میانگین نهایی سه سال اخیر</div>${loading ? html`<${Empty}/>` : html`<${EChart} option=${trend} label="نمودار روند تحصیلی سه‌ساله" className="echart--trend"/>`}${report.history?.length ? html`<div class="report-trend-foot">${report.history.map(item => html`<span><b>${item.label}</b><i>${reportNumber(item.average)}</i>${item.rank ? html`<small>رتبه ${reportNumber(item.rank)}</small>` : null}</span>`)}</div>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="گزارش مشاور و پیگیری هوشمند" className="analytical-insights" tone="gold"><div class="report-insight-group"><h4>گزارش مشاور</h4>${report.counselor?.length ? html`<ul class="report-bullet-list">${report.counselor.map(item => html`<li>${item}</li>`)}</ul>` : html`<${Empty}/>`}</div><div class="report-insight-group"><h4>موارد پیگیری</h4>${report.followUps?.length ? html`<ul class="report-bullet-list">${report.followUps.map(item => html`<li>${item}</li>`)}</ul>` : html`<${Empty}/>`}</div></${Panel}>
-      <${Panel} title="وضعیت آموزشی و نمرات نهایی" className="analytical-table" tone="teal"><table class="report-score-table"><thead><tr><th>درس / شاخص</th><th>مستمر</th><th>میان‌ترم</th><th>پایانی</th><th>میانگین</th><th>وضعیت</th></tr></thead><tbody>${report.subjects.slice(0, 12).map(subject => html`<tr><th>${subject.title}</th><td>${reportNumber(subject.continuous)}</td><td>${reportNumber(subject.midterm)}</td><td>${reportNumber(subject.final)}</td><td class=${subject.current < 12 ? 'is-alert' : 'is-current'}>${reportNumber(subject.current)}</td><td>${subject.passed === false ? html`<b class="is-alert">پیگیری</b>` : html`<b class="is-ok">قبول</b>`}</td></tr>`)}</tbody></table>${!report.subjects?.length && html`<${Empty}/>`}</${Panel}>
+      <${Panel} title="وضعیت آموزشی و نمرات نهایی" className="analytical-table" tone="teal"><table class="report-score-table"><thead><tr><th>درس / شاخص</th><th>مستمر</th><th>میان‌ترم</th><th>پایانی</th><th>میانگین</th><th>وضعیت</th></tr></thead><tbody>${report.subjects.slice(0, 12).map(subject => html`<tr><th>${subject.title}</th><td>${reportNumber(subject.continuous)}</td><td>${reportNumber(subject.midterm)}</td><td>${reportNumber(subject.final)}</td><td class=${isNumber(subject.current) && subject.current < 12 ? 'is-alert' : 'is-current'}>${reportNumber(subject.current)}</td><td><${SubjectStatus} subject=${subject}/></td></tr>`)}</tbody></table>${!report.subjects?.length && html`<${Empty}/>`}</${Panel}>
       <${Panel} title="نمودار ارزیابی مهارت‌ها" className="analytical-radar" tone="teal">${radar ? html`<${EChart} option=${radar} label="نمودار راداری مهارت‌های تحصیلی" className="echart--radar"/>` : html`<${Empty}/>`}</${Panel}>
-      <${Panel} title="گزارش تربیتی و رفتاری" className="analytical-behavior" tone="gold">${report.skills?.length ? html`<div class="report-rating-list">${report.skills.map(item => html`<div><span>${item.title}</span><${Stars} value=${item.value}/><b>${reportNumber(item.value)}٪</b></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
+      <${Panel} title="گزارش تربیتی و رفتاری" className="analytical-behavior" tone="gold">${report.skills?.length ? html`<div class="report-rating-list">${report.skills.map(item => html`<div><span>${item.title}</span><${Stars} value=${item.value}/><${MetricPercent} value=${item.value}/></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="نقاط قوت علمی" className="analytical-strengths" tone="green">${strengths ? html`<${EChart} option=${strengths} label="نقاط قوت علمی" className="echart--bars"/>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="نقاط قابل بهبود" className="analytical-improvements" tone="rose">${improvements ? html`<${EChart} option=${improvements} label="نقاط قابل بهبود" className="echart--bars"/>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="توصیه‌ها و برنامهٔ حمایت" className="analytical-recommendations" tone="gold"><div class="report-recommendation-grid"><${RecommendationGroup} title="والدین و دانش‌آموز" items=${report.recommendations} ordered tone="gold"/><${RecommendationGroup} title="معلمان و کادر آموزشی" items=${report.teacherRecommendations} tone="navy"/><${RecommendationGroup} title="حمایت خانواده" items=${report.support} tone="teal"/></div></${Panel}>
       <${Panel} title="حضور و غیاب" className="analytical-attendance" tone="navy"><div class="attendance-score"><strong>${attendanceRate === null ? '—' : html`${reportNumber(attendanceRate)}٪`}</strong><span>درصد حضور ثبت‌شده</span></div><div class="attendance-meta"><span>جلسات نهایی <b>${reportNumber(report.attendance.sessions)}</b></span><span>غیبت غیرموجه <b>${reportNumber(report.attendance.unexcused)}</b></span><span>تأخیر <b>${reportNumber(report.attendance.late)}</b></span></div></${Panel}>
-      <${Panel} title="مهارت‌های قرن بیست‌ویکم" className="analytical-skills21" tone="teal">${report.skills21?.length ? html`<div class="report-rating-list">${report.skills21.map(item => html`<div><span>${item.title}</span><${Stars} value=${item.value}/><b>${reportNumber(item.value)}٪</b></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
+      <${Panel} title="مهارت‌های قرن بیست‌ویکم" className="analytical-skills21" tone="teal">${report.skills21?.length ? html`<div class="report-rating-list">${report.skills21.map(item => html`<div><span>${item.title}</span><${Stars} value=${item.value}/><${MetricPercent} value=${item.value}/></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="مشارکت‌ها و فعالیت‌های مدرسه" className="analytical-activities" tone="teal">${report.activities?.length ? html`<div class="report-activities">${report.activities.map(item => html`<div><${Sticker} kind=${item.icon} title=${item.title}/><strong>${item.title}</strong><small>${item.text}</small></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="آمادگی برای دوره متوسطه" className="analytical-readiness" tone="navy">${readiness ? html`<${EChart} option=${readiness} label="آمادگی تحصیلی برای دوره متوسطه" className="echart--readiness"/>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="افتخارات و عناوین کسب‌شده" className="analytical-awards" tone="gold">${report.awards?.length ? html`<div class="report-awards">${report.awards.map(item => html`<div><${Sticker} kind=${item.icon} title=${item.title}/><span><b>${item.title}</b><small>${item.text}</small></span></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
