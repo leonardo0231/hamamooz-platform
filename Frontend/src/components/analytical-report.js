@@ -26,10 +26,19 @@ const assetUrl = value => {
 export function printAnalyticalReport() {
   if (typeof window === 'undefined' || typeof window.print !== 'function') return false;
   const body = document.body;
+  let printStarted = false;
+  let printFallbackTimer;
   let cleanupTimer;
+  const startPrint = () => {
+    if (printStarted) return;
+    printStarted = true;
+    if (printFallbackTimer) window.clearTimeout(printFallbackTimer);
+    window.print();
+  };
   const cleanup = () => {
     body.classList.remove('report-printing');
     if (cleanupTimer) window.clearTimeout(cleanupTimer);
+    if (printFallbackTimer) window.clearTimeout(printFallbackTimer);
   };
   body.classList.add('report-printing');
   window.addEventListener('afterprint', cleanup, { once: true });
@@ -50,9 +59,16 @@ export function printAnalyticalReport() {
       image.addEventListener('error', resolve, { once: true });
     }));
   });
-  cleanupTimer = window.setTimeout(cleanup, 30000);
+  // If an image server never answers, do not leave the user with a button that
+  // appears to do nothing.  The browser still prints the explicit fallback
+  // state for that image; successful loads normally reach this path earlier.
+  printFallbackTimer = window.setTimeout(startPrint, 10000);
+  cleanupTimer = window.setTimeout(() => {
+    startPrint();
+    window.setTimeout(cleanup, 5000);
+  }, 30000);
   Promise.all(assets).finally(() => {
-    window.setTimeout(() => window.print(), 120);
+    window.setTimeout(startPrint, 120);
   });
   return true;
 }
