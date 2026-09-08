@@ -5,10 +5,9 @@ Python resolves the package first, so public imports like
 ``from .services import EvaluationAnalyticsService`` need this bridge.
 """
 
+import sys
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
-import sys
-
 
 _legacy_services_path = Path(__file__).resolve().parent.parent / "services.py"
 _legacy_spec = spec_from_file_location(
