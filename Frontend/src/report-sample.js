@@ -3,11 +3,16 @@ import { AnalyticalReport, printAnalyticalReport } from './components/analytical
 
 const root = document.querySelector('#report-sample');
 const printMode = new URLSearchParams(location.search).get('print') === '1';
+// A trusted renderer may inject the already-authorized snapshot before the
+// bundle starts.  Keeping the snapshot out of the query string avoids leaking
+// student data into browser history and server logs; the public sample still
+// falls back to the reviewed demo payload when no snapshot is supplied.
+const snapshot = globalThis.__REPORT_SNAPSHOT__ ?? undefined;
 window.__REPORT_READY__ = false;
 if (printMode) {
   document.documentElement.classList.add('report-sample--print');
 }
-render(html`<${AnalyticalReport}/>`, root);
+render(html`<${AnalyticalReport} snapshot=${snapshot}/>`, root);
 
 const assets = [];
 if (document.fonts?.ready) assets.push(document.fonts.ready.catch(() => undefined));
