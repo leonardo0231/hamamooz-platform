@@ -498,13 +498,9 @@ def _report_extended_context(enrollment):
                 "metrics": [
                     {
                         "code": score.metric_code,
-                        "title": catalog.get(score.metric_code, {}).get(
-                            "title", score.metric_code
-                        ),
+                        "title": catalog.get(score.metric_code, {}).get("title", score.metric_code),
                         "domain_code": catalog.get(score.metric_code, {}).get("domain_code", ""),
-                        "domain_title": catalog.get(score.metric_code, {}).get(
-                            "domain_title", ""
-                        ),
+                        "domain_title": catalog.get(score.metric_code, {}).get("domain_title", ""),
                         "value": score.value,
                     }
                     for score in score_rows
