@@ -56,7 +56,8 @@ test('standalone report entry exposes a readiness marker for browser print autom
   assert.match(sampleScript, /window\.__REPORT_READY__\s*=\s*true/);
   assert.match(sampleScript, /printAnalyticalReport/);
   assert.match(styles, /body\.report-printing \.sidebar/);
-  assert.match(styles, /grid-template-rows:\s*112px 225px 160px 115px 98px 85px/);
+  assert.match(styles, /grid-template-rows:\s*112px 225px 195px 115px 98px 85px/);
+  assert.match(styles, /\.echart__svg--radar text \{ font-size: 16px; \}/);
 });
 
 test('photo, logo and family-support fallbacks are explicit', () => {
