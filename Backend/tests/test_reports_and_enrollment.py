@@ -48,7 +48,7 @@ def test_student_report_is_archived_as_pdf(base_data, settings, tmp_path):
     with report.output_file.open("rb") as output:
         assert output.read(4) == b"%PDF"
     assert report.snapshot["reports"][0]["student"]["national_id"] == "0012345678"
-    assert report.snapshot["template"]["presentation"]["page_size"] == "digital_3x2"
+    assert report.snapshot["template"]["presentation"]["page_size"] == "a3_landscape"
     assert "product_context" in report.snapshot["reports"][0]
     assert "history" in report.snapshot["reports"][0]
 
