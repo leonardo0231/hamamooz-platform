@@ -4,7 +4,7 @@
 
 **Working branch:** `codex/mvp-report-card`
 
-**Last curated:** cycle 7 · 2026-09-08
+**Last curated:** cycle 8 · 2026-09-08
 
 This register is the hand-off between the strict school-VP review agent, the
 change-request curator, and the implementation agent. Every request stays in
@@ -42,23 +42,58 @@ is also represented in the chart payload with an explicit availability flag.
 
 ## Browser-native report output
 
-The report page and standalone sample now use the same self-hosted
-Preact/HTM component tree (React-compatible component conventions) for the
-visible report. Trend, radar, and bar charts are inline SVG, so the browser
-print dialog receives the exact DOM reviewed on screen. The report toolbar
-calls `window.print()` after fonts and images are ready, with an A3 landscape
-print stylesheet that isolates the report sheet from the app shell. There are
-no report PDF or ZIP download controls in the frontend.
+The report page and standalone sample now use the same local React 19/ReactDOM
+component tree. Existing HTM templates are bound through
+`Frontend/src/core/view.js`, which normalizes the legacy attribute spelling at
+one boundary so the reviewed report DOM and print CSS remain stable. Trend,
+radar, and bar charts are inline SVG, so the browser print dialog receives the
+exact DOM reviewed on screen. The report toolbar calls `window.print()` after
+fonts and images are ready, with an A3 landscape print stylesheet that isolates
+the report sheet from the app shell. There are no report PDF or ZIP download
+controls in the frontend. Vite builds both the application and standalone
+report entries into a local production bundle.
 
-This repository does not currently contain the `react`/`react-dom` packages or
-a Playwright/Chromium worker. The implementation therefore does not claim a
-literal React/Next bundle or a server-side React PDF; this is saved as C7-01.
-The legacy Django archive worker still contains a WeasyPrint path for backward
+The selected target for C7-01 is literal React/ReactDOM in the browser; this
+does not claim a Next.js migration or a server-side React PDF. A
+Playwright/Chromium worker is still unavailable in this checkout. The legacy
+Django archive worker still contains a WeasyPrint path for backward
 compatibility, which is saved as C7-02 and is not used by the report
 preview/print flow. Chromium runtime provisioning and deterministic PDF
 verification are saved separately as C7-03. A final “all outputs are React”
-approval remains blocked until the selected React/Next and Chromium
-architecture is deployed, or the school explicitly waives those findings.
+approval remains blocked until the Chromium architecture is deployed, or the
+school explicitly waives that finding.
+
+### Cycle-8 React/Vite migration evidence
+
+The following commits were verified on the remote branch as the sequential
+React/Vite migration and report-adapter implementation:
+
+| Commit | Evidence |
+| --- | --- |
+| [`9b59305e`](https://github.com/leonardo0231/hamamooz-platform/commit/9b59305e83da330840f16199c91a6c4b6fc4960f) | React 19 and Vite dependencies |
+| [`9316b66c`](https://github.com/leonardo0231/hamamooz-platform/commit/9316b66c707499921df8b8d3947b6fe193738cb1) | Locked React/Vite dependency tree |
+| [`12dff617`](https://github.com/leonardo0231/hamamooz-platform/commit/12dff617cef20db7bf647ed59675fbab8eeb6bf2) | Vite app and printable-report entries |
+| [`05f58cda`](https://github.com/leonardo0231/hamamooz-platform/commit/05f58cdaf2095bc291270b09a5d61a084a73b498) | React report Vite bundle |
+| [`3ee1d2de`](https://github.com/leonardo0231/hamamooz-platform/commit/3ee1d2de0f8cf0cf333739b76dedf2e142082c4e) | Vite development proxy alignment |
+| [`a06184d6`](https://github.com/leonardo0231/hamamooz-platform/commit/a06184d66322cca165a7b4411c843b3158b128b3) | HTM templates rendered through ReactDOM |
+| [`22b1ea7b`](https://github.com/leonardo0231/hamamooz-platform/commit/22b1ea7b705814b0aadaaf0d836b52a3ffce3354) | Multipart comprehensive import repair |
+| [`65bb72a0`](https://github.com/leonardo0231/hamamooz-platform/commit/65bb72a06628ee642184a52421d984d44bdfbe1a) | React report build documentation |
+| [`6ab8fd4c`](https://github.com/leonardo0231/hamamooz-platform/commit/6ab8fd4c523662cec75f4d2163bf84ebfdc11940) | Vite config copied into the container build |
+| [`967824e7`](https://github.com/leonardo0231/hamamooz-platform/commit/967824e7bf5e216355f321dd498246142d869784) | ReactDOM report-adapter contract test; remote head at review time |
+
+The executor reported **23 frontend tests, lint, and Vite build** passing
+locally. This is local evidence only and must not be represented as a green
+GitHub Actions run while backend CI is unverified or red.
+
+### Cycle-8 remaining VP blockers
+
+| Area | Current blocker | Closure required |
+| --- | --- | --- |
+| React/Next target | React 19/ReactDOM + Vite is now implemented, but this is not a Next.js app. | The VP must accept React/Vite as the selected target or require a literal Next.js migration; do not claim both. |
+| Server renderer | `render_report_pdf` still uses the legacy WeasyPrint path. | Replace the production path with the Chromium report bundle, or document and approve a compatibility boundary. |
+| Chromium/A3 evidence | A `ChromiumReportRenderer` helper exists, but Playwright/Chromium is not wired or provisioned for production and no real Chrome A3 print artifact is available. | Provision the runtime and attach a deterministic one-page A3 Chrome print/PDF check covering radar/readability. |
+| School-owned inputs | The real target photo, logo association, authoritative grades/workbook, signer names/signatures, and seal remain missing or unapproved. | Provide and authorize the scoped assets/data; preserve duplicate and missing-photo safety gates. |
+| Backend CI | Ruff/integration status remains unverified and the previous run was red; Docker validation is insufficient. | Produce a green backend Ruff/integration workflow run or record a VP-approved exception with the failure classification. |
 
 ### Cycle-4 source audit
 
@@ -109,10 +144,10 @@ cannot be used to close an input blocker.
 
 | Finding | Category | Saved status | Exact disposition / next action |
 | --- | --- | --- | --- |
-| C7-01 | Literal React/Next migration | **Blocked — architecture decision** | The visible report currently uses the repository’s self-hosted Preact/HTM tree with React-compatible conventions; `react`/`react-dom` and a literal Next app are not present. Decide and implement the required React/Next target, or record a VP-approved waiver. Do not describe the current tree as literal React/Next. |
-| C7-02 | Backend WeasyPrint retirement | **Open — infrastructure** | The legacy Django archive worker still imports/retains a WeasyPrint path. It is not the approved browser preview path. Retire it from the production report contract, or document a supported compatibility boundary with tests and an explicit VP waiver. |
-| C7-03 | Chromium report infrastructure | **Blocked — deployment prerequisite** | No deployed Playwright/Chromium worker is present in this checkout. Provision the selected Chromium runtime, fonts, local image/SVG loading, timeout policy, and a deterministic one-page PDF test before claiming server-side parity. |
-| C7-04 | Visual A3/radar verification | **Implemented — VP visual verification pending** | The frontend declares a single A3 landscape print profile and the charts are native SVG, but the VP must inspect a real browser print preview at 100%: one page, no clipping, readable typography, all nine domain labels, explicit missing states, and a sufficiently large radar. |
+| C7-01 | Literal React/Next migration | **Implemented — React target; VP verification pending** | `Frontend/src/core/view.js` now creates React elements and ReactDOM roots while retaining the HTM template boundary; `Frontend/package.json` pins React/ReactDOM and Vite; `Frontend/vite.config.mjs` builds the app and standalone report entries. This closes the React choice for C7-01, but does not claim a Next.js migration or VP approval. |
+| C7-02 | Backend WeasyPrint retirement | **Open — infrastructure** | The server `render_report_pdf` path in `Backend/hamamooz/apps/reports/services.py` still imports/calls WeasyPrint. It is not the approved browser preview path. Replace it with the deployed Chromium report contract, or document a supported compatibility boundary with tests and an explicit VP waiver. |
+| C7-03 | Chromium report infrastructure | **Blocked — deployment prerequisite** | `ChromiumReportRenderer` has the A3 `page.pdf` call, but no Playwright/Chromium worker is wired or provisioned for the server report path. Provision the runtime, fonts, local image/SVG loading, timeout policy, and a deterministic one-page PDF test before claiming server-side parity. |
+| C7-04 | Visual A3/radar verification | **Implemented — real Chrome evidence pending** | The frontend declares a single A3 landscape print profile and the charts are native SVG, but no real Chrome A3 print artifact has been accepted. The VP must inspect at 100%: one page, no clipping, readable typography, all nine domain labels, explicit missing states, and a sufficiently large radar. |
 | C7-05 | School-owned photo/logo inputs | **Blocked — school input** | The photo audit has 208 JPEGs for grade 8 and 228 for grade 9, with duplicate IDs and missing matches; no target student/authorization was supplied. The uploaded logo is not associated with a confirmed `School`/`Organization` record. Provide the scoped school, target student ID, import authorization, duplicate resolution, and logo ownership. |
 | C7-06 | School-owned Excel/grades/signature inputs | **Blocked — school input** | The workbooks expose 46 indicators across nine domains, but `EDU_01` mixes 0–20 values and `EDU_02` includes negative/decimal/`ندارد` values. Overlapping workbooks, a workbook without class data, and an external link to the missing معاونین/کارشناسان file leave authority and scale unresolved. Provide the authoritative workbook, year/term/class/scale, and signer names/signatures/seal; do not import or convert unapproved values. |
 
@@ -144,7 +179,7 @@ school-owned input is required; **In review** means the VP loop is active;
 | RC-14 | Make the result printable as one fixed A3 landscape page. | Implemented; verification | Browser print CSS declares A3 landscape, 6 mm margins, shell isolation, and compact readable rows; native SVG charts share the screen DOM. | Verify one-page output in Chromium/Chrome with real photo/logo data. |
 | RC-15 | Run the VP → curator → executor → VP loop until approval. | In review | VP-01 findings were saved; executor cycles record code/test evidence; this cycle adds the remaining asset/data gates. | Run the next strict VP review and append its verdict here. |
 | RC-16 | Push each verified logical step to the remote gate with traceable evidence. | **Implemented for frontend; docs/backend hand-off pending** | The frontend commits were verified on the remote branch in sequence: [`df51d107`](https://github.com/leonardo0231/hamamooz-platform/commit/df51d1073bfd6b4a1ba4874cf21536002578d696) for `Frontend/src/styles/reports.css`, followed by [`63912cf`](https://github.com/leonardo0231/hamamooz-platform/commit/63912cf015a1016928899de8acd081cbc484a299) for `Frontend/src/pages/reports.js`. The commits are not unpushed; this status covers the frontend evidence only. | Parent agent records the remaining documentation/backend commits sequentially, then sends the same remote commit set to the VP. |
-| R7-CI-01 | Make backend Ruff and integration CI green; Docker validation alone is not sufficient evidence. | **Open — CI blocker** | The cycle-7 VP re-review at remote head `b2f4c6df` found that backend Ruff/integration checks are not green; only Docker validation is currently evidenced. | Run the backend Ruff and integration suites in CI, fix or explicitly classify every failure, and attach the green run to the next VP packet. |
+| R7-CI-01 | Make backend Ruff and integration CI green; Docker validation alone is not sufficient evidence. | **Open — CI status unverified / previous run red** | The cycle-7 VP re-review at remote head `b2f4c6df` found that backend Ruff/integration checks were not green; only Docker validation was evidenced. The cycle-8 local frontend evidence does not close backend CI. | Run the backend Ruff and integration suites in CI, fix or explicitly classify every failure, and attach a green run to the next VP packet. |
 
 ## Review history
 
@@ -160,6 +195,9 @@ school-owned input is required; **In review** means the VP loop is active;
 | Cycle-7 VP re-review · 2026-09-08 · remote head `b2f4c6df` | **CONDITIONAL — INPUTS/INFRASTRUCTURE REQUIRED** | Passed: ECharts was removed from the report path; charts are inline SVG; the fixed A3 layout, radar, readiness, photo/logo fallbacks, grouped recommendations, stickers, and bottom signatures are present; 21 frontend tests, lint, and build passed. Remaining blockers are C7-01–C7-06. New finding R7-CI-01 records that backend Ruff/integration CI is not green and only Docker validation is evidenced. |
 | Cycle-7 current-head curator verification · 2026-09-08 · [`b17dd4c`](https://github.com/leonardo0231/hamamooz-platform/commit/b17dd4c37f13f23d3863042d0ff2ff2d39cbdce8) | **CONDITIONAL — INPUTS/INFRASTRUCTURE REQUIRED (NOT APPROVED)** | Head `b17dd4c` is the CI-trigger attempt (`chore(ci): trigger backend validation after legacy import cleanup`). GitHub exposes `backend-ci.yml` and `frontend-ci.yml`, but the head has no associated workflow run and no combined status checks yet (`workflow_runs=[]`, `statuses=[]`) at verification time. Latest frontend evidence remains the remote sequential push `df51d107` → `63912cf`; latest backend evidence includes the corrected `ChromiumReportRenderer.page.pdf(format="A3")` call, while the report service still retains the legacy WeasyPrint path. C7-01–C7-06 remain open, and R7-CI-01 is not closed by the trigger commit. |
 | Import smoke-timeout follow-up · 2026-09-08 · [`b86765a`](https://github.com/leonardo0231/hamamooz-platform/commit/b86765a27df49408da02bfd4c5a822f597b466ab) | **DIAGNOSED; CI UNVERIFIED** | Root cause identified: the import create path now queues `process_import_job_task.delay(...)` inside `transaction.on_commit`, so the task is not dispatched before the upload transaction is durable. Local Ruff/compile checks were recorded for the change. GitHub API commits currently produce no associated workflow runs/statuses in this verification, so `R7-CI-01` remains open and Docker-only validation is not sufficient to close it. |
+
+| Cycle-7 C7-01 React/Vite executor · 2026-09-08 | **IMPLEMENTED; VP REVIEW PENDING** | Replaced the frontend renderer boundary with React 19/ReactDOM, retained HTM templates through the compatibility adapter, added a pinned Vite multi-page build for the dashboard and standalone A3 report, and flushed the initial React commit before print-readiness inspection. Native SVG charts and the existing A3 browser print DOM remain the canonical report path. Direct frontend evidence: 23 Node tests, source lint, Vite production build, package-lock consistency, and `git diff --check` all passed. The remote commit sequence is recorded below; it is not an unpushed local change. |
+| Cycle-8 strict VP review · 2026-09-08 · remote head [`967824e7`](https://github.com/leonardo0231/hamamooz-platform/commit/967824e7bf5e216355f321dd498246142d869784) | **CONDITIONAL — INPUTS/INFRASTRUCTURE REQUIRED (NOT APPROVED)** | Passed: React 19/ReactDOM + Vite migration, inline SVG report charts, fixed A3 layout, radar/readiness, fallbacks, grouped recommendations, stickers, signatures, and local evidence of 23 frontend tests, lint, and Vite build. Remaining blockers: server `render_report_pdf` still uses WeasyPrint; Playwright/Chromium is not wired/provisioned; no real Chrome A3 artifact; school-owned photo/logo/grades/signers are missing; and backend CI is unverified with the previous run red. C7-01 remains a Next.js decision/waiver if Next is mandatory; C7-02–C7-06 and R7-CI-01 remain open. |
 
 ### VP-02 exact blockers preserved by the curator
 
