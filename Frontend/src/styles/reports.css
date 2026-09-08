@@ -252,24 +252,30 @@ ol.report-bullet-list { list-style-type: decimal; }
   .analytical-sheet__mark small { font-size: 8px; }
   .analytical-sheet__heading p { font-size: 1.28rem; }
   .analytical-sheet__heading h2 { margin: 2px 0; font-size: 1rem; }
-  .analytical-sheet__heading strong { font-size: .78rem; }
-  .analytical-sheet__header blockquote { font-size: .72rem; line-height: 1.55; }
+  .analytical-sheet__heading strong { font-size: 13px; }
+  .analytical-sheet__header blockquote { font-size: 13px; line-height: 1.35; }
   .analytical-sheet__subhead { flex: 0 0 30px; min-height: 30px; padding: 4px 10px; font-size: .82rem; }
   .analytical-analysis-strip { flex: 0 0 44px; min-height: 44px; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; padding: 4px 6px; }
   .analytical-analysis-strip > span { padding: 4px 6px; }
-  .analytical-analysis-strip b { font-size: .76rem; }
-  .analytical-analysis-strip small { font-size: .68rem; }
-  .analytical-sheet__grid { flex: 0 0 827px; height: 827px; min-height: 827px; grid-template-rows: 175px 155px 248px 90px 70px 50px; gap: 5px; padding: 5px; }
+  .analytical-analysis-strip b { font-size: 13px; }
+  .analytical-analysis-strip small { font-size: 13px; }
+  .analytical-sheet__grid { flex: 0 0 827px; height: 827px; min-height: 827px; grid-template-rows: 175px 155px 248px 90px 65px 55px; gap: 5px; padding: 5px; }
   .analytical-panel__header { min-height: 26px; padding: 4px 8px; }
   .analytical-panel__header h3 { font-size: 1rem; line-height: 1.3; }
   .analytical-panel__header span { font-size: .8rem; }
   .analytical-panel__body { padding: 6px; }
+  .analytical-table .analytical-panel__body { padding: 0; }
+  .analytical-radar .analytical-panel__body { padding: 0; }
+  .analytical-trend .analytical-panel__body { padding: 2px; }
+  .analytical-activities .analytical-panel__header { min-height: 20px; padding: 2px 8px; }
+  .analytical-activities .analytical-panel__header h3 { font-size: 13px; line-height: 1.1; }
+  .analytical-activities .analytical-panel__body { padding: 0; }
   .analytical-radar .analytical-panel__body { padding: 2px; }
   .report-portrait { width: 112px; height: 130px; margin-bottom: 6px; border-width: 3px; }
   .report-avatar-fallback { gap: 4px; font-size: .82rem; }
-  .report-avatar-fallback small { font-size: .76rem; }
-  .report-logo-fallback { font-size: .78rem; }
-  .report-logo-fallback small { font-size: .72rem; }
+  .report-avatar-fallback small { font-size: 13px; }
+  .report-logo-fallback { font-size: 13px; }
+  .report-logo-fallback small { font-size: 12px; }
   .report-identity-list { gap: 3px; }
   .report-identity-list div { gap: 5px; padding-bottom: 3px; }
   .report-identity-list dt { font-size: .82rem; }
@@ -279,14 +285,14 @@ ol.report-bullet-list { list-style-type: decimal; }
   .report-mini-kpis small { font-size: .78rem; }
   .report-mini-kpis strong { font-size: 1.18rem; }
   .trend-caption { font-size: .84rem; }
-  .echart--trend { height: 78px; }
+  .echart--trend { height: 66px; }
   .echart--radar { height: 216px; min-height: 216px; padding-bottom: 90px; }
   .echart--radar .echart__svg { height: 126px; min-height: 126px; }
   .echart__svg--trend text { font-size: 24px; }
   .echart__svg--radar text { font-size: 20px; }
   .echart--bars, .echart--readiness { height: 142px; }
-  .report-score-table { font-size: 13px; line-height: 1; }
-  .report-score-table th, .report-score-table td { padding: 1px 2px; }
+  .report-score-table { font-size: 13px; line-height: 1.1; }
+  .report-score-table th, .report-score-table td { padding: 0 2px; }
   .report-bullet-list { gap: 2px; }
   .report-bullet-list li, .report-advice-list { font-size: 13px; line-height: 1.45; }
   .report-rating-list { gap: 4px; }
@@ -302,24 +308,24 @@ ol.report-bullet-list { list-style-type: decimal; }
   .report-metric-bar__head b { font-size: 13px; }
   .report-metric-bar__track { height: 7px; }
   .report-radar-legend { grid-template-columns: repeat(3, minmax(0, 1fr)); height: 90px; gap: 3px 6px; align-items: start; overflow: hidden; }
-  .report-radar-legend span { display: flex; flex-wrap: nowrap; align-items: flex-start; min-width: 0; gap: 4px; font-size: 12px; line-height: 1.12; }
-  .report-radar-legend em { flex: 1 1 auto; min-width: 0; overflow: hidden; overflow-wrap: anywhere; text-overflow: clip; white-space: normal; line-height: 1.12; }
-  .report-radar-legend b { flex: none; margin-inline-start: auto; font-size: 12px; line-height: 1.12; }
-  .report-radar-legend i { width: 18px; height: 18px; font-size: 10px; }
+  .report-radar-legend span { display: flex; flex-wrap: nowrap; align-items: flex-start; min-width: 0; gap: 4px; font-size: 13px; line-height: 1.05; }
+  .report-radar-legend em { flex: 1 1 auto; min-width: 0; overflow: hidden; overflow-wrap: anywhere; text-overflow: clip; white-space: normal; line-height: 1.05; }
+  .report-radar-legend b { flex: none; margin-inline-start: auto; font-size: 13px; line-height: 1.05; }
+  .report-radar-legend i { width: 18px; height: 18px; font-size: 12px; }
   .report-radar-numbers { width: min(100%, 190px); }
-  .report-radar-numbers span { width: 20px; height: 20px; font-size: 11px; }
-  .report-activities { gap: 4px; }
-  .report-activities div { gap: 2px; }
-  .report-activities strong { font-size: 13px; line-height: 1.1; }
-  .report-activities small, .report-awards small { font-size: 12px; line-height: 1.15; }
-  .report-sticker { width: 34px; height: 34px; }
+  .report-radar-numbers span { width: 20px; height: 20px; font-size: 12px; }
+  .report-activities { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; }
+  .report-activities div { grid-template-columns: 30px minmax(0, 1fr); grid-template-rows: auto auto; gap: 0 4px; justify-items: start; text-align: right; }
+  .report-activities strong { font-size: 13px; line-height: 1.05; text-align: right; }
+  .report-activities small, .report-awards small { font-size: 12px; line-height: 1.05; text-align: right; }
+  .report-sticker { width: 30px; height: 30px; }
   .report-sticker .icon { width: 20px; height: 20px; }
   .report-awards { gap: 5px; }
   .report-awards > div { gap: 5px; padding: 4px 5px; }
   .report-awards b { font-size: 13px; }
   .analytical-sheet__footer { flex: 0 0 86px; min-height: 86px; max-height: 86px; margin-top: auto; overflow: hidden; gap: 5px; padding: 7px 10px 5px; }
   .report-signature-heading strong { font-size: 13px; }
-  .report-signature-heading span { font-size: 12px; }
+  .report-signature-heading span { font-size: 13px; }
   .report-signatures { gap: 7px; }
   .report-signatures span { min-height: 36px; padding-top: 16px; font-size: 13px; }
   /* Recommendations stay inside their allocated row. Long Persian copy wraps
@@ -327,13 +333,18 @@ ol.report-bullet-list { list-style-type: decimal; }
   .analytical-table .analytical-panel__body { padding: 2px; }
   .analytical-recommendations .analytical-panel__body { min-height: 0; padding: 2px; }
   .report-recommendation-grid { min-height: 0; gap: 5px; align-items: stretch; }
-  .report-recommendation-group { min-height: 0; overflow: hidden; padding: 3px 5px; }
+  .analytical-recommendations .analytical-panel__body { padding: 0; }
+  .report-recommendation-group { min-height: 0; overflow: hidden; padding: 2px 4px; }
   .report-recommendation-group h4 { margin: 0 0 2px; font-size: 13px; line-height: 1.15; }
   .report-recommendation-group .report-bullet-list { gap: 1px; padding-right: 14px; }
   .report-recommendation-group .report-bullet-list li { white-space: normal; overflow-wrap: anywhere; break-inside: avoid; font-size: 13px; line-height: 1.2; }
   .analytical-awards .analytical-panel__header { min-height: 20px; padding: 2px 8px; }
   .analytical-awards .analytical-panel__header h3 { font-size: 13px; line-height: 1.1; }
   .analytical-awards .analytical-panel__body { padding: 0; }
+  .report-awards .report-sticker { width: 28px; height: 28px; }
+  .report-awards > div { gap: 2px; padding: 0 2px; }
+  .report-awards b { font-size: 13px; line-height: 1.05; }
+  .report-awards small { font-size: 12px; line-height: 1.05; }
   .report-awards > div { gap: 3px; padding: 1px 3px; }
   .report-awards .report-sticker { width: 28px; height: 28px; }
   .report-awards b { font-size: 12px; }
