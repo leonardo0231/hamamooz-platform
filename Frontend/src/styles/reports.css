@@ -258,7 +258,7 @@ ol.report-bullet-list { list-style-type: decimal; }
   .analytical-analysis-strip > span { padding: 4px 6px; }
   .analytical-analysis-strip b { font-size: .76rem; }
   .analytical-analysis-strip small { font-size: .68rem; }
-  .analytical-sheet__grid { grid-template-rows: 112px 225px 160px 115px 98px 85px; gap: 5px; padding: 5px; }
+  .analytical-sheet__grid { grid-template-rows: 112px 225px 195px 115px 98px 85px; gap: 5px; padding: 5px; }
   .analytical-panel__header { min-height: 26px; padding: 4px 8px; }
   .analytical-panel__header h3 { font-size: .82rem; line-height: 1.25; }
   .analytical-panel__header span { font-size: .66rem; }
@@ -278,8 +278,10 @@ ol.report-bullet-list { list-style-type: decimal; }
   .report-mini-kpis strong { font-size: .96rem; }
   .trend-caption { font-size: .7rem; }
   .echart--trend { height: 104px; }
-  .echart--radar { height: 145px; padding-bottom: 0; }
+  .echart--radar { height: 180px; padding-bottom: 0; }
   .echart--radar .echart__svg { height: 100%; }
+  .echart__svg--trend text { font-size: 24px; }
+  .echart__svg--radar text { font-size: 16px; }
   .echart--bars, .echart--readiness { height: 142px; }
   .report-score-table { font-size: 11px; line-height: 1.2; }
   .report-score-table th, .report-score-table td { padding: 2px 3px; }
