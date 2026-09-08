@@ -13,9 +13,7 @@ class ChromiumReportRenderer:
         try:
             from playwright.sync_api import sync_playwright
         except ImportError as exc:
-            raise RuntimeError(
-                "playwright is required for Chromium report rendering"
-            ) from exc
+            raise RuntimeError("playwright is required for Chromium report rendering") from exc
 
         with tempfile.TemporaryDirectory() as tmp:
             html_file = Path(tmp) / "report.html"
@@ -23,7 +21,8 @@ class ChromiumReportRenderer:
 
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch(headless=True)
-                # The format option belongs to page.pdf, not new_page.
+                # ``format`` is a PDF option, not a browser-page option.  The
+                # previous call raised before any report could be rendered.
                 page = browser.new_page()
                 page.goto(html_file.as_uri(), wait_until="networkidle")
                 pdf = page.pdf(
