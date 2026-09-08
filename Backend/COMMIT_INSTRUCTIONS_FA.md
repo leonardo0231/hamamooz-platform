@@ -35,7 +35,7 @@ python manage.py spectacular --api-version v1 --file ..\contracts\openapi.yaml -
 cd ..
 ```
 
-تست هم‌زمانی و Locking باید در CI روی PostgreSQL اجرا شود. روی Windows برای تست PDF باید Pango نصب باشد یا تست‌ها داخل Docker اجرا شوند.
+تست هم‌زمانی و Locking باید در CI روی PostgreSQL اجرا شود. برای تست PDF باید Playwright و browser bundle نصب باشند؛ اجرای تست داخل Image رسمی Docker مسیر مرجع است.
 
 ## ۳. بررسی فایل‌های قابل Commit
 
