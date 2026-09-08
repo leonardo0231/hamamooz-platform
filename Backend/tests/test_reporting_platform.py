@@ -97,6 +97,26 @@ def test_report_template_allows_only_safe_a3_landscape_page_configuration(base_d
 
 
 @pytest.mark.django_db
+def test_legacy_report_page_profiles_are_normalized_to_fixed_a3(base_data):
+    template = ReportTemplate(
+        organization=base_data["organization"],
+        school=base_data["school1"],
+        code="legacy-page-profile",
+        title="Legacy page profile",
+        report_type=ReportArchive.ReportType.CLASS_REPORT_CARDS,
+        blocks=["student_identity"],
+        presentation={"page_size": "digital_3x2"},
+    )
+    template.full_clean()
+
+    snapshot = build_draft_snapshot(
+        template, term=base_data["term"], class_section=base_data["class1"]
+    )
+    assert snapshot["template"]["presentation"]["page_size"] == "a3_landscape"
+    assert "size: A3 landscape;" in render_report_html(snapshot)
+
+
+@pytest.mark.django_db
 def test_report_snapshot_never_includes_counselor_audience_recommendations(base_data):
     enrollment = base_data["enrollments"][0]
     for audience, code in [
