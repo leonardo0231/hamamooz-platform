@@ -1,6 +1,6 @@
 from .import_report import ImportReport
-from .workbook_detector import analyze_workbook
 from .validator import DynamicImportValidator
+from .workbook_detector import analyze_workbook
 
 
 class DynamicImportPreviewService:
