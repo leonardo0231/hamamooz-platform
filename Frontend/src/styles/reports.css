@@ -263,7 +263,8 @@ ol.report-bullet-list { list-style-type: decimal; }
   .analytical-panel__header { min-height: 26px; padding: 4px 8px; }
   .analytical-panel__header h3 { font-size: 1rem; line-height: 1.3; }
   .analytical-panel__header span { font-size: .8rem; }
-  .analytical-panel__body { padding: 6px; }\n  .analytical-radar .analytical-panel__body { padding: 2px; }
+  .analytical-panel__body { padding: 6px; }
+  .analytical-radar .analytical-panel__body { padding: 2px; }
   .report-portrait { width: 112px; height: 130px; margin-bottom: 6px; border-width: 3px; }
   .report-avatar-fallback { gap: 4px; font-size: .82rem; }
   .report-avatar-fallback small { font-size: .76rem; }
@@ -302,11 +303,13 @@ ol.report-bullet-list { list-style-type: decimal; }
   .report-metric-bar__track { height: 7px; }
   .report-radar-legend { grid-template-columns: repeat(3, minmax(0, 1fr)); height: 90px; gap: 3px 6px; align-items: start; overflow: hidden; }
   .report-radar-legend span { display: flex; flex-wrap: nowrap; align-items: flex-start; min-width: 0; gap: 4px; font-size: 12px; line-height: 1.12; }
-  .report-radar-legend em { flex: 1 1 auto; min-width: 0; overflow: visible; overflow-wrap: anywhere; text-overflow: clip; white-space: normal; line-height: 1.12; }\n  .report-radar-legend b { flex: none; margin-inline-start: auto; font-size: 12px; line-height: 1.12; }
+  .report-radar-legend em { flex: 1 1 auto; min-width: 0; overflow: visible; overflow-wrap: anywhere; text-overflow: clip; white-space: normal; line-height: 1.12; }
+  .report-radar-legend b { flex: none; margin-inline-start: auto; font-size: 12px; line-height: 1.12; }
   .report-radar-legend i { width: 18px; height: 18px; font-size: 10px; }
   .report-radar-numbers { width: min(100%, 190px); }
   .report-radar-numbers span { width: 20px; height: 20px; font-size: 11px; }
-  .report-activities { gap: 4px; }\n  .report-activities div { gap: 2px; }
+  .report-activities { gap: 4px; }
+  .report-activities div { gap: 2px; }
   .report-activities strong { font-size: 13px; line-height: 1.1; }
   .report-activities small, .report-awards small { font-size: 12px; line-height: 1.15; }
   .report-sticker { width: 34px; height: 34px; }
