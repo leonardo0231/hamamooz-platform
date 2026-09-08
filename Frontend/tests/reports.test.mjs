@@ -92,7 +92,7 @@ test('report output is browser-native and never exposes the legacy PDF/ZIP contr
   assert.doesNotMatch(page, /reports\/(?:[^'"` ]+\/)?download\//);
   assert.match(chart, /data-chart-renderer="svg"/);
   assert.match(chart, /<svg class="echart__svg/);
-  assert.match(chart, /preserveAspectRatio=\\"xMidYMid meet\\"/);
+  assert.match(chart, /preserveAspectRatio="xMidYMid meet"/);
   assert.match(chart, /report-radar-legend/);
   assert.match(chart, /is-missing/);
   assert.doesNotMatch(chart, /<canvas\b/);
@@ -113,7 +113,7 @@ test('standalone report entry exposes a readiness marker for browser print autom
   assert.match(styles, /\.echart__svg--radar text \{ font-size: 20px; \}/);
   assert.match(styles, /\.analytical-sheet__footer \{ flex: 0 0 86px; min-height: 86px; max-height: 86px; margin-top: auto/);
   assert.match(styles, /\.report-recommendation-group \.report-bullet-list li \{ white-space: normal; overflow-wrap: anywhere;/);
-  assert.doesNotMatch(page, /React\\/Preact/);
+  assert.doesNotMatch(page, /React\/Preact/);
 });
 
 test('photo, logo and family-support fallbacks are explicit', () => {
