@@ -259,11 +259,11 @@ ol.report-bullet-list { list-style-type: decimal; }
   .analytical-analysis-strip > span { padding: 4px 6px; }
   .analytical-analysis-strip b { font-size: .76rem; }
   .analytical-analysis-strip small { font-size: .68rem; }
-  .analytical-sheet__grid { flex: 0 0 827px; height: 827px; min-height: 827px; grid-template-rows: 175px 145px 250px 90px 70px 60px; gap: 5px; padding: 5px; }
+  .analytical-sheet__grid { flex: 0 0 827px; height: 827px; min-height: 827px; grid-template-rows: 175px 155px 248px 90px 70px 50px; gap: 5px; padding: 5px; }
   .analytical-panel__header { min-height: 26px; padding: 4px 8px; }
   .analytical-panel__header h3 { font-size: 1rem; line-height: 1.3; }
   .analytical-panel__header span { font-size: .8rem; }
-  .analytical-panel__body { padding: 6px; }
+  .analytical-panel__body { padding: 6px; }\n  .analytical-radar .analytical-panel__body { padding: 2px; }
   .report-portrait { width: 112px; height: 130px; margin-bottom: 6px; border-width: 3px; }
   .report-avatar-fallback { gap: 4px; font-size: .82rem; }
   .report-avatar-fallback small { font-size: .76rem; }
@@ -284,7 +284,7 @@ ol.report-bullet-list { list-style-type: decimal; }
   .echart__svg--trend text { font-size: 24px; }
   .echart__svg--radar text { font-size: 20px; }
   .echart--bars, .echart--readiness { height: 142px; }
-  .report-score-table { font-size: 13px; line-height: 1.05; }
+  .report-score-table { font-size: 13px; line-height: 1; }
   .report-score-table th, .report-score-table td { padding: 1px 2px; }
   .report-bullet-list { gap: 2px; }
   .report-bullet-list li, .report-advice-list { font-size: 13px; line-height: 1.45; }
@@ -301,15 +301,15 @@ ol.report-bullet-list { list-style-type: decimal; }
   .report-metric-bar__head b { font-size: 13px; }
   .report-metric-bar__track { height: 7px; }
   .report-radar-legend { grid-template-columns: repeat(3, minmax(0, 1fr)); height: 90px; gap: 3px 6px; align-items: start; overflow: hidden; }
-  .report-radar-legend span { display: flex; align-items: flex-start; min-width: 0; gap: 4px; font-size: 12px; line-height: 1.12; }
-  .report-radar-legend b { flex: none; font-size: 12px; line-height: 1.12; }
+  .report-radar-legend span { display: flex; flex-wrap: nowrap; align-items: flex-start; min-width: 0; gap: 4px; font-size: 12px; line-height: 1.12; }
+  .report-radar-legend em { flex: 1 1 auto; min-width: 0; overflow: visible; overflow-wrap: anywhere; text-overflow: clip; white-space: normal; line-height: 1.12; }\n  .report-radar-legend b { flex: none; margin-inline-start: auto; font-size: 12px; line-height: 1.12; }
   .report-radar-legend i { width: 18px; height: 18px; font-size: 10px; }
   .report-radar-numbers { width: min(100%, 190px); }
   .report-radar-numbers span { width: 20px; height: 20px; font-size: 11px; }
-  .report-activities { gap: 4px; }
+  .report-activities { gap: 4px; }\n  .report-activities div { gap: 2px; }
   .report-activities strong { font-size: 13px; line-height: 1.1; }
   .report-activities small, .report-awards small { font-size: 12px; line-height: 1.15; }
-  .report-sticker { width: 36px; height: 36px; }
+  .report-sticker { width: 34px; height: 34px; }
   .report-sticker .icon { width: 20px; height: 20px; }
   .report-awards { gap: 5px; }
   .report-awards > div { gap: 5px; padding: 4px 5px; }
@@ -328,6 +328,13 @@ ol.report-bullet-list { list-style-type: decimal; }
   .report-recommendation-group h4 { margin: 0 0 2px; font-size: 13px; line-height: 1.15; }
   .report-recommendation-group .report-bullet-list { gap: 1px; padding-right: 14px; }
   .report-recommendation-group .report-bullet-list li { white-space: normal; overflow-wrap: anywhere; break-inside: avoid; font-size: 13px; line-height: 1.2; }
+  .analytical-awards .analytical-panel__header { min-height: 20px; padding: 2px 8px; }
+  .analytical-awards .analytical-panel__header h3 { font-size: 13px; line-height: 1.1; }
+  .analytical-awards .analytical-panel__body { padding: 0; }
+  .report-awards > div { gap: 3px; padding: 1px 3px; }
+  .report-awards .report-sticker { width: 28px; height: 28px; }
+  .report-awards b { font-size: 12px; }
+  .report-awards small { font-size: 11px; }
 
   /* The application shell and creation controls are not part of the printed
      report.  This selector is intentionally class-scoped so a browser print
