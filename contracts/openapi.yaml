@@ -10733,7 +10733,7 @@ paths:
         name: id
         schema:
           type: integer
-        description: A unique integer value identifying this کاربر.
+        description: A unique integer value identifying this user.
         required: true
       tags:
       - users
@@ -10753,7 +10753,7 @@ paths:
         name: id
         schema:
           type: integer
-        description: A unique integer value identifying this کاربر.
+        description: A unique integer value identifying this user.
         required: true
       tags:
       - users
@@ -10785,7 +10785,7 @@ paths:
         name: id
         schema:
           type: integer
-        description: A unique integer value identifying this کاربر.
+        description: A unique integer value identifying this user.
         required: true
       tags:
       - users
@@ -10817,7 +10817,7 @@ paths:
         name: id
         schema:
           type: integer
-        description: A unique integer value identifying this کاربر.
+        description: A unique integer value identifying this user.
         required: true
       tags:
       - users
@@ -10850,7 +10850,7 @@ paths:
         name: id
         schema:
           type: integer
-        description: A unique integer value identifying this کاربر.
+        description: A unique integer value identifying this user.
         required: true
       tags:
       - users
@@ -17622,9 +17622,8 @@ components:
         username:
           type: string
           minLength: 1
-          title: نام کاربری
-          description: الزامی. 150 کاراکتر یا کمتر. فقط شامل حروف، اعداد، و علامات
-            @/./+/-/_
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
           pattern: ^[\w.@+-]+$
           maxLength: 150
         email:
@@ -17638,11 +17637,9 @@ components:
           minLength: 1
         first_name:
           type: string
-          title: نام
           maxLength: 150
         last_name:
           type: string
-          title: نام خانوادگی
           maxLength: 150
         phone:
           type: string
@@ -17653,9 +17650,9 @@ components:
           maxLength: 10
         is_active:
           type: boolean
-          title: فعال
-          description: نشان می‌دهد که آیا این کاربر اجازهٔ فعالیت دارد یا خیر. به
-            جای حذف کاربر این تیک را بردارید.
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
     PolarityEnum:
       enum:
       - positive
@@ -20244,9 +20241,8 @@ components:
           readOnly: true
         username:
           type: string
-          title: نام کاربری
-          description: الزامی. 150 کاراکتر یا کمتر. فقط شامل حروف، اعداد، و علامات
-            @/./+/-/_
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
           pattern: ^[\w.@+-]+$
           maxLength: 150
         email:
@@ -20255,11 +20251,9 @@ components:
           maxLength: 254
         first_name:
           type: string
-          title: نام
           maxLength: 150
         last_name:
           type: string
-          title: نام خانوادگی
           maxLength: 150
         phone:
           type: string
@@ -20270,9 +20264,9 @@ components:
           maxLength: 10
         is_active:
           type: boolean
-          title: فعال
-          description: نشان می‌دهد که آیا این کاربر اجازهٔ فعالیت دارد یا خیر. به
-            جای حذف کاربر این تیک را بردارید.
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
         must_change_password:
           type: boolean
           readOnly: true
@@ -20286,12 +20280,10 @@ components:
           format: date-time
           readOnly: true
           nullable: true
-          title: آخرین ورود
         date_joined:
           type: string
           format: date-time
           readOnly: true
-          title: تاریخ پیوستن
       required:
       - date_joined
       - email
@@ -20306,9 +20298,8 @@ components:
         username:
           type: string
           minLength: 1
-          title: نام کاربری
-          description: الزامی. 150 کاراکتر یا کمتر. فقط شامل حروف، اعداد، و علامات
-            @/./+/-/_
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
           pattern: ^[\w.@+-]+$
           maxLength: 150
         email:
@@ -20322,11 +20313,9 @@ components:
           minLength: 1
         first_name:
           type: string
-          title: نام
           maxLength: 150
         last_name:
           type: string
-          title: نام خانوادگی
           maxLength: 150
         phone:
           type: string
@@ -20337,9 +20326,9 @@ components:
           maxLength: 10
         is_active:
           type: boolean
-          title: فعال
-          description: نشان می‌دهد که آیا این کاربر اجازهٔ فعالیت دارد یا خیر. به
-            جای حذف کاربر این تیک را بردارید.
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
       required:
       - email
       - username
