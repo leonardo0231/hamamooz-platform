@@ -110,7 +110,11 @@ test('standalone report entry exposes a readiness marker for browser print autom
   assert.match(styles, /height:\s*calc\(297mm - 12mm\)/);
   assert.match(styles, /grid-template-rows:\s*175px 145px 250px 90px 70px 60px/);
   assert.match(styles, /\.echart--radar \{ height: 216px; min-height: 216px; padding-bottom: 90px; \}/);
-  assert.match(styles, /\.echart__svg--radar text \{ font-size: 20px; \}/);\n  assert.match(styles, /\.report-radar-legend \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\); height: 90px;/);\n  assert.match(styles, /\.report-radar-legend span \{ display: flex; align-items: flex-start/);\n  assert.match(styles, /\.report-recommendation-group \{ min-height: 0; overflow: hidden;/);\n  assert.doesNotMatch(styles, /\.report-recommendation-group \{[^}]*overflow: visible/);
+  assert.match(styles, /\.echart__svg--radar text \{ font-size: 20px; \}/);
+  assert.match(styles, /\.report-radar-legend \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\); height: 90px;/);
+  assert.match(styles, /\.report-radar-legend span \{ display: flex; align-items: flex-start/);
+  assert.match(styles, /\.report-recommendation-group \{ min-height: 0; overflow: hidden;/);
+  assert.doesNotMatch(styles, /\.report-recommendation-group \{[^}]*overflow: visible/);
   assert.match(styles, /\.analytical-sheet__footer \{ flex: 0 0 86px; min-height: 86px; max-height: 86px; margin-top: auto/);
   assert.match(styles, /\.report-recommendation-group \.report-bullet-list li \{ white-space: normal; overflow-wrap: anywhere;/);
   assert.doesNotMatch(page, /React\/Preact/);
