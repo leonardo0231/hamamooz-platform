@@ -47,6 +47,10 @@ test('report output is browser-native and never exposes the legacy PDF/ZIP contr
   assert.doesNotMatch(page, /downloadFile|downloadBlob|downloadError|downloading|zip_download_url/);
   assert.doesNotMatch(page, /reports\/(?:[^'"` ]+\/)?download\//);
   assert.match(chart, /data-chart-renderer="svg"/);
+  assert.match(chart, /<svg class="echart__svg/);
+  assert.match(chart, /report-radar-legend/);
+  assert.match(chart, /is-missing/);
+  assert.doesNotMatch(chart, /<canvas\b/);
   assert.doesNotMatch(chart, /import\(['"]\/vendor\/echarts\.mjs/);
   assert.doesNotMatch(build, /node_modules['"`]?,\s*['"]echarts|echarts\.esm/);
 });
