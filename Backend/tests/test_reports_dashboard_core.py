@@ -317,5 +317,9 @@ def test_report_pdf_renders_with_security_update(base_data):
         base_data["term"],
         enrollment=base_data["enrollments"][0],
     )
-    pdf = render_report_pdf(snapshot)
+    class FixtureRenderer:
+        def render(self, html, **kwargs):
+            return b"%PDF-1.7\nfixture"
+
+    pdf = render_report_pdf(snapshot, renderer=FixtureRenderer())
     assert pdf.startswith(b"%PDF")
