@@ -6,6 +6,13 @@ const fa = value => value === null || value === undefined || value === '' || Num
   : new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 2 }).format(Number(value));
 const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, Number(value) || 0));
 const isNumber = value => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
+const reportNumber = value => html`<bdi class="report-number" dir="ltr">${fa(value)}</bdi>`;
+const assetUrl = value => {
+  if (!value) return '';
+  const text = String(value).trim();
+  if (/^(?:data:|blob:|https?:\/\/|\/)/i.test(text)) return text;
+  return `/${text}`;
+};
 
 const metricTitles = {
   EDU_01: 'نمرات درسی', EDU_02: 'پیشرفت نسبت به قبل', EDU_03: 'انجام تکالیف', EDU_04: 'مشارکت در کلاس', EDU_05: 'دقت و تمرکز',
@@ -59,10 +66,10 @@ const demo = {
     { title: 'سرعت عمل', value: 60 }, { title: 'مطالعه روزانه', value: 70 },
   ],
   activities: [
-    { icon: '🏅', title: 'المپیاد علمی', text: 'مقام دوم منطقه' }, { icon: '⚽', title: 'مسابقات ورزشی', text: 'عضو تیم مدرسه' },
-    { icon: '🔬', title: 'پژوهش و تحلیل', text: 'پروژه برگزیده' }, { icon: '📚', title: 'باشگاه کتاب‌خوانی', text: 'مشارکت مستمر' },
+    { icon: 'competition', title: 'المپیاد علمی', text: 'مقام دوم منطقه' }, { icon: 'sport', title: 'مسابقات ورزشی', text: 'عضو تیم مدرسه' },
+    { icon: 'research', title: 'پژوهش و تحلیل', text: 'پروژه برگزیده' }, { icon: 'cultural', title: 'باشگاه کتاب‌خوانی', text: 'مشارکت مستمر' },
   ],
-  awards: [{ icon: '🏅', title: 'المپیاد علمی', text: 'مقام دوم منطقه' }, { icon: '🎖', title: 'دانش‌آموز منظم', text: 'نوبت اول ۱۴۰۴' }, { icon: '🏆', title: 'پژوهش برتر', text: 'نمایشگاه مدرسه' }],
+  awards: [{ icon: 'competition', title: 'المپیاد علمی', text: 'مقام دوم منطقه' }, { icon: 'discipline', title: 'دانش‌آموز منظم', text: 'نوبت اول ۱۴۰۴' }, { icon: 'research', title: 'پژوهش برتر', text: 'نمایشگاه مدرسه' }],
   counselor: ['روند پیشرفت در سه سال پایدار و رو به رشد است.', 'اعتماد به نفس در ارائه‌های کلاسی تقویت شود.', 'برای مدیریت زمان، برنامه هفتگی مشترک تنظیم شود.'],
   recommendations: ['برنامه ثابت مطالعه روزانه برای تثبیت رشد ادامه یابد.', 'در پروژه‌های پژوهشی و کارگروهی نقش ارائه‌دهنده تجربه شود.'],
   teacherRecommendations: ['تمرین‌های چالشی ریاضی به‌صورت هفتگی پیگیری شود.', 'بازخورد کوتاه و مشخص پس از ارائه‌های کلاسی ارائه شود.'],
@@ -74,8 +81,15 @@ const demo = {
 };
 
 function titleForMetric(code) { return metricTitles[code] ?? String(code || '').replace('_', ' '); }
-function metricValue(value) { return clamp(Number(value) * 20); }
-function numericSubject(row) { return isNumber(row?.average) ? Number(row.average) : null; }
+function metricValue(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return clamp(numeric <= 5 ? numeric * 20 : numeric);
+}
+function numericSubject(row) {
+  if (isNumber(row)) return Number(row);
+  return isNumber(row?.average) ? Number(row.average) : null;
+}
 
 function mapSnapshot(snapshot) {
   const report = snapshot?.reports?.[0];
@@ -87,34 +101,37 @@ function mapSnapshot(snapshot) {
     ? rawMetrics
     : Object.entries(rawMetrics).map(([code, value]) => ({ code, title: titleForMetric(code), value }));
   const metricRows = metrics.map(item => ({ ...item, title: item.title ?? titleForMetric(item.code), value: metricValue(item.value) }));
-  const behavior = metricRows.filter(item => /^(DEV|CHR|DIS)_/.test(item.code ?? '')).slice(0, 6);
-  const skills21 = metricRows.filter(item => /^(PER|DEV|CHR)_/.test(item.code ?? '')).slice(0, 6);
+  const behavior = metricRows.filter(item => /^(DEV|CHR|DIS)_/.test(item.code ?? ''));
+  const skills21 = metricRows.filter(item => /^PER_/.test(item.code ?? ''));
   const subjectRows = (report.subjects ?? []).map(item => ({
     title: item.title, current: numericSubject(item), first: numericSubject(item.first), previous: numericSubject(item.previous),
     continuous: numericSubject(item.continuous), midterm: numericSubject(item.midterm), final: numericSubject(item.final), passed: item.passed,
   }));
   const history = (report.history ?? []).filter(item => isNumber(item.average)).map(item => ({ label: item.label, average: Number(item.average), rank: item.rank ?? null }));
-  const academic = metricRows.filter(item => /^(EDU|PER)_/.test(item.code ?? '')).slice(0, 6);
+  const academic = metricRows.filter(item => /^EDU_/.test(item.code ?? ''));
   const strengths = [...subjectRows].filter(item => isNumber(item.current)).sort((a, b) => b.current - a.current).slice(0, 6).map(item => ({ title: item.title, value: clamp(item.current * 5) }));
   const improvements = [...subjectRows].filter(item => isNumber(item.current)).sort((a, b) => a.current - b.current).slice(0, 6).map(item => ({ title: item.title, value: clamp(item.current * 5) }));
   const attendance = context.attendance ?? {};
   const attendanceRate = isNumber(attendance.attendance_rate) ? Number(attendance.attendance_rate) : isNumber(attendance.present_rate) ? Number(attendance.present_rate) : null;
   const recommendations = context.approved_recommendations ?? [];
-  const activities = (context.activities ?? []).slice(0, 6).map(item => ({
-    icon: item.kind === 'sport' ? '⚽' : item.kind === 'research' ? '🔬' : item.kind === 'competition' ? '🏅' : '✦',
+  const domainScores = (context.evaluation_analysis?.domain_scores ?? []).map(item => ({
+    code: item.code, title: item.title, value: clamp(Number(item.score) * 5),
+  }));
+  const activities = (context.activities ?? []).slice(0, 8).map(item => ({
+    icon: ['sport', 'research', 'competition', 'cultural', 'art'].includes(item.kind) ? item.kind : 'activity',
     title: item.title, text: item.result || (item.placement ? `رتبه ${fa(item.placement)}` : 'ثبت‌شده'),
   }));
   const awards = activities.filter(item => item.text !== 'ثبت‌شده').slice(0, 4);
   return {
-    demo: false, organization: report.organization?.name ?? 'سامانه هم‌آموز', school: report.school?.name ?? 'مدرسه', schoolLogoUrl: report.school?.logo_url ?? '',
-    student: { name: report.student?.full_name ?? 'دانش‌آموز', nationalId: report.student?.national_id ?? '—', number: report.student?.student_number ?? '—', initial: (report.student?.full_name ?? 'د').slice(0, 1), photoUrl: report.student?.photo_url ?? '' },
+    demo: false, organization: report.organization?.name ?? 'سامانه هم‌آموز', school: report.school?.name ?? 'مدرسه', schoolLogoUrl: assetUrl(report.school?.logo_url),
+    student: { name: report.student?.full_name ?? 'دانش‌آموز', nationalId: report.student?.national_id ?? '—', number: report.student?.student_number ?? '—', initial: (report.student?.full_name ?? 'د').slice(0, 1), photoUrl: assetUrl(report.student?.photo_url) },
     academic: { year: report.academic?.year ?? '—', grade: report.academic?.grade ?? '—', className: report.academic?.class ?? '—', term: report.academic?.term ?? '—' },
     average: isNumber(report.summary?.average) ? Number(report.summary.average) : null, rank: report.summary?.class_rank ?? null, history,
-    subjects: subjectRows, skills: behavior, skills21, readiness: academic,
+    subjects: subjectRows, skills: behavior, skills21, readiness: academic, domainScores,
     strengths, improvements, activities, awards,
     counselor: (context.counselor_report?.items ?? context.analytics_signals ?? []).map(item => typeof item === 'string' ? item : item.explanation).filter(Boolean).slice(0, 4),
-    recommendations: recommendations.filter(item => ['parent', 'student'].includes(item.audience)).map(item => item.approved_text).filter(Boolean).slice(0, 4),
-    teacherRecommendations: recommendations.filter(item => ['teacher', 'guide_teacher', 'educational_deputy'].includes(item.audience)).map(item => item.approved_text).filter(Boolean).slice(0, 4),
+    recommendations: recommendations.filter(item => !item.audience || ['parent', 'student'].includes(item.audience)).map(item => item.approved_text).filter(Boolean).slice(0, 6),
+    teacherRecommendations: recommendations.filter(item => ['teacher', 'guide_teacher', 'educational_deputy'].includes(item.audience)).map(item => item.approved_text).filter(Boolean).slice(0, 6),
     followUps: (context.analytics_signals ?? []).map(item => item.explanation).filter(Boolean).slice(0, 4),
     support: (context.support_notes ?? []).map(item => typeof item === 'string' ? item : item.text).filter(Boolean).slice(0, 3),
     attendance: { rate: attendanceRate, sessions: attendance.finalized_session_count ?? null, unexcused: attendance.unexcused_absence_count ?? null, late: attendance.late_count ?? null },
@@ -136,8 +153,9 @@ function shortTrendLabel(label) { return String(label || '').replace(/^پایه\
 
 function radarOption(items) {
   if (!items?.length) return null;
-  return { textStyle: { fontFamily: 'Vazirmatn' }, tooltip: { confine: true }, radar: { radius: '46%', center: ['50%', '51%'], axisNameGap: 6, indicator: items.map((item, index) => ({ name: String(index + 1), title: item.title, max: 100 })), splitNumber: 4, splitArea: { areaStyle: { color: ['#fff', '#f2faf8'] } }, axisName: { color: 'transparent', fontSize: 11, fontWeight: 900, fontFamily: 'Vazirmatn', formatter: () => '' }, splitLine: { lineStyle: { color: '#cbd5e1' } }, axisLine: { lineStyle: { color: '#dbeafe' } } },
-    series: [{ type: 'radar', symbol: 'circle', symbolSize: 6, data: [{ value: items.map(item => item.value), name: 'ارزیابی مهارت‌ها', areaStyle: { color: 'rgba(14,116,144,.22)' }, lineStyle: { color: '#0e7490', width: 2.5 }, itemStyle: { color: '#0e7490' } }] }],
+  const radarItems = items.slice(0, 6);
+  return { textStyle: { fontFamily: 'Vazirmatn' }, tooltip: { confine: true }, radar: { radius: '46%', center: ['50%', '51%'], axisNameGap: 6, indicator: radarItems.map((item, index) => ({ name: String(index + 1), title: item.title, max: 100 })), splitNumber: 4, splitArea: { areaStyle: { color: ['#fff', '#f2faf8'] } }, axisName: { color: 'transparent', fontSize: 11, fontWeight: 900, fontFamily: 'Vazirmatn', formatter: () => '' }, splitLine: { lineStyle: { color: '#cbd5e1' } }, axisLine: { lineStyle: { color: '#dbeafe' } } },
+    series: [{ type: 'radar', symbol: 'circle', symbolSize: 6, data: [{ value: radarItems.map(item => item.value), name: 'ارزیابی مهارت‌ها', areaStyle: { color: 'rgba(14,116,144,.22)' }, lineStyle: { color: '#0e7490', width: 2.5 }, itemStyle: { color: '#0e7490' } }] }],
   };
 }
 
@@ -163,34 +181,49 @@ function Avatar({ report }) {
 }
 const qrRows = ['111111100101011111111', '100000101110010000001', '101110100011010111101', '101110101101010111101', '101110100010010111101', '100000101011010000001', '111111101010011111111', '000000001101000000000', '110111101001111010101', '001010010111000110010', '111001111010111001111', '010111000110101010100', '101000111001010111001', '000000001011101000111', '111111101110010010110', '100000100101111001001', '101110101011001111100', '101110100110100101010', '101110101001111010001', '100000101110001100111', '111111101001101010101'];
 function QrCode() { return html`<div class="report-qr" aria-label="کد دسترسی کارنامه">${qrRows.flatMap((row, y) => [...row].map((cell, x) => html`<i class=${cell === '1' ? 'is-dark' : ''} style=${`--x:${x};--y:${y}`}></i>`))}</div>`; }
+function MetricAvailability({ report }) {
+  const items = report.domainScores?.length ? report.domainScores.map(item => [item.title, [item]]) : [
+    ['آموزشی', report.readiness], ['تربیتی و رفتاری', report.skills],
+    ['مهارت‌های قرن ۲۱', report.skills21], ['حضور و غیاب', report.attendance.rate],
+  ];
+  return html`<div class="analytical-analysis-strip" aria-label="وضعیت داده‌های تحلیلی">${items.map(([title, value]) => {
+    const available = Array.isArray(value) ? value.length > 0 : isNumber(value);
+    const count = Array.isArray(value) ? value.length : available ? 1 : 0;
+    return html`<span class=${available ? 'is-available' : 'is-missing'}><i aria-hidden="true"></i><b>${title}</b><small>${available ? `${fa(count)} شاخص ثبت‌شده` : 'ثبت نشده'}</small></span>`;
+  })}</div>`;
+}
+
+function RecommendationGroup({ title, items, ordered = false, tone = 'teal' }) {
+  if (!items?.length) return html`<div class="report-recommendation-group report-recommendation-group--empty"><h4>${title}</h4><${Empty}/></div>`;
+  const List = ordered ? 'ol' : 'ul';
+  return html`<div class=${`report-recommendation-group report-recommendation-group--${tone}`}><h4>${title}</h4><${List} class="report-bullet-list">${items.map(item => html`<li>${item}</li>`)}</${List}></div>`;
+}
 
 export function AnalyticalReport({ snapshot, loading = false }) {
   const report = useMemo(() => mapSnapshot(snapshot), [snapshot]);
-  const trend = trendOption(report.history); const radar = radarOption(report.skills); const strengths = barsOption(report.strengths, '#0f766e'); const improvements = barsOption(report.improvements, '#a61d4d'); const readiness = barsOption(report.readiness, '#08766f');
+  const trend = trendOption(report.history); const radar = radarOption(report.domainScores?.length >= 3 ? report.domainScores : report.skills); const strengths = barsOption(report.strengths, '#0f766e'); const improvements = barsOption(report.improvements, '#a61d4d'); const readiness = barsOption(report.readiness, '#08766f');
   const attendanceRate = isNumber(report.attendance.rate) ? report.attendance.rate : null;
   return html`<article class="analytical-sheet" aria-label=${`کارنامه تحلیلی ${report.student.name}`}>
     <header class="analytical-sheet__header"><div class="analytical-sheet__mark">${report.schoolLogoUrl ? html`<img src=${report.schoolLogoUrl} alt="لوگوی مدرسه"/>` : html`<span>بعثت</span><small>هم‌آموز</small>`}</div><div class="analytical-sheet__heading"><p>کارنامه جامع رشد و تحلیل دانش‌آموز</p><h2>${report.academic.grade}</h2><strong>${report.school}</strong></div><blockquote>« هیچ تلاشی بی‌نتیجه نیست؛<br/>هر قدم کوچک امروز، آینده‌ای بزرگ می‌سازد. »</blockquote></header>
     <div class="analytical-sheet__subhead"><span>${report.organization}</span><span>${report.academic.year} · ${report.academic.term} · کلاس ${report.academic.className}</span>${report.demo && html`<em>نمونهٔ نمایشی</em>`}</div>
+    <${MetricAvailability} report=${report}/>
     <div class="analytical-sheet__grid">
-      <${Panel} title="مشخصات دانش‌آموز" className="analytical-identity" tone="navy"><div class="report-portrait"><${Avatar} report=${report}/></div><dl class="report-identity-list"><div><dt>نام و نام خانوادگی</dt><dd>${report.student.name}</dd></div><div><dt>کد ملی</dt><dd>${report.student.nationalId}</dd></div><div><dt>شماره دانش‌آموزی</dt><dd>${report.student.number}</dd></div><div><dt>پایه و کلاس</dt><dd>${report.academic.grade} · ${report.academic.className}</dd></div></dl><div class="report-mini-kpis"><span><small>معدل کل</small><strong>${isNumber(report.average) ? fa(report.average) : '—'}</strong></span><span><small>رتبه کلاس</small><strong>${report.rank ? fa(report.rank) : '—'}</strong></span></div></${Panel}>
-      <${Panel} title="نمودار روند رشد سه‌ساله" className="analytical-trend" action="میانگین و رتبه"><div class="trend-caption">مقایسهٔ میانگین نهایی سه سال اخیر</div>${loading ? html`<${Empty}/>` : html`<${EChart} option=${trend} label="نمودار روند تحصیلی سه‌ساله" className="echart--trend"/>`}${report.history?.length ? html`<div class="report-trend-foot">${report.history.map(item => html`<span><b>${item.label}</b><i>${fa(item.average)}</i>${item.rank ? html`<small>رتبه ${fa(item.rank)}</small>` : null}</span>`)}</div>` : html`<${Empty}/>`}</${Panel}>
-      <${Panel} title="گزارش مشاور" className="analytical-counselor" tone="gold">${report.counselor?.length ? html`<ul class="report-bullet-list">${report.counselor.map(item => html`<li>${item}</li>`)}</ul>` : html`<${Empty}/>`}</${Panel}>
-      <${Panel} title="پیگیری هوشمند" className="analytical-followups" tone="green">${report.followUps?.length ? html`<ul class="report-bullet-list">${report.followUps.map(item => html`<li>${item}</li>`)}</ul>` : html`<${Empty}/>`}</${Panel}>
-      <${Panel} title="وضعیت آموزشی و نمرات نهایی" className="analytical-table" tone="teal"><table class="report-score-table"><thead><tr><th>درس / شاخص</th><th>مستمر</th><th>میان‌ترم</th><th>پایانی</th><th>میانگین</th><th>وضعیت</th></tr></thead><tbody>${report.subjects.slice(0, 8).map(subject => html`<tr><th>${subject.title}</th><td>${fa(subject.continuous)}</td><td>${fa(subject.midterm)}</td><td>${fa(subject.final)}</td><td class=${subject.current < 12 ? 'is-alert' : 'is-current'}>${fa(subject.current)}</td><td>${subject.passed === false ? html`<b class="is-alert">پیگیری</b>` : html`<b class="is-ok">قبول</b>`}</td></tr>`)}</tbody></table>${!report.subjects?.length && html`<${Empty}/>`}</${Panel}>
+      <${Panel} title="مشخصات دانش‌آموز" className="analytical-identity" tone="navy"><div class="report-portrait"><${Avatar} report=${report}/></div><dl class="report-identity-list"><div><dt>نام و نام خانوادگی</dt><dd>${report.student.name}</dd></div><div><dt>کد ملی</dt><dd><bdi dir="ltr">${report.student.nationalId}</bdi></dd></div><div><dt>شماره دانش‌آموزی</dt><dd><bdi dir="ltr">${report.student.number}</bdi></dd></div><div><dt>پایه و کلاس</dt><dd>${report.academic.grade} · ${report.academic.className}</dd></div></dl><div class="report-mini-kpis"><span><small>معدل کل</small><strong>${isNumber(report.average) ? reportNumber(report.average) : '—'}</strong></span><span><small>رتبه کلاس</small><strong>${report.rank ? reportNumber(report.rank) : '—'}</strong></span></div></${Panel}>
+      <${Panel} title="نمودار روند رشد سه‌ساله" className="analytical-trend" action="میانگین و رتبه"><div class="trend-caption">مقایسهٔ میانگین نهایی سه سال اخیر</div>${loading ? html`<${Empty}/>` : html`<${EChart} option=${trend} label="نمودار روند تحصیلی سه‌ساله" className="echart--trend"/>`}${report.history?.length ? html`<div class="report-trend-foot">${report.history.map(item => html`<span><b>${item.label}</b><i>${reportNumber(item.average)}</i>${item.rank ? html`<small>رتبه ${reportNumber(item.rank)}</small>` : null}</span>`)}</div>` : html`<${Empty}/>`}</${Panel}>
+      <${Panel} title="گزارش مشاور و پیگیری هوشمند" className="analytical-insights" tone="gold"><div class="report-insight-group"><h4>گزارش مشاور</h4>${report.counselor?.length ? html`<ul class="report-bullet-list">${report.counselor.map(item => html`<li>${item}</li>`)}</ul>` : html`<${Empty}/>`}</div><div class="report-insight-group"><h4>موارد پیگیری</h4>${report.followUps?.length ? html`<ul class="report-bullet-list">${report.followUps.map(item => html`<li>${item}</li>`)}</ul>` : html`<${Empty}/>`}</div></${Panel}>
+      <${Panel} title="وضعیت آموزشی و نمرات نهایی" className="analytical-table" tone="teal"><table class="report-score-table"><thead><tr><th>درس / شاخص</th><th>مستمر</th><th>میان‌ترم</th><th>پایانی</th><th>میانگین</th><th>وضعیت</th></tr></thead><tbody>${report.subjects.slice(0, 12).map(subject => html`<tr><th>${subject.title}</th><td>${reportNumber(subject.continuous)}</td><td>${reportNumber(subject.midterm)}</td><td>${reportNumber(subject.final)}</td><td class=${subject.current < 12 ? 'is-alert' : 'is-current'}>${reportNumber(subject.current)}</td><td>${subject.passed === false ? html`<b class="is-alert">پیگیری</b>` : html`<b class="is-ok">قبول</b>`}</td></tr>`)}</tbody></table>${!report.subjects?.length && html`<${Empty}/>`}</${Panel}>
       <${Panel} title="نمودار ارزیابی مهارت‌ها" className="analytical-radar" tone="teal">${radar ? html`<${EChart} option=${radar} label="نمودار راداری مهارت‌های تحصیلی" className="echart--radar"/>` : html`<${Empty}/>`}</${Panel}>
-      <${Panel} title="گزارش تربیتی و رفتاری" className="analytical-behavior" tone="gold">${report.skills?.length ? html`<div class="report-rating-list">${report.skills.map(item => html`<div><span>${item.title}</span><${Stars} value=${item.value}/><b>${fa(item.value)}٪</b></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
+      <${Panel} title="گزارش تربیتی و رفتاری" className="analytical-behavior" tone="gold">${report.skills?.length ? html`<div class="report-rating-list">${report.skills.map(item => html`<div><span>${item.title}</span><${Stars} value=${item.value}/><b>${reportNumber(item.value)}٪</b></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="نقاط قوت علمی" className="analytical-strengths" tone="green">${strengths ? html`<${EChart} option=${strengths} label="نقاط قوت علمی" className="echart--bars"/>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="نقاط قابل بهبود" className="analytical-improvements" tone="rose">${improvements ? html`<${EChart} option=${improvements} label="نقاط قابل بهبود" className="echart--bars"/>` : html`<${Empty}/>`}</${Panel}>
-      <${Panel} title="توصیه برای والدین" className="analytical-advice" tone="gold">${report.recommendations?.length ? html`<ol class="report-advice-list">${report.recommendations.map(item => html`<li>${item}</li>`)}</ol>` : html`<${Empty}/>`}</${Panel}>
-      <${Panel} title="توصیه برای معلمان" className="analytical-teacher" tone="navy">${report.teacherRecommendations?.length ? html`<ul class="report-bullet-list">${report.teacherRecommendations.map(item => html`<li>${item}</li>`)}</ul>` : html`<${Empty}/>`}</${Panel}>
-      <${Panel} title="حضور و غیاب" className="analytical-attendance" tone="navy"><div class="attendance-score"><strong>${attendanceRate === null ? '—' : `${fa(attendanceRate)}٪`}</strong><span>درصد حضور ثبت‌شده</span></div><div class="attendance-meta"><span>جلسات نهایی <b>${fa(report.attendance.sessions)}</b></span><span>غیبت غیرموجه <b>${fa(report.attendance.unexcused)}</b></span><span>تأخیر <b>${fa(report.attendance.late)}</b></span></div></${Panel}>
-      <${Panel} title="مهارت‌های قرن بیست‌ویکم" className="analytical-skills21" tone="teal">${report.skills21?.length ? html`<div class="report-rating-list">${report.skills21.map(item => html`<div><span>${item.title}</span><${Stars} value=${item.value}/><b>${fa(item.value)}٪</b></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
-      <${Panel} title="مشارکت‌ها و فعالیت‌های مدرسه" className="analytical-activities" tone="teal">${report.activities?.length ? html`<div class="report-activities">${report.activities.map(item => html`<div><i>${item.icon}</i><strong>${item.title}</strong><small>${item.text}</small></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
+      <${Panel} title="توصیه‌ها و برنامهٔ حمایت" className="analytical-recommendations" tone="gold"><div class="report-recommendation-grid"><${RecommendationGroup} title="والدین و دانش‌آموز" items=${report.recommendations} ordered tone="gold"/><${RecommendationGroup} title="معلمان و کادر آموزشی" items=${report.teacherRecommendations} tone="navy"/><${RecommendationGroup} title="حمایت خانواده" items=${report.support} tone="teal"/></div></${Panel}>
+      <${Panel} title="حضور و غیاب" className="analytical-attendance" tone="navy"><div class="attendance-score"><strong>${attendanceRate === null ? '—' : html`${reportNumber(attendanceRate)}٪`}</strong><span>درصد حضور ثبت‌شده</span></div><div class="attendance-meta"><span>جلسات نهایی <b>${reportNumber(report.attendance.sessions)}</b></span><span>غیبت غیرموجه <b>${reportNumber(report.attendance.unexcused)}</b></span><span>تأخیر <b>${reportNumber(report.attendance.late)}</b></span></div></${Panel}>
+      <${Panel} title="مهارت‌های قرن بیست‌ویکم" className="analytical-skills21" tone="teal">${report.skills21?.length ? html`<div class="report-rating-list">${report.skills21.map(item => html`<div><span>${item.title}</span><${Stars} value=${item.value}/><b>${reportNumber(item.value)}٪</b></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
+      <${Panel} title="مشارکت‌ها و فعالیت‌های مدرسه" className="analytical-activities" tone="teal">${report.activities?.length ? html`<div class="report-activities">${report.activities.map(item => html`<div><i class=${`report-sticker report-sticker--${item.icon}`} aria-label=${`نشان ${item.title}`}></i><strong>${item.title}</strong><small>${item.text}</small></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="آمادگی برای دوره متوسطه" className="analytical-readiness" tone="navy">${readiness ? html`<${EChart} option=${readiness} label="آمادگی تحصیلی برای دوره متوسطه" className="echart--readiness"/>` : html`<${Empty}/>`}</${Panel}>
-      <${Panel} title="توصیهٔ ویژه و حمایت خانواده" className="analytical-support" tone="gold">${report.support?.length ? html`<ul class="report-bullet-list">${report.support.map(item => html`<li>${item}</li>`)}</ul>` : html`<${Empty}/>`}</${Panel}>
-      <${Panel} title="افتخارات و عناوین کسب‌شده" className="analytical-awards" tone="gold">${report.awards?.length ? html`<div class="report-awards">${report.awards.map(item => html`<div><i>${item.icon}</i><span><b>${item.title}</b><small>${item.text}</small></span></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
+      <${Panel} title="افتخارات و عناوین کسب‌شده" className="analytical-awards" tone="gold">${report.awards?.length ? html`<div class="report-awards">${report.awards.map(item => html`<div><i class=${`report-sticker report-sticker--${item.icon}`} aria-label=${`نشان ${item.title}`}></i><span><b>${item.title}</b><small>${item.text}</small></span></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="دسترسی سریع والدین" className="analytical-access" tone="navy" href=${report.accessHref}><div class="report-access"><${QrCode}/><strong>مشاهدهٔ نسخهٔ کامل</strong><small>${report.accessCode}</small></div></${Panel}>
     </div>
-    <footer class="analytical-sheet__footer"><div><strong>این کارنامه صرفاً گزارش نمرات نیست.</strong><span>تصویری از مسیر رشد علمی، تربیتی و شخصیتی دانش‌آموز است.</span></div><div class="report-signatures"><span>امضای دبیر</span><span>معاون آموزشی</span><span>مدیر و مهر مدرسه</span></div><div><b>${report.school}</b><span>نسخهٔ تحلیلی · قابل مشاهده در سامانه و PDF رسمی</span></div></footer>
+    <footer class="analytical-sheet__footer"><div class="report-signature-heading"><strong>امضا و تأیید مسئولان مدرسه</strong><span>این نسخه پس از بررسی اطلاعات تحصیلی و تربیتی صادر می‌شود.</span></div><div class="report-signatures"><span dir="ltr">Class Expert</span><span dir="ltr">Elementary Assistant</span><span dir="ltr">Educational Assistant</span><span dir="ltr">Executive Assistant</span><span dir="ltr">High School Principal</span></div></footer>
   </article>`;
 }
