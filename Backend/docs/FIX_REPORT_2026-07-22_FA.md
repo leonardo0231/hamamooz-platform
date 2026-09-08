@@ -1,5 +1,7 @@
 # گزارش اصلاحات یکپارچه ۱۴۰۵/۰۴/۳۱ (2026-07-22)
 
+> این سند تاریخی است. مسیر PDF توصیف‌شده در این گزارش superseded شده و مسیر فعال اکنون Chromium/Playwright با خطای صریحِ نبود browser bundle است؛ جزئیات جاری در `21-REPORTING_PLATFORM_FA.md` ثبت شده است.
+
 ## ساختار و بسته‌بندی
 
 - یکپارچه‌سازی appها زیر `hamamooz.apps` و حذف ساختار legacy `Backend/apps`.
