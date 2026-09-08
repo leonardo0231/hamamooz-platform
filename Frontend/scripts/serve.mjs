@@ -6,7 +6,6 @@ import { extname, resolve, sep } from 'node:path';
 const directory = resolve(process.argv[2] ?? 'src');
 const port = Number(process.argv[3] ?? 5173);
 const publicDirectory = resolve('public');
-const echartsModule = resolve('node_modules', 'echarts', 'dist', 'echarts.esm.min.js');
 const types = {
   '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
@@ -16,10 +15,6 @@ const types = {
 
 async function existingFile(pathname) {
   const clean = decodeURIComponent(pathname.split('?')[0]).replace(/^\/+/, '');
-  if (clean === 'vendor/echarts.mjs') {
-    await access(echartsModule);
-    return echartsModule;
-  }
   for (const base of [directory, publicDirectory]) {
     const candidate = resolve(base, clean || 'index.html');
     if (!candidate.startsWith(`${base}${sep}`) && candidate !== base) continue;
