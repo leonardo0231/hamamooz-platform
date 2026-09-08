@@ -2,8 +2,8 @@
 
 The report snapshot deliberately stores source facts, rather than HTML or CSS.
 This module derives only deterministic visual coordinates and formatted values
-from that frozen data just before rendering.  It keeps browser chart code out
-of WeasyPrint while preserving the same analysis model in the PDF.
+from that frozen data just before rendering.  It keeps browser chart code in the
+browser print path while preserving the same analysis model in the PDF.
 """
 
 from __future__ import annotations
