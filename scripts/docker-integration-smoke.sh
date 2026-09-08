@@ -314,10 +314,10 @@ PY
 # without creating a second report renderer or changing any source data.
 report_output_evidence() {
     local web_container
-    web_container="$("\${COMPOSE[@]}" ps -q web)"
+    web_container="$("${COMPOSE[@]}" ps -q web)"
     [[ -n "$web_container" ]] || fail 'Could not resolve the web container for report output evidence.'
     "$DOCKER_BIN" cp "$WORK_DIR/report-preview-response.json" "$web_container:/tmp/report-preview-response.json"
-    "\${COMPOSE[@]}" exec -T web python - <<'PY'
+    "${COMPOSE[@]}" exec -T web python - <<'PY'
 import json
 import re
 from pathlib import Path
@@ -366,10 +366,10 @@ Path('/tmp/report-output-evidence.txt').write_text(
 PY
     "$DOCKER_BIN" cp "$web_container:/tmp/report-output-evidence.pdf" "$WORK_DIR/report-output-evidence.pdf"
     "$DOCKER_BIN" cp "$web_container:/tmp/report-output-evidence.txt" "$WORK_DIR/report-output-evidence.txt"
-    if [[ -n "\${REPORT_OUTPUT_ARTIFACT_DIR:-}" ]]; then
-        mkdir -p "\${REPORT_OUTPUT_ARTIFACT_DIR}"
-        cp "$WORK_DIR/report-output-evidence.pdf" "\${REPORT_OUTPUT_ARTIFACT_DIR}/report-output-evidence.pdf"
-        cp "$WORK_DIR/report-output-evidence.txt" "\${REPORT_OUTPUT_ARTIFACT_DIR}/report-output-evidence.txt"
+    if [[ -n "${REPORT_OUTPUT_ARTIFACT_DIR:-}" ]]; then
+        mkdir -p "${REPORT_OUTPUT_ARTIFACT_DIR}"
+        cp "$WORK_DIR/report-output-evidence.pdf" "${REPORT_OUTPUT_ARTIFACT_DIR}/report-output-evidence.pdf"
+        cp "$WORK_DIR/report-output-evidence.txt" "${REPORT_OUTPUT_ARTIFACT_DIR}/report-output-evidence.txt"
     fi
     printf 'Browser A3 report output evidence passed (MediaBox is landscape A3).\\n'
 }
