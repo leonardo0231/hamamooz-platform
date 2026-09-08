@@ -278,8 +278,8 @@ ol.report-bullet-list { list-style-type: decimal; }
   .report-mini-kpis strong { font-size: .96rem; }
   .trend-caption { font-size: .7rem; }
   .echart--trend { height: 104px; }
-  .echart--radar { height: 180px; padding-bottom: 0; }
-  .echart--radar .echart__svg { height: 100%; }
+  .echart--radar { height: 180px; padding-bottom: 58px; }
+  .echart--radar .echart__svg { height: calc(100% - 58px); }
   .echart__svg--trend text { font-size: 24px; }
   .echart__svg--radar text { font-size: 16px; }
   .echart--bars, .echart--readiness { height: 142px; }
