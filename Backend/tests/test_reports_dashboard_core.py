@@ -98,10 +98,14 @@ def test_historical_transferred_enrollment_report_does_not_crash(base_data):
 def test_local_media_urls_are_confined_to_media_root(settings, tmp_path):
     settings.MEDIA_ROOT = tmp_path
     settings.MEDIA_URL = "/media/"
-    expected = (tmp_path / "logos" / "school.png").resolve().as_uri()
+    logo_path = tmp_path / "logos" / "school.png"
+    logo_path.parent.mkdir()
+    logo_path.write_bytes(b"logo")
+    expected = logo_path.resolve().as_uri()
 
     assert _local_media_file_url("/media/logos/school.png") == expected
     assert _local_media_file_url("/media/../../etc/passwd") == ""
+    assert _local_media_file_url("/media/logos/missing.png") == ""
     assert _local_media_file_url("https://objects.example/logo.png") == (
         "https://objects.example/logo.png"
     )
