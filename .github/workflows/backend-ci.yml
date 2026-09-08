@@ -75,6 +75,7 @@ jobs:
       EMAIL_BACKEND: django.core.mail.backends.locmem.EmailBackend
       ATTENDANCE_ASYNC_NOTIFICATIONS: "false"
       SENTRY_DSN: ""
+      PLAYWRIGHT_BROWSERS_PATH: /tmp/ms-playwright
 
     steps:
       - name: Checkout repository
@@ -89,6 +90,9 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements/dev.txt
+
+      - name: Provision Chromium for React report rendering
+        run: python -m playwright install --with-deps chromium
 
       - name: Verify dependency consistency
         run: python -m pip check
@@ -120,7 +124,6 @@ jobs:
         run: |
           python manage.py spectacular \
             --api-version v1 \
-            --lang en \
             --file ../contracts/openapi.generated.yaml \
             --validate
 
