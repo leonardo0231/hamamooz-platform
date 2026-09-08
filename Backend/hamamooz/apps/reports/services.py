@@ -27,6 +27,7 @@ from hamamooz.apps.academics.models import (
     SubjectResult,
     TermResult,
 )
+from hamamooz.apps.evaluations.catalog import DOMAIN_DEFINITIONS
 from hamamooz.apps.students.models import Enrollment
 
 from .models import ReportArchive, ReportBatch, ReportBatchItem, ReportDraft
@@ -45,28 +46,76 @@ ALLOWED_REPORT_BLOCKS = {
 
 # The layout is data, but not executable template source.  Keeping the CSS
 # values here prevents a manager-provided presentation JSON object from
-# influencing @page with arbitrary text.
+# influencing @page with arbitrary text.  Legacy keys remain accepted while
+# the renderer normalizes every report to the reviewed A3 print profile.
+REPORT_PAGE_SIZE_KEY = "a3_landscape"
 ALLOWED_REPORT_PAGE_SIZES = {
     "a4_portrait": "A4 portrait",
     "a3_landscape": "A3 landscape",
-    # The provided visual reference is a 3:2 canvas.  Keep this separate from
-    # A3 so schools can choose an exact digital handout without changing the
-    # standard print profile.
     "digital_3x2": "420mm 280mm",
 }
+REPORT_PAGE_SIZE_CSS = ALLOWED_REPORT_PAGE_SIZES[REPORT_PAGE_SIZE_KEY]
+
+
+def normalize_report_page_size(value=None):
+    """Return the single supported report page profile.
+
+    Older snapshots and API clients may still carry ``a4_portrait`` or
+    ``digital_3x2``.  They are accepted as migration-compatible input, but
+    they must never produce a differently sized report after the print format
+    was fixed.
+    """
+
+    if value in (None, ""):
+        return REPORT_PAGE_SIZE_KEY
+    if value not in ALLOWED_REPORT_PAGE_SIZES:
+        raise ValueError("Unsupported report page size.")
+    return REPORT_PAGE_SIZE_KEY
 
 
 def report_page_size(presentation):
-    """Return a safe CSS @page value for a frozen template presentation."""
-    if not isinstance(presentation, dict):
-        return ALLOWED_REPORT_PAGE_SIZES["a4_portrait"]
-    return ALLOWED_REPORT_PAGE_SIZES.get(
-        presentation.get("page_size"), ALLOWED_REPORT_PAGE_SIZES["a4_portrait"]
-    )
+    """Return the safe, fixed CSS @page value for a frozen presentation."""
+
+    if isinstance(presentation, dict) and presentation.get("page_size") not in (
+        None,
+        "",
+    ):
+        # Keep validation strict for unknown values even though all known
+        # legacy profiles resolve to A3.
+        normalize_report_page_size(presentation.get("page_size"))
+    return REPORT_PAGE_SIZE_CSS
 
 
 def _decimal_string(value, decimal_places=2):
     return f"{value:.{decimal_places}f}" if value is not None else None
+
+
+def _canonical_domain_scores(rows):
+    """Normalize an analytics payload to the nine official report domains.
+
+    The evaluator normally already returns all domains.  This boundary helper
+    also covers empty/partial historical snapshots so consumers never infer a
+    missing analysis from a shifted list index.  ``None`` remains ``None``;
+    zero is preserved only when it was explicitly recorded.
+    """
+
+    by_code = {
+        str(item.get("code")): item
+        for item in (rows or [])
+        if isinstance(item, dict) and str(item.get("code") or "") in DOMAIN_DEFINITIONS
+    }
+    return [
+        {
+            "code": code,
+            "title": item.get("title") or item.get("domain_title") or title,
+            "weight": item.get("weight", weight),
+            "score": item.get("score") if item.get("score") is not None else None,
+            "completed_metrics": item.get("completed_metrics", 0),
+            "total_metrics": item.get("total_metrics", 0),
+        }
+        for code, (title, weight) in DOMAIN_DEFINITIONS.items()
+        for item in [by_code.get(code, {})]
+    ]
 
 
 def build_student_snapshot(enrollment, term, *, recalculate=True):
@@ -190,7 +239,7 @@ def build_report_snapshot(report_type, term, enrollment=None, class_section=None
     }
 
 
-def build_analytical_snapshot(enrollment, term, *, page_size="digital_3x2"):
+def build_analytical_snapshot(enrollment, term, *, page_size=REPORT_PAGE_SIZE_KEY):
     """Frozen snapshot for the coloured student report and its in-app view."""
     snapshot = build_report_snapshot(
         ReportArchive.ReportType.STUDENT_REPORT_CARD, term, enrollment=enrollment
@@ -223,7 +272,7 @@ def build_analytical_snapshot(enrollment, term, *, page_size="digital_3x2"):
     ]
     snapshot["template"] = {
         "blocks": list(ALLOWED_REPORT_BLOCKS),
-        "presentation": {"page_size": page_size},
+        "presentation": {"page_size": normalize_report_page_size(page_size)},
     }
     return snapshot
 
@@ -342,6 +391,10 @@ def _local_media_file_url(url):
     media_root = Path(settings.MEDIA_ROOT).resolve()
     candidate = (media_root / relative).resolve()
     if not candidate.is_relative_to(media_root):
+        return ""
+    if not candidate.is_file():
+        # A stale model file must not become a broken image in an archived PDF.
+        # The template can render its explicit missing-photo/logo state instead.
         return ""
     return candidate.as_uri()
 
@@ -484,7 +537,7 @@ def _report_extended_context(enrollment):
             "ranked_count",
         )
     }
-    public_analysis["domain_scores"] = analysis["domain_scores"]
+    public_analysis["domain_scores"] = _canonical_domain_scores(analysis.get("domain_scores"))
     public_analysis["monthly_scores"] = analysis["monthly_scores"]
     public_analysis["strongest_domain"] = analysis["strongest_domain"]
     public_analysis["weakest_domain"] = analysis["weakest_domain"]
@@ -552,6 +605,11 @@ def _report_extended_context(enrollment):
         "activities": activities,
         "analytics_signals": signals,
         "approved_recommendations": recommendations,
+        # This key is intentionally independent from recommendations.  A
+        # school may choose to record family-support guidance separately; an
+        # empty list means it was not supplied, not that a recommendation is
+        # suitable for the family-support panel.
+        "support_notes": [],
     }
 
 
@@ -578,11 +636,13 @@ def build_draft_snapshot(template, *, term, enrollment=None, class_section=None)
     )
     for report, subject in zip(snapshot["reports"], enrollments, strict=True):
         report["product_context"] = _report_extended_context(subject)
+    presentation = dict(template.presentation or {})
+    presentation["page_size"] = normalize_report_page_size(presentation.get("page_size"))
     snapshot["template"] = {
         "id": str(template.id),
         "code": template.code,
         "blocks": list(template.blocks),
-        "presentation": template.presentation,
+        "presentation": presentation,
         "output_format": template.output_format,
     }
     return snapshot
