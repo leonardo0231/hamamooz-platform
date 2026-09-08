@@ -4,18 +4,19 @@
 
 ## معماری
 
-- Preact 10.29.8 با Component و Hook؛ به‌صورت self-hosted و بدون CDN
-- HTM برای templateهای امن و خوانا بدون toolchain سنگین
-- Browser ES Modules و build قطعی بدون وابستگی شبکه
+- React 19 با ReactDOM و Component/Hookهای رسمی
+- HTM برای templateهای امن و خوانا در کنار React
+- Vite برای dev server و build چندصفحه‌ای production
 - API Client مرکزی با JWT refresh، timeout، error normalization و scope headers
 - Design system اختصاصی فارسی با Vazirmatn/Estedad، RTL و responsive layout
 - Node Test Runner برای route، امنیت، fixture، design contract و build
 
-فایل‌های Third-party در `src/vendor/` همراه license نگهداری شده‌اند. نسخه Preact با digest رسمی release تطبیق داده شده است.
+فایل HTM در `src/vendor/` همراه license نگهداری شده است؛ React و ReactDOM از طریق
+`package-lock.json` نسخه‌بندی و در build Vite به‌صورت local bundle می‌شوند.
 
 ## اجرا
 
-پیش‌نیاز Node.js 20 یا جدیدتر است. در هر checkout تازه (و پس از تغییر
+پیش‌نیاز Node.js 20.19+ یا 22.12+ است. در هر checkout تازه (و پس از تغییر
 `package-lock.json`) ابتدا dependencyها را نصب کنید:
 
 ```bash
