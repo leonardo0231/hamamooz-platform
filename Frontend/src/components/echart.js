@@ -103,16 +103,6 @@ function radarRing(count, cx, cy, radius, scale) {
   }).join(' ');
 }
 
-function radarLabelPoint(index, count, cx, cy, radius) {
-  const angle = -Math.PI / 2 + (index * Math.PI * 2) / count;
-  return {
-    x: cx + Math.cos(angle) * radius,
-    y: cy + Math.sin(angle) * radius,
-    anchor: Math.cos(angle) > .28 ? 'start' : Math.cos(angle) < -.28 ? 'end' : 'middle',
-    dy: Math.sin(angle) > .55 ? 12 : Math.sin(angle) < -.55 ? -5 : 4,
-  };
-}
-
 function radarSegments(values, count, cx, cy, radius) {
   const points = values.map((value, index) => numeric(value) === null ? null : radarPoint(index, count, cx, cy, radius, value));
   const segments = [];
@@ -149,9 +139,9 @@ function RadarChart({ option, label, className }) {
     ${[.25, .5, .75, 1].map(scale => html`<polygon key=${`radar-ring-${scale}`} points=${radarRing(indicators.length, cx, cy, radius, scale)} fill=${scale === 1 ? '#f2faf8' : 'none'} stroke="#bfd7d2" stroke-width="1" vector-effect="non-scaling-stroke"/>`)}
     ${indicators.map((item, index) => {
       const edge = radarPoint(index, indicators.length, cx, cy, radius, 100);
-      const labelPoint = radarLabelPoint(index, indicators.length, cx, cy, radius + 21);
       const available = points[index] !== null;
-      return html`<g key=${`radar-axis-${index}`}><line x1=${cx} y1=${cy} x2=${edge.x} y2=${edge.y} stroke="#d4e4e0" stroke-width="1" vector-effect="non-scaling-stroke"/><circle cx=${edge.x} cy=${edge.y} r="11" fill=${available ? '#eef8f7' : '#f1f5f4'} stroke=${available ? '#0e7490' : '#aab8b7'} stroke-width="1" vector-effect="non-scaling-stroke"><title>${item.title ?? item.name}: ${available ? `${fa(values[index])}٪` : 'ثبت نشده'}</title></circle><text x=${labelPoint.x} y=${labelPoint.y} dy=${labelPoint.dy} text-anchor=${labelPoint.anchor} fill=${available ? '#315b58' : '#7d8d8c'} font-size="12" font-weight="700" font-family="Vazirmatn">${item.title ?? item.name}</text></g>`;
+      const markerColor = available ? '#0e7490' : '#748584';
+      return html`<g key=${`radar-axis-${index}`}><line x1=${cx} y1=${cy} x2=${edge.x} y2=${edge.y} stroke="#d4e4e0" stroke-width="1" vector-effect="non-scaling-stroke"/><circle cx=${edge.x} cy=${edge.y} r="11" fill=${available ? '#eef8f7' : '#f1f5f4'} stroke=${available ? '#0e7490' : '#aab8b7'} stroke-width="1" vector-effect="non-scaling-stroke"><title>${item.title ?? item.name}: ${available ? `${fa(values[index])}٪` : 'ثبت نشده'}</title></circle><text x=${edge.x} y=${edge.y + 4} text-anchor="middle" fill=${markerColor} font-size="12" font-weight="900" font-family="Vazirmatn">${fa(index + 1)}</text></g>`;
     })}
     ${hasData && segments.length === 1 && points.every(Boolean) && html`<polygon points=${points.map(point => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ')} fill="rgba(14,116,144,.22)" stroke="none"/>`}
     ${segments.map((segment, index) => html`<path key=${`radar-segment-${index}`} d=${linePath(segment)} fill="none" stroke="#0e7490" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`)}
