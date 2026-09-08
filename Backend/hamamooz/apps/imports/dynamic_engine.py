@@ -8,7 +8,6 @@ semantic headers, periods and indicator codes.
 from dataclasses import dataclass, field
 from typing import Any
 
-
 HEADER_ALIASES = {
     "national_id": {"کد ملی", "national_id", "national code"},
     "first_name": {"نام", "first_name"},
