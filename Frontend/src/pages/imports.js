@@ -186,7 +186,7 @@ export function ImportsPage() {
         return;
       }
       const body = new FormData();
-      body.set('import_type', COMPREHENSIVE_IMPORT_TYPE);
+      body.set('school', selectedSchool);\n      body.set('import_type', COMPREHENSIVE_IMPORT_TYPE);
       body.set('source_file', file, file.name);
       const job = await apiRequest('imports/', { method: 'POST', body });
       setJobs(current => [job, ...current.filter(item => String(item.id) !== String(job.id))]);
