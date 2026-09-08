@@ -144,7 +144,7 @@ function RadarChart({ option, label, className }) {
   const radius = 94;
   const { points, segments } = radarSegments(values, indicators.length, cx, cy, radius);
   const hasData = points.some(Boolean);
-  return chartShell({ label, className, children: html`<svg class="echart__svg echart__svg--radar" viewBox=${`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet" focusable="false" aria-hidden="true">
+  return chartShell({ label, className, children: html`<svg class="echart__svg echart__svg--radar" viewBox=${`0 0 ${width} ${height}`} preserveAspectRatio="none" focusable="false" aria-hidden="true">
     <title>${label}</title>
     ${[.25, .5, .75, 1].map(scale => html`<polygon key=${`radar-ring-${scale}`} points=${radarRing(indicators.length, cx, cy, radius, scale)} fill=${scale === 1 ? '#f2faf8' : 'none'} stroke="#bfd7d2" stroke-width="1" vector-effect="non-scaling-stroke"/>`)}
     ${indicators.map((item, index) => {
@@ -156,7 +156,12 @@ function RadarChart({ option, label, className }) {
     ${hasData && segments.length === 1 && points.every(Boolean) && html`<polygon points=${points.map(point => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ')} fill="rgba(14,116,144,.22)" stroke="none"/>`}
     ${segments.map((segment, index) => html`<path key=${`radar-segment-${index}`} d=${linePath(segment)} fill="none" stroke="#0e7490" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`)}
     ${points.map((point, index) => point && html`<circle key=${`radar-point-${index}`} cx=${point.x} cy=${point.y} r="5" fill="#0e7490" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"><title>${indicators[index]?.title ?? indicators[index]?.name}: ${fa(values[index])}٪</title></circle>`)}
-  </svg>`});
+  </svg><div class="report-radar-legend" aria-label="راهنمای شماره‌گذاری ارزیابی مهارت‌ها">${indicators.map((item, index) => {
+    const value = numeric(values[index]);
+    const available = value !== null;
+    const text = available ? `${formatMetricValue(value)}٪` : 'ثبت نشده';
+    return html`<span key=${`radar-legend-${index}`} class=${available ? 'is-available' : 'is-missing'} aria-label=${`${item.title ?? item.name}: ${text}`}><i>${index + 1}</i><em>${item.title ?? item.name}</em><b>${text}</b></span>`;
+  })}</div>`});
 }
 
 function BarsChart({ option, label, className }) {
