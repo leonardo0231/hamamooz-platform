@@ -127,7 +127,16 @@ def build_student_snapshot(enrollment, term, *, recalculate=True):
             }
         )
     school = enrollment.school
-    logo_url = school.logo.url if school.logo else ""
+    # Prefer the school-specific mark, while retaining the organization mark
+    # as a deterministic fallback for schools that have not uploaded a branch
+    # logo yet. The URL is frozen into the report snapshot below.
+    logo_url = (
+        school.logo.url
+        if school.logo
+        else school.organization.logo.url
+        if school.organization.logo
+        else ""
+    )
     return {
         "organization": {
             "name": school.organization.name,
@@ -392,8 +401,9 @@ def _report_extended_context(enrollment):
     from hamamooz.apps.analytics.models import StudentRiskSignal
     from hamamooz.apps.attendance.models import AttendanceRecord, AttendanceSession
     from hamamooz.apps.behavior.models import BehaviorEvent
-    from hamamooz.apps.evaluations.catalog import METRIC_CATALOG
+    from hamamooz.apps.evaluations.catalog import METRIC_CATALOG, metric_catalog_for
     from hamamooz.apps.evaluations.models import MonthlyEvaluation
+    from hamamooz.apps.evaluations.services import EvaluationAnalyticsService
     from hamamooz.apps.recommendations.models import Recommendation
 
     attendance_records = AttendanceRecord.objects.filter(
@@ -419,12 +429,14 @@ def _report_extended_context(enrollment):
         else None,
     }
     evaluations = []
-    for item in (
+    evaluation_rows = list(
         MonthlyEvaluation.objects.filter(enrollment=enrollment)
         .prefetch_related("metric_scores")
         .order_by("month_no", "framework_version")
-    ):
+    )
+    for item in evaluation_rows:
         score_rows = list(item.metric_scores.all())
+        catalog = metric_catalog_for(item.framework_version) or METRIC_CATALOG
         evaluations.append(
             {
                 "month_no": item.month_no,
@@ -433,10 +445,11 @@ def _report_extended_context(enrollment):
                 "metrics": [
                     {
                         "code": score.metric_code,
-                        "title": METRIC_CATALOG.get(score.metric_code, {}).get(
+                        "title": catalog.get(score.metric_code, {}).get(
                             "title", score.metric_code
                         ),
-                        "domain_title": METRIC_CATALOG.get(score.metric_code, {}).get(
+                        "domain_code": catalog.get(score.metric_code, {}).get("domain_code", ""),
+                        "domain_title": catalog.get(score.metric_code, {}).get(
                             "domain_title", ""
                         ),
                         "value": score.value,
@@ -445,6 +458,37 @@ def _report_extended_context(enrollment):
                 ],
             }
         )
+
+    # EvaluationAnalyticsService is the canonical source for the nine-domain
+    # analysis.  Keep its result inside the frozen, report-safe snapshot rather
+    # than re-implementing the weighted calculation in presentation code.  The
+    # service only reads MonthlyEvaluation/MetricScore and never touches the
+    # counseling bounded context.
+    analysis = EvaluationAnalyticsService.student_summary(enrollment, rank_scope="class")
+    public_analysis = {
+        key: analysis[key]
+        for key in (
+            "completion_status",
+            "completion_percent",
+            "overall_score",
+            "performance_level",
+            "first_month",
+            "last_month",
+            "change",
+            "trend",
+            "trend_label",
+            "recommendation",
+            "completion_warning",
+            "rank_scope",
+            "rank",
+            "ranked_count",
+        )
+    }
+    public_analysis["domain_scores"] = analysis["domain_scores"]
+    public_analysis["monthly_scores"] = analysis["monthly_scores"]
+    public_analysis["strongest_domain"] = analysis["strongest_domain"]
+    public_analysis["weakest_domain"] = analysis["weakest_domain"]
+    latest_evaluation = evaluations[-1] if evaluations else None
     behavior = [
         {
             "event_type": item.event_type.code,
@@ -502,6 +546,8 @@ def _report_extended_context(enrollment):
     return {
         "attendance": attendance,
         "evaluations": evaluations,
+        "evaluation_analysis": public_analysis,
+        "latest_evaluation": latest_evaluation,
         "behavior_events": behavior,
         "activities": activities,
         "analytics_signals": signals,
