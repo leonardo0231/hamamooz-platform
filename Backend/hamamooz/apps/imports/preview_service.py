@@ -40,10 +40,12 @@ class ImportPreviewService:
         result = ImportPreviewResult()
 
         if not self.job.source_file:
-            result.errors.append({
-                "level": "error",
-                "message": "Import file is missing",
-            })
+            result.errors.append(
+                {
+                    "level": "error",
+                    "message": "Import file is missing",
+                }
+            )
             return result.as_dict()
 
         # Workbook parser integration is deliberately separated from the
