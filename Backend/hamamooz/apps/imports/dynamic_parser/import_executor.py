@@ -19,16 +19,16 @@ class DynamicImportExecutor:
         report.students_detected = len(workbook_schema.students)
 
         duplicates = [
-            code for code, count in Counter(
-                item.get("national_code") for item in workbook_schema.students
+            code
+            for code, count in Counter(
+                item.get("national_code")
+                for item in workbook_schema.students
                 if item.get("national_code")
             ).items()
             if count > 1
         ]
         if duplicates:
-            report.add_warning(
-                f"Duplicate student identifiers detected: {len(duplicates)}"
-            )
+            report.add_warning(f"Duplicate student identifiers detected: {len(duplicates)}")
 
         if not report.indicators_detected:
             report.add_warning("No assessment indicators detected in workbook.")
