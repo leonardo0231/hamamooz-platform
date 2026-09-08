@@ -5,9 +5,9 @@ This module intentionally does not remove the legacy importer yet. It provides a
 safe migration point where new uploads can be analyzed before execution.
 """
 
-from .workbook_detector import analyze_workbook
-from .validator import DynamicImportValidator
 from .import_report import ImportReport
+from .validator import DynamicImportValidator
+from .workbook_detector import analyze_workbook
 
 
 class DynamicImportService:
