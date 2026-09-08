@@ -303,7 +303,7 @@ ol.report-bullet-list { list-style-type: decimal; }
   .report-metric-bar__track { height: 7px; }
   .report-radar-legend { grid-template-columns: repeat(3, minmax(0, 1fr)); height: 90px; gap: 3px 6px; align-items: start; overflow: hidden; }
   .report-radar-legend span { display: flex; flex-wrap: nowrap; align-items: flex-start; min-width: 0; gap: 4px; font-size: 12px; line-height: 1.12; }
-  .report-radar-legend em { flex: 1 1 auto; min-width: 0; overflow: visible; overflow-wrap: anywhere; text-overflow: clip; white-space: normal; line-height: 1.12; }
+  .report-radar-legend em { flex: 1 1 auto; min-width: 0; overflow: hidden; overflow-wrap: anywhere; text-overflow: clip; white-space: normal; line-height: 1.12; }
   .report-radar-legend b { flex: none; margin-inline-start: auto; font-size: 12px; line-height: 1.12; }
   .report-radar-legend i { width: 18px; height: 18px; font-size: 10px; }
   .report-radar-numbers { width: min(100%, 190px); }
