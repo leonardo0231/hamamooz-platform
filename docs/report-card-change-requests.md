@@ -85,6 +85,20 @@ The executor reported **23 frontend tests, lint, and Vite build** passing
 locally. This is local evidence only and must not be represented as a green
 GitHub Actions run while backend CI is unverified or red.
 
+### Cycle-8 snapshot and CI follow-up evidence
+
+The next remote sequence added secure snapshot injection and repaired the
+generated migration that had been missing from the earlier backend run:
+
+| Commit | Evidence |
+| --- | --- |
+| [`6cb7b81`](https://github.com/leonardo0231/hamamooz-platform/commit/6cb7b8194d73dbdbec47145e5675957788edae18) | React/Vite report architecture documentation |
+| [`ee55f36`](https://github.com/leonardo0231/hamamooz-platform/commit/ee55f3630f98d18553e11cdd1eaf02938f52d317) | Adds the generated evaluations migration required by backend validation |
+| [`fbd09fe`](https://github.com/leonardo0231/hamamooz-platform/commit/fbd09fe0680b7af969ea01c2038c1b0b7c29bf35) | Allows an already-authorized report snapshot to be injected into the React print entry without putting student data in the query string |
+| [`271880cc`](https://github.com/leonardo0231/hamamooz-platform/commit/271880cc810c3e7257d075331c98df9b9833496e) | Adds the injected-snapshot print-entry contract test; current remote head at verification time |
+
+For the earlier head [`967824e7`](https://github.com/leonardo0231/hamamooz-platform/commit/967824e7bf5e216355f321dd498246142d869784), [Frontend CI run 34236414092](https://github.com/leonardo0231/hamamooz-platform/actions/runs/34236414092) passed, while [Backend CI run 34236414165](https://github.com/leonardo0231/hamamooz-platform/actions/runs/34236414165) failed because the generated migration was not present yet; `ee55f36` was committed afterward to add it. The current head `271880cc` has no associated workflow run or status in the present GitHub API check, so `R7-CI-01` remains unverified.
+
 ### Cycle-8 remaining VP blockers
 
 | Area | Current blocker | Closure required |
@@ -93,7 +107,7 @@ GitHub Actions run while backend CI is unverified or red.
 | Server renderer | `render_report_pdf` still uses the legacy WeasyPrint path. | Replace the production path with the Chromium report bundle, or document and approve a compatibility boundary. |
 | Chromium/A3 evidence | A `ChromiumReportRenderer` helper exists, but Playwright/Chromium is not wired or provisioned for production and no real Chrome A3 print artifact is available. | Provision the runtime and attach a deterministic one-page A3 Chrome print/PDF check covering radar/readability. |
 | School-owned inputs | The real target photo, logo association, authoritative grades/workbook, signer names/signatures, and seal remain missing or unapproved. | Provide and authorize the scoped assets/data; preserve duplicate and missing-photo safety gates. |
-| Backend CI | Ruff/integration status remains unverified and the previous run was red; Docker validation is insufficient. | Produce a green backend Ruff/integration workflow run or record a VP-approved exception with the failure classification. |
+| Backend CI | Frontend CI run 34236414092 passed; backend CI run 34236414165 failed before `ee55f36` added the generated migration. The current head `271880cc` has no associated workflow run/status in the present API check; Docker validation is insufficient. | Produce a green backend Ruff/integration workflow run for the post-migration head or record a VP-approved exception with the failure classification. |
 
 ### Cycle-4 source audit
 
@@ -198,6 +212,7 @@ school-owned input is required; **In review** means the VP loop is active;
 
 | Cycle-7 C7-01 React/Vite executor · 2026-09-08 | **IMPLEMENTED; VP REVIEW PENDING** | Replaced the frontend renderer boundary with React 19/ReactDOM, retained HTM templates through the compatibility adapter, added a pinned Vite multi-page build for the dashboard and standalone A3 report, and flushed the initial React commit before print-readiness inspection. Native SVG charts and the existing A3 browser print DOM remain the canonical report path. Direct frontend evidence: 23 Node tests, source lint, Vite production build, package-lock consistency, and `git diff --check` all passed. The remote commit sequence is recorded below; it is not an unpushed local change. |
 | Cycle-8 strict VP review · 2026-09-08 · remote head [`967824e7`](https://github.com/leonardo0231/hamamooz-platform/commit/967824e7bf5e216355f321dd498246142d869784) | **CONDITIONAL — INPUTS/INFRASTRUCTURE REQUIRED (NOT APPROVED)** | Passed: React 19/ReactDOM + Vite migration, inline SVG report charts, fixed A3 layout, radar/readiness, fallbacks, grouped recommendations, stickers, signatures, and local evidence of 23 frontend tests, lint, and Vite build. Remaining blockers: server `render_report_pdf` still uses WeasyPrint; Playwright/Chromium is not wired/provisioned; no real Chrome A3 artifact; school-owned photo/logo/grades/signers are missing; and backend CI is unverified with the previous run red. C7-01 remains a Next.js decision/waiver if Next is mandatory; C7-02–C7-06 and R7-CI-01 remain open. |
+| Cycle-8 snapshot/CI follow-up · 2026-09-08 · remote head [`271880cc`](https://github.com/leonardo0231/hamamooz-platform/commit/271880cc810c3e7257d075331c98df9b9833496e) | **CONDITIONAL — INPUTS/INFRASTRUCTURE REQUIRED (NOT APPROVED)** | Secure snapshot injection (`fbd09fe`) and its contract test (`271880cc`) are present; the generated evaluations migration was added in `ee55f36` after the earlier backend failure. Frontend CI run 34236414092 passed; backend CI run 34236414165 failed before that migration. The current head has no associated workflow run/status in the present API check. WeasyPrint replacement, Chromium provisioning and real Chrome A3 evidence, school-owned photo/logo/grades/signers, and a green post-migration backend CI run remain required. |
 
 ### VP-02 exact blockers preserved by the curator
 
