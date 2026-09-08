@@ -28,5 +28,9 @@ Promise.all(assets).finally(() => {
   // they print the standalone report entry.  The interactive app uses the
   // same browser DOM and calls `printAnalyticalReport` from its toolbar.
   window.__REPORT_READY__ = true;
-  if (printMode) printAnalyticalReport();
+  // Manual browser printing still opens the native dialog. The backend
+  // Chromium renderer sets this automation marker and calls page.pdf itself;
+  // opening window.print() there would race the readiness marker and can
+  // leave the print-only body class active during PDF capture.
+  if (printMode && !globalThis.__REPORT_AUTOMATION__) printAnalyticalReport();
 });
