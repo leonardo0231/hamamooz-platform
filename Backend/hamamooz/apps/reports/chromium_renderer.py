@@ -55,42 +55,50 @@ class ChromiumReportRenderer:
             html_file = Path(tmp) / "report.html"
             html_file.write_text(_with_base_url(html, base_url), encoding="utf-8")
 
-            with sync_playwright() as playwright:
-                try:
-                    browser = playwright.chromium.launch(headless=True)
-                except Exception as exc:
-                    raise ReportRendererUnavailable(
-                        "Chromium report rendering is unavailable: the Playwright Chromium "
-                        "executable is not installed or cannot be launched. Run "
-                        "'playwright install chromium' and verify the runtime image."
-                    ) from exc
+            try:
+                with sync_playwright() as playwright:
+                    try:
+                        browser = playwright.chromium.launch(headless=True)
+                    except Exception as exc:
+                        raise ReportRendererUnavailable(
+                            "Chromium report rendering is unavailable: the Playwright Chromium "
+                            "executable is not installed or cannot be launched. Run "
+                            "'playwright install chromium' and verify the runtime image."
+                        ) from exc
 
-                try:
-                    # ``format`` is a PDF option, not a browser-page option.
-                    page = browser.new_page()
-                    page.emulate_media(media="print")
-                    page.goto(
-                        html_file.as_uri(),
-                        wait_until="networkidle",
-                        timeout=timeout_ms,
-                    )
-                    # Wait for local Estedad/Vazirmatn fonts before taking the
-                    # snapshot; otherwise a fast print can capture fallback text.
-                    page.evaluate("document.fonts ? document.fonts.ready : Promise.resolve()")
-                    pdf = page.pdf(
-                        format="A3",
-                        landscape=True,
-                        print_background=True,
-                        prefer_css_page_size=True,
-                    )
-                except ReportRendererUnavailable:
-                    raise
-                except Exception as exc:
-                    raise ReportRendererUnavailable(
-                        "Chromium report rendering failed while loading or printing the "
-                        "report. Check the Playwright/Chromium runtime and local assets."
-                    ) from exc
-                finally:
-                    browser.close()
+                    try:
+                        # ``format`` is a PDF option, not a browser-page option.
+                        page = browser.new_page()
+                        page.emulate_media(media="print")
+                        page.goto(
+                            html_file.as_uri(),
+                            wait_until="networkidle",
+                            timeout=timeout_ms,
+                        )
+                        # Wait for local Estedad/Vazirmatn fonts before taking the
+                        # snapshot; otherwise a fast print can capture fallback text.
+                        page.evaluate("document.fonts ? document.fonts.ready : Promise.resolve()")
+                        pdf = page.pdf(
+                            format="A3",
+                            landscape=True,
+                            print_background=True,
+                            prefer_css_page_size=True,
+                        )
+                    except ReportRendererUnavailable:
+                        raise
+                    except Exception as exc:
+                        raise ReportRendererUnavailable(
+                            "Chromium report rendering failed while loading or printing the "
+                            "report. Check the Playwright/Chromium runtime and local assets."
+                        ) from exc
+                    finally:
+                        browser.close()
+            except ReportRendererUnavailable:
+                raise
+            except Exception as exc:
+                raise ReportRendererUnavailable(
+                    "Chromium report rendering is unavailable: the Playwright driver or "
+                    "Chromium runtime failed to start. Verify the installed browser bundle."
+                ) from exc
 
             return pdf
