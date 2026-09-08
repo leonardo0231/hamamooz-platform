@@ -27,5 +27,4 @@ pytest -q
 python manage.py spectacular --api-version v1 --file build/openapi.yaml --validate
 ```
 
-تست PDF روی Windows به Pango/GObject نیاز دارد. اجرای Docker راه پیشنهادی برای حذف تفاوت native
-Windows است. تست‌های locking و concurrency باید روی PostgreSQL اجرا شوند، نه SQLite.
+تست PDF باید با Playwright و browser bundle نصب‌شده اجرا شود؛ Image رسمی Docker آن را با `playwright install --with-deps chromium` provision می‌کند. تست‌های locking و concurrency باید روی PostgreSQL اجرا شوند، نه SQLite.
