@@ -52,11 +52,13 @@ no report PDF or ZIP download controls in the frontend.
 
 This repository does not currently contain the `react`/`react-dom` packages or
 a Playwright/Chromium worker. The implementation therefore does not claim a
-literal React bundle or a server-side React PDF. The legacy Django archive
-worker still contains a WeasyPrint path for backward compatibility, but it is
-not used by the report preview/print flow. A final “all outputs are React”
-approval remains blocked until that backend path is replaced by a deployed
-React bundle plus Chromium renderer, or explicitly retired by the school.
+literal React/Next bundle or a server-side React PDF; this is saved as C7-01.
+The legacy Django archive worker still contains a WeasyPrint path for backward
+compatibility, which is saved as C7-02 and is not used by the report
+preview/print flow. Chromium runtime provisioning and deterministic PDF
+verification are saved separately as C7-03. A final “all outputs are React”
+approval remains blocked until the selected React/Next and Chromium
+architecture is deployed, or the school explicitly waives those findings.
 
 ### Cycle-4 source audit
 
@@ -64,11 +66,13 @@ The source folders and workbooks were inspected without importing or guessing
 school-owned records:
 
 - `Data/Photo/8/کدملی` contains 208 JPEGs; `besat.zip` is an exact duplicate of
-  that set. One identifier has two different portraits, so both files are now
-  blocked for review rather than selecting the first filename.
+  that set. Duplicate identifiers and missing matches are recorded as review
+  states; one identifier has two different portraits, so both files are now
+  blocked rather than selecting the first filename.
 - `Data/Photo/9` contains 228 JPEGs and a separate RAR archive (RAR is not an
   accepted import format). All 436 JPEGs are valid RGB images under 2 MB; most
-  are 159×213 and one is 945×1260.
+  are 159×213 and one is 945×1260. The counts are an audit summary only and do
+  not expose or repeat any student identifier.
 - Grade 8 has 211 workbook students / 181 matching portraits / 30 missing / 26
   extra files. Grade 9 has 202 / 178 / 24 / 50. Grade 7 has no photo folder.
   These counts are an intake report, not an authorization to import.
@@ -79,9 +83,10 @@ school-owned records:
   Some `EDU_01` values are 0–20 and `EDU_02` contains decimal/negative and
   `ندارد` values, so no unapproved conversion to the official 0–5 scale is
   performed.
-- Two workbooks reference a missing “فایل معاونین و کارشناسان” workbook for
-  signer information. Names, signatures, and seals therefore remain input
-  gates.
+- Two workbooks contain an external link to the missing “فایل معاونین و
+  کارشناسان” workbook for signer information. Names, signatures, and seals
+  therefore remain input gates; the external link is not treated as a source
+  until the school supplies and approves the referenced file.
 
 The safe dry-run command is:
 
@@ -95,6 +100,25 @@ python manage.py import_student_photos \
 The command reports `duplicate_files` and never writes a portrait while a
 student identifier has more than one candidate.
 
+## VP cycle-7 findings
+
+The strict VP cycle-7 findings are saved as six separate requests. They are
+deliberately split between product architecture, renderer infrastructure,
+rendered-output verification, and school-owned inputs so that a code change
+cannot be used to close an input blocker.
+
+| Finding | Category | Saved status | Exact disposition / next action |
+| --- | --- | --- | --- |
+| C7-01 | Literal React/Next migration | **Blocked — architecture decision** | The visible report currently uses the repository’s self-hosted Preact/HTM tree with React-compatible conventions; `react`/`react-dom` and a literal Next app are not present. Decide and implement the required React/Next target, or record a VP-approved waiver. Do not describe the current tree as literal React/Next. |
+| C7-02 | Backend WeasyPrint retirement | **Open — infrastructure** | The legacy Django archive worker still imports/retains a WeasyPrint path. It is not the approved browser preview path. Retire it from the production report contract, or document a supported compatibility boundary with tests and an explicit VP waiver. |
+| C7-03 | Chromium report infrastructure | **Blocked — deployment prerequisite** | No deployed Playwright/Chromium worker is present in this checkout. Provision the selected Chromium runtime, fonts, local image/SVG loading, timeout policy, and a deterministic one-page PDF test before claiming server-side parity. |
+| C7-04 | Visual A3/radar verification | **Implemented — VP visual verification pending** | The frontend declares a single A3 landscape print profile and the charts are native SVG, but the VP must inspect a real browser print preview at 100%: one page, no clipping, readable typography, all nine domain labels, explicit missing states, and a sufficiently large radar. |
+| C7-05 | School-owned photo/logo inputs | **Blocked — school input** | The photo audit has 208 JPEGs for grade 8 and 228 for grade 9, with duplicate IDs and missing matches; no target student/authorization was supplied. The uploaded logo is not associated with a confirmed `School`/`Organization` record. Provide the scoped school, target student ID, import authorization, duplicate resolution, and logo ownership. |
+| C7-06 | School-owned Excel/grades/signature inputs | **Blocked — school input** | The workbooks expose 46 indicators across nine domains, but `EDU_01` mixes 0–20 values and `EDU_02` includes negative/decimal/`ندارد` values. Overlapping workbooks, a workbook without class data, and an external link to the missing معاونین/کارشناسان file leave authority and scale unresolved. Provide the authoritative workbook, year/term/class/scale, and signer names/signatures/seal; do not import or convert unapproved values. |
+
+These six findings are additive to RC-01–RC-16 and do not rewrite the prior
+VP-01 or VP-02 history.
+
 ## Saved requests
 
 Status vocabulary: **Implemented** means the code path exists; **Verification**
@@ -102,7 +126,7 @@ means the VP still needs to accept the rendered result; **Blocked** means a
 school-owned input is required; **In review** means the VP loop is active;
 **Deferred** means it is intentionally outside this approval pass.
 
-| ID | Request | Cycle-4 status | Evidence / acceptance gate | Next action |
+| ID | Request | Current status | Evidence / acceptance gate | Next action |
 | --- | --- | --- | --- | --- |
 | RC-01 | Put the information that exists in the Data section into the analytical report snapshot. | Implemented | `Backend/hamamooz/apps/reports/services.py`, `presentation.py`; focused reporting tests cover the snapshot contract. | VP verifies a populated snapshot against the source rows. |
 | RC-02 | Distinguish an analysis that is absent from an analysis whose score is zero. | Implemented | Canonical domain rows carry `score`/`percent` plus availability; the template and frontend show `ثبت نشده`. | VP checks an intentionally incomplete fixture. |
@@ -119,7 +143,7 @@ school-owned input is required; **In review** means the VP loop is active;
 | RC-13 | Preserve the student/academic identity details from the source of truth. | Implemented; fixture verification | Presentation reads student, enrollment, school, term, and analysis context from the report snapshot. | VP compares one known student record end to end. |
 | RC-14 | Make the result printable as one fixed A3 landscape page. | Implemented; verification | Browser print CSS declares A3 landscape, 6 mm margins, shell isolation, and compact readable rows; native SVG charts share the screen DOM. | Verify one-page output in Chromium/Chrome with real photo/logo data. |
 | RC-15 | Run the VP → curator → executor → VP loop until approval. | In review | VP-01 findings were saved; executor cycles record code/test evidence; this cycle adds the remaining asset/data gates. | Run the next strict VP review and append its verdict here. |
-| RC-16 | Push each verified logical step to the remote gate with traceable evidence. | Implemented for frontend cycle | Frontend browser-print files were pushed sequentially after 21 tests, lint, build, and diff checks passed. | Push the documentation update and record the latest commit before VP review. |
+| RC-16 | Push each verified logical step to the remote gate with traceable evidence. | **Implemented for frontend; docs/backend hand-off pending** | The frontend commits were verified on the remote branch in sequence: [`df51d107`](https://github.com/leonardo0231/hamamooz-platform/commit/df51d1073bfd6b4a1ba4874cf21536002578d696) for `Frontend/src/styles/reports.css`, followed by [`63912cf`](https://github.com/leonardo0231/hamamooz-platform/commit/63912cf015a1016928899de8acd081cbc484a299) for `Frontend/src/pages/reports.js`. The commits are not unpushed; this status covers the frontend evidence only. | Parent agent records the remaining documentation/backend commits sequentially, then sends the same remote commit set to the VP. |
 
 ## Review history
 
@@ -130,22 +154,23 @@ school-owned input is required; **In review** means the VP loop is active;
 | Executor cycles 1–2 | **COMPLETED WITH FOLLOW-UPS** | Implemented the report data contract, canonical domains, availability states, logo fallback, photo importer, grouped recommendations, larger A3 composition, fonts, stickers, and signature labels. Focused backend tests and frontend syntax/lint checks passed in the working cycle; the actual school assets still require intake. |
 | VP-02 · follow-up strict review | **NOT APPROVED / FOLLOW-UPS RETAINED** | The follow-up review remains part of the audit trail. It must not erase the open photo, logo association, authoritative grades, signature assets, and final print-verification gates. Append the exact VP-02 finding IDs and verdict when the review packet is returned. |
 | Cycle 4 curator · 2026-09-08 | **SAVED; VP REVIEW PENDING** | Reconciled the register with the current working-tree implementation, made school-owned blockers explicit, and documented the selected local SVG icon set and official source/license references. |
-| Cycle-7 browser-print executor · 2026-09-08 | **IMPLEMENTED; VP REVIEW PENDING** | Removed report PDF/ZIP controls from the frontend, replaced chart runtime rendering with inline SVG, added font/image readiness before `window.print()`, isolated the report sheet for A3 print, and added static contracts for the browser-native path. The backend WeasyPrint archive path remains an explicit infrastructure blocker, not an approved renderer. |
+| Cycle-7 browser-print executor · 2026-09-08 | **IMPLEMENTED; VP REVIEW PENDING** | Removed report PDF/ZIP controls from the frontend, replaced chart runtime rendering with inline SVG, added font/image readiness before `window.print()`, isolated the report sheet for A3 print, and added static contracts for the browser-native path. The frontend push is verified by [`df51d107`](https://github.com/leonardo0231/hamamooz-platform/commit/df51d1073bfd6b4a1ba4874cf21536002578d696) → [`63912cf`](https://github.com/leonardo0231/hamamooz-platform/commit/63912cf015a1016928899de8acd081cbc484a299). The backend WeasyPrint archive path remains the C7-02 infrastructure blocker, not an approved renderer. |
+| Cycle-7 strict VP review · 2026-09-08 | **REJECTED / FOLLOW-UPS SAVED** | C7-01 through C7-06 are recorded above. The VP did not approve the report while literal React/Next migration, renderer infrastructure, A3/radar visual evidence, and school-owned identity/grade/signature inputs remain unresolved. |
 
-### VP-02 finding IDs preserved by the curator
+### VP-02 exact blockers preserved by the curator
 
-The follow-up reviewer returned the following actionable findings; none is
-silently closed by a passing unit test:
+The following concrete blockers remain from the VP-02 follow-up. None is
+silently closed by a passing unit test, and no personal identifier is written
+in this register:
 
-| Finding | Classification | Required disposition |
+| Blocker | Classification | Required disposition |
 | --- | --- | --- |
-| RC-04 / RC-05 | External input + safety | No authorized student portrait was available; duplicate candidates must be blocked and the target student/organization must be named. |
-| RC-02 / RC-08 | Code/visual | The nine-domain radar/list must remain complete, readable, and explicit about missing values. |
-| RC-10 | Code/visual | The browser report must render colored local SVG stickers, including the disciplinary shield, without emoji dependence; the legacy WeasyPrint archive path is not an accepted user-facing renderer. |
-| RC-07 | Visual | Body and chart text must be legible at the fixed print scale. |
-| RC-09 | Visual | Parent, teacher, and family-support recommendations must be one grouped section without duplicated fallback text. |
-| RC-14 | Code/visual | Browser print preview must use one A3 landscape geometry and 6 mm print margin; a server PDF is not accepted until it executes the same report bundle in Chromium. |
-| RC-06 / RC-12 / RC-11 | External input | Logo ownership, authoritative workbook/scale, signer names/images, and seal require school confirmation. |
+| VP02-PHOTO | External input + safety | No authorized target student portrait was available. Duplicate candidates and missing matches in the grade-8/grade-9 audit must stay blocked; the organization/school and target student must be named before a scoped import. |
+| VP02-LOGO | External input | The supplied school logo has no confirmed `School`/`Organization` association. Confirm ownership and re-render the same student report. |
+| VP02-GRADES | External input + data integrity | Authoritative workbook, academic year, term, class, and scale are unresolved; overlapping files and the missing class value must be resolved before import. Preserve raw values until the school approves normalization. |
+| VP02-SIGNATURES | External input | The referenced “فایل معاونین و کارشناسان” workbook is missing. Signer names, signature images, and seal remain required inputs. |
+| VP02-RADAR | Code/visual | The nine-domain radar/list must remain complete, readable, and explicit about missing values. The VP must see a real A3 browser print preview. |
+| VP02-RENDERER | Code/infrastructure | The browser report must remain the user-facing path with local SVG stickers and no emoji dependence; the legacy WeasyPrint archive path is not an approved user-facing renderer until Chromium parity is deployed or explicitly waived. |
 
 ### Cycle-4 implementation evidence
 
