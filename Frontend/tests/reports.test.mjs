@@ -58,6 +58,8 @@ test('report output is browser-native and never exposes the legacy PDF/ZIP contr
 test('standalone report entry exposes a readiness marker for browser print automation', () => {
   assert.match(sampleScript, /window\.__REPORT_READY__\s*=\s*false/);
   assert.match(sampleScript, /window\.__REPORT_READY__\s*=\s*true/);
+  assert.match(sampleScript, /globalThis\.__REPORT_SNAPSHOT__/);
+  assert.match(sampleScript, /snapshot=\$\{snapshot\}/);
   assert.match(sampleScript, /printAnalyticalReport/);
   assert.match(styles, /body\.report-printing \.sidebar/);
   assert.match(styles, /grid-template-rows:\s*112px 225px 195px 115px 98px 85px/);
