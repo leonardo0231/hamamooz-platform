@@ -2,7 +2,7 @@
 
 ## نتیجه
 
-Frontend قدیمیِ مبتنی بر رندر دستی DOM با یک برنامه component-based بر پایه Preact 10.29.8 و HTM 3.1.1 جایگزین شده است. طراحی جدید RTL و واکنش‌گراست و زبان بصری تصاویر مرجع را در یک سیستم یکپارچه بازسازی می‌کند: زمینه روشن، سایدبار سرمه‌ای ثابت در سمت راست، رنگ تأکیدی بنفش، کارت‌های سفید کم‌سایه و نمودارهای سبک.
+Frontend قدیمیِ مبتنی بر رندر دستی DOM با یک برنامه component-based بر پایه React 19، ReactDOM و HTM 3.1.1 جایگزین شده است. Vite خروجی چندصفحه‌ای production را به‌صورت local bundle می‌سازد. طراحی RTL و واکنش‌گراست و زبان بصری تصاویر مرجع را در یک سیستم یکپارچه بازسازی می‌کند: زمینه روشن، سایدبار سرمه‌ای ثابت در سمت راست، رنگ تأکیدی بنفش، کارت‌های سفید کم‌سایه و نمودارهای سبک.
 
 ## نگاشت تصاویر مرجع
 
@@ -29,10 +29,10 @@ Frontend قدیمیِ مبتنی بر رندر دستی DOM با یک برنام
 
 ## تصمیم فریم‌ورک
 
-Preact به‌جای renderer اختصاصی انتخاب شد تا component lifecycle، hookها و composition استاندارد فراهم شود و در عین حال حجم runtime کوچک بماند. Preact و HTM با license خود در `src/vendor/` نگه‌داری می‌شوند؛ بنابراین build و اجرای production به CDN یا package registry وابسته نیست. SHA-256 بسته رسمی Preact استفاده‌شده:
+React و ReactDOM به‌عنوان renderer رسمی انتخاب شده‌اند تا component lifecycle، hookها و composition استاندارد فراهم شود. HTM با license خود در `src/vendor/` نگه‌داری می‌شود و dependencyهای React/Vite در `package-lock.json` قفل شده‌اند؛ بنابراین اجرای مرورگر به CDN وابسته نیست. تبدیل attributeهای قدیمی HTM به قرارداد React در `src/core/view.js` متمرکز است:
 
 ```text
-b18cb0a457f3d43c7bb30391a74ade7d13e03bc6e77915e061c70c0fe1123299
+React 19.2.8 / ReactDOM 19.2.8 / Vite 8.2.2
 ```
 
 ## واکنش‌گرایی و دسترس‌پذیری
