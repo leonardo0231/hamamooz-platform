@@ -1,7 +1,5 @@
-from pathlib import Path
 import tempfile
-
-from django.conf import settings
+from pathlib import Path
 
 
 class ChromiumReportRenderer:
@@ -25,10 +23,13 @@ class ChromiumReportRenderer:
 
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch(headless=True)
-                page = browser.new_page(format="A4")
+                # ``format`` is a PDF option, not a browser-page option.  The
+                # previous call raised before any report could be rendered.
+                page = browser.new_page()
                 page.goto(html_file.as_uri(), wait_until="networkidle")
                 pdf = page.pdf(
-                    format="A4",
+                    format="A3",
+                    landscape=True,
                     print_background=True,
                     prefer_css_page_size=True,
                 )
