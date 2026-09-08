@@ -409,17 +409,18 @@ def _pdf_snapshot(snapshot):
     return rendered
 
 
-def render_report_pdf(snapshot):
-    from weasyprint import HTML
+def render_report_pdf(snapshot, *, renderer=None):
+    """Render a frozen report snapshot through the Chromium boundary.
 
-    html = render_report_html(_pdf_snapshot(snapshot))
-    return HTML(
-        string=html,
-        # A trailing slash is essential: without it a relative ``static/...``
-        # URL is resolved next to the Backend directory instead of inside it.
-        # That silently replaces our Persian typefaces with fallbacks in PDFs.
-        base_url=f"{Path(settings.BASE_DIR).as_uri()}/",
-    ).write_pdf(presentational_hints=False)
+    The optional renderer seam is intended for unit tests and controlled
+    integrations.  Production calls use the explicitly provisioned Chromium
+    renderer and raise a clear error when Playwright or its browser bundle is
+    unavailable; no WeasyPrint fallback is attempted.
+    """
+
+    from .rendering import render_production_report_pdf
+
+    return render_production_report_pdf(snapshot, renderer=renderer)
 
 
 def render_report_docx(snapshot):
