@@ -329,7 +329,7 @@ def test_report_preview_archive_and_download_api(
     assert preview.data["renderer"] == "react"
     assert preview.data["layout"] == "a3_landscape"
     assert "reports/report_card.html" not in preview.data["html"]
-    assert "data-report-renderer=\"react\"" in preview.data["html"]
+    assert 'data-report-renderer="react"' in preview.data["html"]
     create = api_client.post(
         "/api/v1/reports/",
         payload,
