@@ -50,6 +50,7 @@ test('React data boundary rejects ambiguous metric values without hiding their r
   assert.equal(domains[0].value, 0);
   assert.equal(domains[0].hasData, true);
   assert.equal(domains[1].hasData, false);
+  assert.equal(normalizeReportDomainScores(null).length, 9);
 });
 
 test('invalid EDU metrics remain printable as explicit missing rows', () => {
@@ -60,6 +61,8 @@ test('invalid EDU metrics remain printable as explicit missing rows', () => {
   assert.match(report, /numeric < 0 \|\| numeric > 5/);
   assert.match(report, /value_unit \?\? item\.unit \?\? item\.scale/);
   assert.match(report, /score >= 0 && score <= 20/);
+  assert.match(report, /latest\?\.metrics\?\.length \? latest\.metrics/);
+  assert.match(report, /const sourceRows = Array\.isArray\(rows\) \? rows : \[\]/);
 });
 
 test('report uses semantic SVG icons and has no CSS-text sticker fallback', () => {
