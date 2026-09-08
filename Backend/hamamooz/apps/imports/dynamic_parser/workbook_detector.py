@@ -52,7 +52,11 @@ def analyze_workbook(file_object):
             if "ماه" in header:
                 idx = header.index("ماه")
                 for row in sheet.iter_rows(min_row=data_start + 1, values_only=True):
-                    if idx < len(row) and _clean(row[idx]) and _clean(row[idx]) not in schema.periods:
+                    if (
+                        idx < len(row)
+                        and _clean(row[idx])
+                        and _clean(row[idx]) not in schema.periods
+                    ):
                         schema.periods.append(_clean(row[idx]))
 
             if "کد ملی" in header:
