@@ -1,4 +1,4 @@
-from hamamooz.apps.schools.models import School
+from hamamooz.apps.organizations.models import School
 
 
 DEFAULT_SCHOOL_NAME = "بعثت"
