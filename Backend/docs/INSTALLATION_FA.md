@@ -35,7 +35,7 @@ python manage.py check
 pytest -q
 ```
 
-برای PDF محلی، Playwright را از dependencyهای pinned نصب کنید و browser bundle را با `playwright install chromium` provision کنید. Image رسمی Docker همین کار را با `playwright install --with-deps chromium` انجام می‌دهد؛ fallback به WeasyPrint وجود ندارد.
+برای PDF محلی، Playwright را از dependencyهای pinned نصب کنید و browser bundle را با `playwright install chromium` provision کنید. Image رسمی Docker همین کار را با `playwright install --with-deps chromium` انجام می‌دهد؛ fallback به renderer قدیمی وجود ندارد.
 
 ## داده Demo
 
