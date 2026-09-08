@@ -18,6 +18,7 @@ FROM python:3.12-slim-bookworm AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
     PATH="/opt/venv/bin:$PATH"
 
 RUN sed -i \
@@ -43,10 +44,12 @@ WORKDIR /app
 
 COPY --from=builder /opt/venv /opt/venv
 
+RUN /opt/venv/bin/playwright install --with-deps chromium
+
 COPY . /app
 RUN chmod +x /app/scripts/*.sh \
-    && mkdir -p /app/media /app/staticfiles \
-    && chown -R hamamooz:hamamooz /app
+    && mkdir -p /app/media /app/staticfiles /ms-playwright \
+    && chown -R hamamooz:hamamooz /app /ms-playwright
 
 USER hamamooz
 
