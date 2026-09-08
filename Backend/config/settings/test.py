@@ -10,5 +10,9 @@ STORAGES = {
 }
 MEDIA_ROOT = BASE_DIR / ".test-media"  # noqa: F405
 
+# Unit tests must use the explicit renderer seam; no frontend server is
+# started in the backend test process, so production URL rendering is opt-in.
+REPORT_FRONTEND_URL = ""
+
 READINESS_CHECK_BROKER = False
 READINESS_CHECK_STORAGE = True
