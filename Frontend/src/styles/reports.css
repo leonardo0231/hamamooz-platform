@@ -238,8 +238,8 @@ ol.report-bullet-list { list-style-type: decimal; }
 }
 
 @media print {
-  /* The browser preview and the PDF renderer intentionally share this page
-     box: one A3 landscape sheet with a 6mm printable margin. */
+  /* The browser preview and the browser's “save as PDF” print target share
+     this page box: one A3 landscape sheet with a 6mm printable margin. */
   @page { size: A3 landscape; margin: 6mm; }
   html, body { background: #fff !important; }
   .report-preview-zone { overflow: visible; border: 0; border-radius: 0; box-shadow: none; background: #fff; }
