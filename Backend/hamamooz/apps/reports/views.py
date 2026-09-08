@@ -65,7 +65,7 @@ def _react_preview_markup():
             "</a>"
         )
     else:
-        entry = '<span data-report-preview-entry="react">مسیر React در این محیط تنظیم نشده است.</span>'
+        entry = (\n            '<span data-report-preview-entry="react">مسیر React در این محیط تنظیم نشده است.</span>'\n        )
     return (
         '<section class="react-report-preview-contract" '
         'data-report-renderer="react" data-report-layout="a3-landscape" '
