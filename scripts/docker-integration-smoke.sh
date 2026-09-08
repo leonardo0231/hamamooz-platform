@@ -357,6 +357,9 @@ media_box = re.search(
 if media_box is None:
     raise SystemExit('The browser output has no PDF MediaBox.')
 width, height = (float(value) for value in media_box.groups())
+page_count = len(re.findall(rb'/Type\s*/Page\b', pdf))
+if page_count != 1:
+    raise SystemExit(f'Expected one-page report output, received {page_count} pages.')
 if not (1185 <= width <= 1195 and 838 <= height <= 845 and width > height):
     raise SystemExit(f'Expected A3 landscape points, received {width} x {height}.')
 Path('/tmp/report-output-evidence.txt').write_text(
