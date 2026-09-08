@@ -1,7 +1,7 @@
 import { html } from '../core/view.js';
 
 /*
- * Report charts are deliberately rendered by the Preact component tree as
+ * Report charts are deliberately rendered by the React component tree as
  * inline SVG/HTML. The report is a printable document, so an imperative
  * canvas/chart runtime would make the printed result depend on load timing,
  * font availability, or a second rendering engine. Keeping the small chart
@@ -73,7 +73,7 @@ function TrendChart({ option, label, className }) {
   const area = first && last && segments.length === 1
     ? `${linePath(segments[0])} L ${last.x.toFixed(2)} ${(height - padding.bottom).toFixed(2)} L ${first.x.toFixed(2)} ${(height - padding.bottom).toFixed(2)} Z`
     : '';
-  return chartShell({ label, className, children: html`<svg class="echart__svg echart__svg--trend" viewBox=${`0 0 ${width} ${height}`} preserveAspectRatio="none" focusable="false" aria-hidden="true">
+  return chartShell({ label, className, children: html`<svg class="echart__svg echart__svg--trend" viewBox=${`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet" focusable="false" aria-hidden="true">
     <title>${label}</title>
     ${ticks.map((tick, index) => {
       const y = padding.top + ((height - padding.top - padding.bottom) * index) / 4;
@@ -144,7 +144,7 @@ function RadarChart({ option, label, className }) {
   const radius = 94;
   const { points, segments } = radarSegments(values, indicators.length, cx, cy, radius);
   const hasData = points.some(Boolean);
-  return chartShell({ label, className, children: html`<svg class="echart__svg echart__svg--radar" viewBox=${`0 0 ${width} ${height}`} preserveAspectRatio="none" focusable="false" aria-hidden="true">
+  return chartShell({ label, className, children: html`<svg class="echart__svg echart__svg--radar" viewBox=${`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet" focusable="false" aria-hidden="true">
     <title>${label}</title>
     ${[.25, .5, .75, 1].map(scale => html`<polygon key=${`radar-ring-${scale}`} points=${radarRing(indicators.length, cx, cy, radius, scale)} fill=${scale === 1 ? '#f2faf8' : 'none'} stroke="#bfd7d2" stroke-width="1" vector-effect="non-scaling-stroke"/>`)}
     ${indicators.map((item, index) => {
