@@ -45,7 +45,6 @@ export function ReportsPage() {
   const [form, setForm] = useState({ school: '', academic_year: '', term: '', class_section: '', scope: 'class', page_size: REPORT_PAGE_SIZE });
   const [creating, setCreating] = useState(false);
   const [previewSnapshot, setPreviewSnapshot] = useState(null);
-  const [previewReportId, setPreviewReportId] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState(null);
 
@@ -84,7 +83,6 @@ export function ReportsPage() {
     try {
       const archive = await apiRequest(`reports/${reportId}/`);
       setPreviewSnapshot(archive.snapshot);
-      setPreviewReportId(archive.id);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       setPreviewError(err);
