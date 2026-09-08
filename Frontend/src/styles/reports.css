@@ -135,6 +135,7 @@ ol.report-bullet-list { list-style-type: decimal; }
 .report-stars { direction: ltr; display: inline-flex; align-items: center; gap: 2px; color: #d4dfe0; }
 .report-stars .icon { width: 16px; height: 16px; }
 .report-stars .is-on { color: #dfaa2b; fill: currentColor; }
+.report-rating-missing { color: #7d8d8c; font-size: .76rem; font-weight: 800; white-space: nowrap; }
 .analytical-empty { margin: 0; color: #6c8180; font-size: .88rem; text-align: center; }
 .report-metric-bars { display: grid; gap: 9px; padding: 2px 0; }
 .report-metric-bar { display: grid; gap: 4px; min-width: 0; }
@@ -293,6 +294,7 @@ ol.report-bullet-list { list-style-type: decimal; }
   .report-rating-list b { font-size: 10px; }
   .report-stars { gap: 1px; }
   .report-stars .icon { width: 12px; height: 12px; }
+  .report-rating-missing { font-size: 10px; }
   .report-metric-bars { gap: 4px; }
   .report-metric-bar { gap: 2px; }
   .report-metric-bar__head { font-size: 11px; }
