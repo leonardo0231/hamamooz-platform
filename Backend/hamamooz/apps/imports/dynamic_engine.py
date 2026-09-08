@@ -35,8 +35,7 @@ class DynamicWorkbookAnalyzer:
     def detect_headers(self, row):
         result = {}
         normalized_aliases = {
-            key: {self.normalize(v) for v in values}
-            for key, values in HEADER_ALIASES.items()
+            key: {self.normalize(v) for v in values} for key, values in HEADER_ALIASES.items()
         }
         for index, value in enumerate(row):
             text = self.normalize(value)
@@ -56,13 +55,16 @@ class DynamicWorkbookAnalyzer:
             for row in sheet.iter_rows(values_only=True):
                 for value in row:
                     code = str(value or "")
-                    if (code.startswith("EDU_") or code.startswith("PER_")) and code not in profile.indicators:
+                    if (
+                        code.startswith("EDU_") or code.startswith("PER_")
+                    ) and code not in profile.indicators:
                         profile.indicators.append(code)
         return profile
 
 
 def inspect_uploaded_workbook(path):
     from openpyxl import load_workbook
+
     workbook = load_workbook(path, read_only=True, data_only=True)
     try:
         return DynamicWorkbookAnalyzer().analyze(workbook)
