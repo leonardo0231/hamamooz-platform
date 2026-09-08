@@ -35,12 +35,12 @@ class DynamicImportValidator:
         issues = []
         required = self.REQUIRED_FIELDS.get(import_type, set())
         missing = required - set(mapped_headers)
-        for field in sorted(missing):
+        for missing_field in sorted(missing):
             issues.append(
                 ValidationIssue(
                     level="error",
-                    message=f"Required field missing: {field}",
-                    column=field,
+                    message=f"Required field missing: {missing_field}",
+                    column=missing_field,
                 )
             )
         return ValidationResult(valid=not issues, issues=issues)
