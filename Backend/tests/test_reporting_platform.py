@@ -4,9 +4,9 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
-from hamamooz.apps.recommendations.models import Recommendation
 from hamamooz.apps.evaluations.catalog import DOMAIN_DEFINITIONS
 from hamamooz.apps.evaluations.models import MetricScore, MonthlyEvaluation
+from hamamooz.apps.recommendations.models import Recommendation
 from hamamooz.apps.reports.models import ReportArchive, ReportDraft, ReportTemplate
 from hamamooz.apps.reports.services import (
     build_draft_snapshot,
