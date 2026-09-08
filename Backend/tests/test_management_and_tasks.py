@@ -76,8 +76,17 @@ def test_generate_import_templates_cli_supports_smart_class_template(base_data, 
 
 
 @pytest.mark.django_db
-def test_calculation_and_report_tasks_return_serializable_results(base_data, settings, tmp_path):
+def test_calculation_and_report_tasks_return_serializable_results(
+    base_data, settings, tmp_path, monkeypatch
+):
     settings.MEDIA_ROOT = tmp_path
+    # The task test intentionally does not boot the frontend container. Keep
+    # production on the Chromium/React path while using the explicit renderer
+    # seam for this isolated service assertion.
+    monkeypatch.setattr(
+        "hamamooz.apps.reports.services.render_report_pdf",
+        lambda snapshot: b"%PDF-1.7\\nfixture",
+    )
     assessment = Assessment.objects.create(
         course_offering=base_data["offering1"],
         assessment_type=base_data["final"],
