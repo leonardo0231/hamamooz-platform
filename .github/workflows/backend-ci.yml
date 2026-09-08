@@ -258,5 +258,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      - name: Prepare browser report evidence directory
+        run: mkdir -p "${{ runner.temp }}/hamamooz-report-evidence"
+
       - name: Run clean-boot Compose integration smoke
+        env:
+          REPORT_OUTPUT_ARTIFACT_DIR: ${{ runner.temp }}/hamamooz-report-evidence
         run: bash scripts/docker-integration-smoke.sh
+
+      - name: Upload browser A3 report evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: report-output-a3-${{ github.run_id }}
+          path: ${{ runner.temp }}/hamamooz-report-evidence
+          if-no-files-found: warn
+          retention-days: 7
