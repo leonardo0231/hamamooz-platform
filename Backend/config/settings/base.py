@@ -270,6 +270,14 @@ ATTENDANCE_NOTIFICATION_STALE_MINUTES = int(
     os.getenv("ATTENDANCE_NOTIFICATION_STALE_MINUTES", "15")
 )
 REPORT_PROCESSING_TIMEOUT_MINUTES = int(os.getenv("REPORT_PROCESSING_TIMEOUT_MINUTES", "30"))
+# The official PDF renderer opens the compiled React report entry in the
+# browser runtime. In the local Compose network ``frontend:8080`` is the
+# static Nginx service; deployments may point this at their private frontend
+# origin without putting a student snapshot in a URL.
+REPORT_FRONTEND_URL = os.getenv(
+    "REPORT_FRONTEND_URL", "http://frontend:8080/report-sample.html"
+).strip()
+REPORT_RENDER_TIMEOUT_MS = int(os.getenv("REPORT_RENDER_TIMEOUT_MS", "30000"))
 IMPORT_PROCESSING_TIMEOUT_MINUTES = int(os.getenv("IMPORT_PROCESSING_TIMEOUT_MINUTES", "30"))
 IMPORT_MAX_ROWS = int(os.getenv("IMPORT_MAX_ROWS", "5000"))
 IMPORT_MAX_COLUMNS = int(os.getenv("IMPORT_MAX_COLUMNS", "20"))
