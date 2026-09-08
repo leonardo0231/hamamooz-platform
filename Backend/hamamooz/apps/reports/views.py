@@ -14,6 +14,7 @@ from hamamooz.apps.accounts.models import Role
 from hamamooz.apps.core.services import record_audit
 from hamamooz.apps.core.viewsets import AuditedModelViewSet
 
+from .chromium_renderer import _print_url
 from .models import ReportArchive, ReportBatch, ReportDraft, ReportTemplate
 from .serializers import (
     ReportArchiveSerializer,
@@ -26,7 +27,6 @@ from .serializers import (
     ReportPreviewSerializer,
     ReportTemplateSerializer,
 )
-from .chromium_renderer import _print_url
 from .services import build_report_render_snapshot, render_report_draft
 from .tasks import generate_report_batch_task, generate_report_task
 
@@ -74,6 +74,7 @@ def _react_preview_markup():
         "<p>این پیش‌نمایش از باندل React و snapshot مجاز گزارش ساخته می‌شود.</p>"
         f"{entry}</section>"
     )
+
 
 def _safe_filename_part(value):
     return (
