@@ -7,7 +7,6 @@ Photo filenames are treated as the student national code:
 from pathlib import Path
 from zipfile import ZipFile
 
-
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
 
