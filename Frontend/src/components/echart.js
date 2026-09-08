@@ -179,7 +179,7 @@ function BarsChart({ option, label, className }) {
 /**
  * Compatibility component for the report's existing chart call sites. The
  * name is retained to keep the report API stable, but no chart is delegated
- * to WeasyPrint, canvas, or a second server renderer.
+ * to canvas or a second server renderer.
  */
 export function EChart({ option, label, className = '', emptyLabel = 'داده کافی نیست' }) {
   if (!option) return html`<div class=${`echart echart--empty ${className}`} role="img" aria-label=${label ?? emptyLabel}>${emptyLabel}</div>`;
