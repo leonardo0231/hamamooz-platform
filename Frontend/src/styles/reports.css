@@ -319,6 +319,14 @@ ol.report-bullet-list { list-style-type: decimal; }
   .report-signature-heading span { font-size: 12px; }
   .report-signatures { gap: 7px; }
   .report-signatures span { min-height: 36px; padding-top: 16px; font-size: 13px; }
+  /* Recommendation copy stays grouped and wraps instead of being clipped by
+     the generic panel overflow rule. The fixed A3 sheet and row budget keep
+     the complete demo composition on one page. */
+  .analytical-recommendations,
+  .analytical-recommendations .analytical-panel__body,
+  .report-recommendation-grid,
+  .report-recommendation-group { overflow: visible; min-height: 0; }
+  .report-recommendation-group .report-bullet-list li { white-space: normal; overflow-wrap: anywhere; break-inside: avoid; }
 
   /* The application shell and creation controls are not part of the printed
      report.  This selector is intentionally class-scoped so a browser print
