@@ -270,7 +270,7 @@ ol.report-bullet-list { list-style-type: decimal; }
   .analytical-activities .analytical-panel__header { min-height: 20px; padding: 2px 8px; }
   .analytical-activities .analytical-panel__header h3 { font-size: 13px; line-height: 1.1; }
   .analytical-activities .analytical-panel__body { padding: 0; }
-  .analytical-radar .analytical-panel__body { padding: 2px; }
+  .analytical-radar .analytical-panel__body { padding: 0; }
   .report-portrait { width: 112px; height: 130px; margin-bottom: 6px; border-width: 3px; }
   .report-avatar-fallback { gap: 4px; font-size: .82rem; }
   .report-avatar-fallback small { font-size: 13px; }
@@ -330,7 +330,7 @@ ol.report-bullet-list { list-style-type: decimal; }
   .report-signatures span { min-height: 36px; padding-top: 16px; font-size: 13px; }
   /* Recommendations stay inside their allocated row. Long Persian copy wraps
      within each card, so it cannot spill into a later panel or page. */
-  .analytical-table .analytical-panel__body { padding: 2px; }
+  .analytical-table .analytical-panel__body { padding: 0; }
   .analytical-recommendations .analytical-panel__body { min-height: 0; padding: 2px; }
   .report-recommendation-grid { min-height: 0; gap: 5px; align-items: stretch; }
   .analytical-recommendations .analytical-panel__body { padding: 0; }
@@ -345,10 +345,6 @@ ol.report-bullet-list { list-style-type: decimal; }
   .report-awards > div { gap: 2px; padding: 0 2px; }
   .report-awards b { font-size: 13px; line-height: 1.05; }
   .report-awards small { font-size: 12px; line-height: 1.05; }
-  .report-awards > div { gap: 3px; padding: 1px 3px; }
-  .report-awards .report-sticker { width: 28px; height: 28px; }
-  .report-awards b { font-size: 12px; }
-  .report-awards small { font-size: 11px; }
 
   /* The application shell and creation controls are not part of the printed
      report.  This selector is intentionally class-scoped so a browser print
