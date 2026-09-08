@@ -2,7 +2,7 @@
 
 ## وضعیت پیاده‌سازی
 
-F6 `ReportTemplate` و `ReportDraft` را با workflow draft → submit → approve → render → archive پیاده‌سازی می‌کند. template فقط blockهای allowlisted و overrideهای متنی کنترل‌شده می‌پذیرد. PDF با WeasyPrint و Word editable با `docxtpl` و template کنترل‌شدهٔ `templates/reports/report_card.docx` ساخته می‌شود؛ archive و MIME دانلود format خروجی را ثبت می‌کنند. Snapshot recommendation محرمانهٔ Counselor را شامل نمی‌شود.
+F6 `ReportTemplate` و `ReportDraft` را با workflow draft → submit → approve → render → archive پیاده‌سازی می‌کند. template فقط blockهای allowlisted و overrideهای متنی کنترل‌شده می‌پذیرد. PDF رسمی از مسیر Chromium/Playwright و Word editable با `docxtpl` و template کنترل‌شدهٔ `templates/reports/report_card.docx` ساخته می‌شود؛ در نبود browser bundle خطای صریح ثبت می‌شود و fallback پنهان وجود ندارد. archive و MIME دانلود format خروجی را ثبت می‌کنند. Snapshot recommendation محرمانهٔ Counselor را شامل نمی‌شود.
 
 ## وضع فعلی
 
@@ -30,4 +30,4 @@ Snapshot رسمی شامل student، grades، calculation policy/version، atten
 
 ## Format و تست
 
-WeasyPrint برای PDF و `docxtpl` برای Word editable پیاده‌سازی شده‌اند. `presentation.page_size` فقط مقدارهای allowlisted `a4_portrait` و `a3_landscape` می‌پذیرد؛ بنابراین A3 landscape با همان موتور و بدون CSS/Jinja دلخواه ساخته می‌شود. Test ثابت می‌کند snapshot پس از تغییر دادهٔ جاری همان semantic result را بازتولید می‌کند.
+Chromium/Playwright برای PDF و `docxtpl` برای Word editable پیاده‌سازی شده‌اند. `presentation.page_size` فقط مقدارهای allowlisted `a4_portrait` و `a3_landscape` می‌پذیرد؛ بنابراین A3 landscape با renderer مرورگر و بدون CSS/Jinja دلخواه ساخته می‌شود. وابستگی WeasyPrint از سطح runtime حذف شده است. Test ثابت می‌کند snapshot پس از تغییر دادهٔ جاری همان semantic result را بازتولید می‌کند.
