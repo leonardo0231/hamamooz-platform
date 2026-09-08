@@ -108,11 +108,12 @@ test('standalone report entry exposes a readiness marker for browser print autom
   assert.match(sampleScript, /printAnalyticalReport/);
   assert.match(styles, /body\.report-printing \.sidebar/);
   assert.match(styles, /height:\s*calc\(297mm - 12mm\)/);
-  assert.match(styles, /grid-template-rows:\s*175px 145px 250px 90px 70px 60px/);
+  assert.match(styles, /grid-template-rows:\s*175px 155px 248px 90px 70px 50px/);
   assert.match(styles, /\.echart--radar \{ height: 216px; min-height: 216px; padding-bottom: 90px; \}/);
   assert.match(styles, /\.echart__svg--radar text \{ font-size: 20px; \}/);
   assert.match(styles, /\.report-radar-legend \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\); height: 90px;/);
-  assert.match(styles, /\.report-radar-legend span \{ display: flex; align-items: flex-start/);
+  assert.match(styles, /\.report-radar-legend span \{ display: flex; flex-wrap: nowrap; align-items: flex-start/);
+  assert.match(styles, /\.report-radar-legend em \{ flex: 1 1 auto; min-width: 0; overflow: visible; overflow-wrap: anywhere; text-overflow: clip; white-space: normal/);
   assert.match(styles, /\.report-recommendation-group \{ min-height: 0; overflow: hidden;/);
   assert.doesNotMatch(styles, /\.report-recommendation-group \{[^}]*overflow: visible/);
   assert.match(styles, /\.analytical-sheet__footer \{ flex: 0 0 86px; min-height: 86px; max-height: 86px; margin-top: auto/);
