@@ -145,11 +145,11 @@ ol.report-bullet-list { list-style-type: decimal; }
 .report-metric-bar__track { height: 10px; overflow: hidden; border-radius: 99px; background: #edf2f4; box-shadow: inset 0 0 0 1px rgba(14, 55, 65, .04); }
 .report-metric-bar__track i { display: block; height: 100%; border-radius: inherit; }
 .report-radar-legend { position: absolute; right: 0; bottom: 0; left: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px 14px; }
-.report-radar-legend span { display: flex; align-items: center; min-width: 0; gap: 6px; color: #53686a; font-size: .8rem; line-height: 1.35; }
+.report-radar-legend span { display: flex; align-items: flex-start; min-width: 0; gap: 6px; color: #53686a; font-size: .8rem; line-height: 1.35; }
 .report-radar-legend span.is-missing { color: #7d8d8c; }
 .report-radar-legend i { display: grid; place-items: center; flex: none; width: 19px; height: 19px; border: 1px solid #0e7490; border-radius: 50%; color: #0e7490; background: #eef8f7; font-size: .66rem; font-style: normal; font-weight: 900; }
 .report-radar-legend .is-missing i { border-color: #aab8b7; color: #748584; background: #f1f5f4; }
-.report-radar-legend em { overflow: hidden; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.report-radar-legend em { flex: 1 1 auto; min-width: 0; overflow: visible; font-style: normal; overflow-wrap: anywhere; text-overflow: clip; white-space: normal; }
 .report-radar-legend b { flex: none; color: #0e7490; font-size: .76rem; font-weight: 900; }
 .report-radar-legend .is-missing b { color: #7d8d8c; }
 .report-radar-numbers { position: absolute; top: calc((100% - 122px) / 2); left: 50%; width: min(100%, 238px); aspect-ratio: 1; transform: translate(-50%, -50%); pointer-events: none; }
@@ -308,8 +308,8 @@ ol.report-bullet-list { list-style-type: decimal; }
   .report-metric-bar__head b { font-size: 13px; }
   .report-metric-bar__track { height: 7px; }
   .report-radar-legend { grid-template-columns: repeat(3, minmax(0, 1fr)); height: 90px; gap: 3px 6px; align-items: start; overflow: hidden; }
-  .report-radar-legend span { display: flex; flex-wrap: nowrap; align-items: flex-start; min-width: 0; gap: 4px; font-size: 13px; line-height: 1.05; }
-  .report-radar-legend em { flex: 1 1 auto; min-width: 0; overflow: hidden; overflow-wrap: anywhere; text-overflow: clip; white-space: normal; line-height: 1.05; }
+  .report-radar-legend span { display: flex; align-items: flex-start; min-width: 0; gap: 4px; font-size: 13px; line-height: 1.05; }
+  .report-radar-legend em { flex: 1 1 auto; min-width: 0; overflow: visible; overflow-wrap: anywhere; text-overflow: clip; white-space: normal; line-height: 1.05; }
   .report-radar-legend b { flex: none; margin-inline-start: auto; font-size: 13px; line-height: 1.05; }
   .report-radar-legend i { width: 18px; height: 18px; font-size: 12px; }
   .report-radar-numbers { width: min(100%, 190px); }
