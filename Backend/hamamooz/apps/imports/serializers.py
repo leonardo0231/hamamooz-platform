@@ -5,6 +5,7 @@ from django.db import IntegrityError, transaction
 from rest_framework import serializers
 
 from hamamooz.apps.accounts.access import accessible_school_ids
+from hamamooz.apps.organizations.models import School
 
 from .defaults import get_default_school
 from .models import ImportJob
@@ -19,6 +20,9 @@ def uploaded_file_checksum(uploaded_file):
 
 
 class ImportJobSerializer(serializers.ModelSerializer):
+    school = serializers.PrimaryKeyRelatedField(
+        queryset=School.objects.all(), required=False, allow_null=True
+    )
     requested_by_name = serializers.CharField(source="requested_by.get_full_name", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     organization_name = serializers.CharField(source="organization.name", read_only=True)
@@ -42,11 +46,19 @@ class ImportJobSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-        school = get_default_school()
-        attrs["school"] = school
+        request = self.context["request"]
+        school = attrs.get("school")
+        if school is None:
+            try:
+                school = get_default_school(school_ids=accessible_school_ids(request.user))
+            except School.DoesNotExist as exc:
+                raise serializers.ValidationError(
+                    {"school": "هیچ شعبهٔ فعالی برای ثبت فایل در دسترس نیست."}
+                ) from exc
+            attrs["school"] = school
+
         source = attrs.get("source_file")
         import_type = attrs.get("import_type")
-        request = self.context["request"]
 
         if school.id not in set(accessible_school_ids(request.user)):
             raise serializers.ValidationError({"school": "به این شعبه دسترسی ندارید."})
