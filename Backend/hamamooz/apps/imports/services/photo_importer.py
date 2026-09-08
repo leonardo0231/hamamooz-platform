@@ -46,9 +46,7 @@ class PhotoImportResult:
         }
 
 
-_PERSIAN_ARABIC_DIGITS = str.maketrans(
-    "۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789"
-)
+_PERSIAN_ARABIC_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
 
 
 def normalize_identifier(value):
@@ -153,7 +151,9 @@ class StudentPhotoImporter:
 
             duplicate_ids = {
                 identifier
-                for identifier, count in Counter(identifier for _, identifier, _ in candidates).items()
+                for identifier, count in Counter(
+                    identifier for _, identifier, _ in candidates
+                ).items()
                 if count > 1
             }
             for filename, identifier, _item in candidates:
