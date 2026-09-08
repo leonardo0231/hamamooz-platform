@@ -95,6 +95,13 @@ test('report output is browser-native and never exposes the legacy PDF/ZIP contr
   assert.match(chart, /preserveAspectRatio="xMidYMid meet"/);
   assert.match(chart, /report-radar-legend/);
   assert.match(chart, /is-missing/);
+  assert.doesNotMatch(chart, /radarLabelPoint/);
+  assert.match(chart, /x=\$\{edge\.x\} y=\$\{edge\.y \+ 4\} text-anchor="middle"/);
+  assert.match(chart, /fa\(index \+ 1\)/);
+  assert.doesNotMatch(chart, /<text[^>]*>\$\{item\.title \?\? item\.name\}<\/text>/);
+  assert.match(chart, /const displayText = available/);
+  assert.match(chart, /const accessibleText = available \? displayText : 'ثبت نشده'/);
+  assert.match(chart, /<b>\$\{displayText\}<\/b>/);
   assert.doesNotMatch(chart, /<canvas\b/);
   assert.doesNotMatch(chart, /import\(['"]\/vendor\/echarts\.mjs/);
   assert.doesNotMatch(build, /node_modules['"`]?,\s*['"]echarts|echarts\.esm/);
@@ -112,8 +119,10 @@ test('standalone report entry exposes a readiness marker for browser print autom
   assert.match(styles, /\.echart--radar \{ height: 216px; min-height: 216px; padding-bottom: 90px; \}/);
   assert.match(styles, /\.echart__svg--radar text \{ font-size: 20px; \}/);
   assert.match(styles, /\.report-radar-legend \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\); height: 90px;/);
-  assert.match(styles, /\.report-radar-legend span \{ display: flex; flex-wrap: nowrap; align-items: flex-start/);
-  assert.match(styles, /\.report-radar-legend em \{ flex: 1 1 auto; min-width: 0; overflow: hidden; overflow-wrap: anywhere; text-overflow: clip; white-space: normal/);
+  assert.match(styles, /\.report-radar-legend span \{ display: flex; align-items: flex-start; min-width: 0; gap: 4px;/);
+  assert.match(styles, /\.report-radar-legend em \{ flex: 1 1 auto; min-width: 0; overflow: visible; overflow-wrap: anywhere; text-overflow: clip; white-space: normal/);
+  assert.match(styles, /\.report-radar-legend b \{ flex: none;/);
+  assert.doesNotMatch(styles, /@media print[\s\S]*?\.report-radar-legend span \{[^}]*flex-wrap:\s*nowrap/);
   assert.match(styles, /\.report-recommendation-group \{ min-height: 0; overflow: hidden;/);
   assert.doesNotMatch(styles, /\.report-recommendation-group \{[^}]*overflow: visible/);
   assert.match(styles, /\.analytical-sheet__footer \{ flex: 0 0 86px; min-height: 86px; max-height: 86px; margin-top: auto/);
