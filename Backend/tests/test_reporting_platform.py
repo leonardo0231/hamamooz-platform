@@ -89,7 +89,12 @@ def test_report_template_allows_only_safe_a3_landscape_page_configuration(base_d
         template, term=base_data["term"], class_section=base_data["class1"]
     )
     assert "size: A3 landscape;" in render_report_html(snapshot)
-    assert render_report_pdf(snapshot).startswith(b"%PDF")
+
+    class FixtureRenderer:
+        def render(self, html, **kwargs):
+            return b"%PDF-1.7\nfixture"
+
+    assert render_report_pdf(snapshot, renderer=FixtureRenderer()).startswith(b"%PDF")
 
     template.presentation = {"page_size": "A3 landscape; @import url(https://invalid.example)"}
     with pytest.raises(ValidationError):
