@@ -108,7 +108,7 @@ test('standalone report entry exposes a readiness marker for browser print autom
   assert.match(sampleScript, /printAnalyticalReport/);
   assert.match(styles, /body\.report-printing \.sidebar/);
   assert.match(styles, /height:\s*calc\(297mm - 12mm\)/);
-  assert.match(styles, /grid-template-rows:\s*175px 155px 248px 90px 70px 50px/);
+  assert.match(styles, /grid-template-rows:\s*175px 155px 248px 90px 65px 55px/);
   assert.match(styles, /\.echart--radar \{ height: 216px; min-height: 216px; padding-bottom: 90px; \}/);
   assert.match(styles, /\.echart__svg--radar text \{ font-size: 20px; \}/);
   assert.match(styles, /\.report-radar-legend \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\); height: 90px;/);
