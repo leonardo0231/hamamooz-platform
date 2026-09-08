@@ -13,6 +13,10 @@ class ImportJob(SoftDeleteModel):
         COMPREHENSIVE_SCHOOL = "comprehensive_school", "فایل جامع مدرسه"
 
     class Status(models.TextChoices):
+        # Legacy workbook workers use an explicit queue state.  Keep it as a
+        # compatibility choice while newly uploaded jobs still start at
+        # ``uploaded`` and pass through preview/confirmation.
+        QUEUED = "queued", "در صف"
         UPLOADED = "uploaded", "آپلود شده"
         ANALYZING = "analyzing", "در حال تحلیل"
         PREVIEW_READY = "preview_ready", "پیش‌نمایش آماده"
