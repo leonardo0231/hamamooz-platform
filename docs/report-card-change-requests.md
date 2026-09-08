@@ -55,13 +55,16 @@ report entries into a local production bundle.
 
 The selected target for C7-01 is literal React/ReactDOM in the browser; this
 does not claim a Next.js migration or a server-side React PDF. A
-Playwright/Chromium worker is still unavailable in this checkout. The legacy
-Django archive worker still contains a WeasyPrint path for backward
-compatibility, which is saved as C7-02 and is not used by the report
-preview/print flow. Chromium runtime provisioning and deterministic PDF
-verification are saved separately as C7-03. A final “all outputs are React”
-approval remains blocked until the Chromium architecture is deployed, or the
-school explicitly waives that finding.
+Playwright/Chromium worker is still unavailable in this checkout. The public
+Django `render_report_pdf` path now delegates to an explicit Chromium
+boundary and raises a clear unavailable error when Playwright or its browser
+bundle is missing; it never silently falls back to WeasyPrint. This bounded
+step still renders the approved Django snapshot HTML, not the React bundle,
+and therefore makes no claim of server-side React rendering. Chromium runtime
+provisioning and deterministic PDF verification remain saved separately as
+C7-03. A final “all outputs are React” approval remains blocked until the
+Chromium architecture is deployed, or the school explicitly waives that
+finding.
 
 ### Cycle-8 React/Vite migration evidence
 
@@ -213,6 +216,7 @@ school-owned input is required; **In review** means the VP loop is active;
 | Cycle-7 C7-01 React/Vite executor · 2026-09-08 | **IMPLEMENTED; VP REVIEW PENDING** | Replaced the frontend renderer boundary with React 19/ReactDOM, retained HTM templates through the compatibility adapter, added a pinned Vite multi-page build for the dashboard and standalone A3 report, and flushed the initial React commit before print-readiness inspection. Native SVG charts and the existing A3 browser print DOM remain the canonical report path. Direct frontend evidence: 23 Node tests, source lint, Vite production build, package-lock consistency, and `git diff --check` all passed. The remote commit sequence is recorded below; it is not an unpushed local change. |
 | Cycle-8 strict VP review · 2026-09-08 · remote head [`967824e7`](https://github.com/leonardo0231/hamamooz-platform/commit/967824e7bf5e216355f321dd498246142d869784) | **CONDITIONAL — INPUTS/INFRASTRUCTURE REQUIRED (NOT APPROVED)** | Passed: React 19/ReactDOM + Vite migration, inline SVG report charts, fixed A3 layout, radar/readiness, fallbacks, grouped recommendations, stickers, signatures, and local evidence of 23 frontend tests, lint, and Vite build. Remaining blockers: server `render_report_pdf` still uses WeasyPrint; Playwright/Chromium is not wired/provisioned; no real Chrome A3 artifact; school-owned photo/logo/grades/signers are missing; and backend CI is unverified with the previous run red. C7-01 remains a Next.js decision/waiver if Next is mandatory; C7-02–C7-06 and R7-CI-01 remain open. |
 | Cycle-8 snapshot/CI follow-up · 2026-09-08 · remote head [`271880cc`](https://github.com/leonardo0231/hamamooz-platform/commit/271880cc810c3e7257d075331c98df9b9833496e) | **CONDITIONAL — INPUTS/INFRASTRUCTURE REQUIRED (NOT APPROVED)** | Secure snapshot injection (`fbd09fe`) and its contract test (`271880cc`) are present; the generated evaluations migration was added in `ee55f36` after the earlier backend failure. Frontend CI run 34236414092 passed; backend CI run 34236414165 failed before that migration. The current head has no associated workflow run/status in the present API check. WeasyPrint replacement, Chromium provisioning and real Chrome A3 evidence, school-owned photo/logo/grades/signers, and a green post-migration backend CI run remain required. |
+| Cycle-8 C7-02/C7-03 renderer-boundary executor · 2026-09-08 · commits [`4441057d`](https://github.com/leonardo0231/hamamooz-platform/commit/4441057d828191a88cd553f60ec642f70f3c46fa) → [`da81f812`](https://github.com/leonardo0231/hamamooz-platform/commit/da81f8129890d83d5c73ede07b1398e4776a947f) → [`2c7700d7`](https://github.com/leonardo0231/hamamooz-platform/commit/2c7700d7ea3a87d2207a4673123b300d2a0df3a3) → [`d1932890`](https://github.com/leonardo0231/hamamooz-platform/commit/d19328901664154c0142a651f8e9852b2f39ee82) | **PARTIAL IMPLEMENTATION — VP REVIEW PENDING** | `render_report_pdf` now selects the Chromium renderer through `rendering.render_production_report_pdf`; missing Playwright/Chromium raises `ReportRendererUnavailable`, with no WeasyPrint fallback. The renderer preserves A3 landscape PDF options, injects the application base URL for local fonts/assets, waits for document fonts, and has three focused boundary tests passing. This is Chromium over Django snapshot HTML, not server-side React; the Playwright dependency/browser bundle, real Chrome A3 artifact, school-owned assets/data, and backend CI remain open. |
 
 ### VP-02 exact blockers preserved by the curator
 
@@ -227,7 +231,7 @@ in this register:
 | VP02-GRADES | External input + data integrity | Authoritative workbook, academic year, term, class, and scale are unresolved; overlapping files and the missing class value must be resolved before import. Preserve raw values until the school approves normalization. |
 | VP02-SIGNATURES | External input | The referenced “فایل معاونین و کارشناسان” workbook is missing. Signer names, signature images, and seal remain required inputs. |
 | VP02-RADAR | Code/visual | The nine-domain radar/list must remain complete, readable, and explicit about missing values. The VP must see a real A3 browser print preview. |
-| VP02-RENDERER | Code/infrastructure | The browser report must remain the user-facing path with local SVG stickers and no emoji dependence; the legacy WeasyPrint archive path is not an approved user-facing renderer until Chromium parity is deployed or explicitly waived. |
+| VP02-RENDERER | Code/infrastructure | The browser report remains the user-facing path with local SVG stickers and no emoji dependence; the server PDF boundary is now Chromium-only and fails explicitly when its runtime is missing, but real Chromium parity/print evidence is still required before approval. |
 
 ### Cycle-4 implementation evidence
 
