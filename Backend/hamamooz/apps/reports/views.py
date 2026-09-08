@@ -58,7 +58,7 @@ def _react_preview_markup():
 
     frontend_url = str(getattr(settings, "REPORT_FRONTEND_URL", "") or "").strip()
     if frontend_url:
-        print_url = escape(_print_url(frontend_url), quote=True)
+        print_url = escape(_print_url(frontend_url))
         entry = (
             f'<a data-report-preview-entry="react" href="{print_url}">'
             "بازکردن پیش‌نمایش React / چاپ A3"
