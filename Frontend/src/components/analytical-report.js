@@ -237,8 +237,9 @@ export {
 };
 
 function normalizeDomainScores(rows, metricRows = []) {
-  const hasAuthoritativeRows = Array.isArray(rows) && rows.length > 0;
-  const rowByCode = new Map((rows ?? []).map(item => [
+  const sourceRows = Array.isArray(rows) ? rows : [];
+  const hasAuthoritativeRows = sourceRows.length > 0;
+  const rowByCode = new Map(sourceRows.map(item => [
     String(item?.code ?? item?.domain_code ?? '').toUpperCase(), item,
   ]));
   const metricGroups = new Map();
@@ -282,7 +283,10 @@ function mapSnapshot(snapshot) {
   if (!report) return demo;
   const context = report.product_context ?? {};
   const latest = context.evaluations?.at?.(-1);
-  const rawMetrics = latest?.metrics ?? latest?.metric_scores ?? {};
+  // Some older snapshots emitted both fields but left `metrics` empty.  Use
+  // the populated representation first so a sparse array cannot hide the
+  // persisted metric-score map.
+  const rawMetrics = latest?.metrics?.length ? latest.metrics : latest?.metric_scores ?? [];
   const metrics = Array.isArray(rawMetrics)
     ? rawMetrics
     : Object.entries(rawMetrics).map(([code, value]) => ({ code, title: titleForMetric(code), value }));
