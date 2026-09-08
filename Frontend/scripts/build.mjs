@@ -1,4 +1,4 @@
-import { copyFile, cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -11,17 +11,10 @@ await mkdir(output, { recursive: true });
 await cp(source, output, { recursive: true });
 await cp(resolve(root, 'public'), output, { recursive: true });
 
-// The application is deliberately served as native ESM rather than through a
-// JavaScript bundler.  Keep ECharts on the same origin for the production
-// build: report charts must work in restricted school networks too.
-await copyFile(
-  resolve(root, 'node_modules', 'echarts', 'dist', 'echarts.esm.min.js'),
-  resolve(output, 'vendor', 'echarts.mjs'),
-);
-await copyFile(
-  resolve(root, 'node_modules', 'echarts', 'LICENSE'),
-  resolve(output, 'vendor', 'ECHARTS_LICENSE.txt'),
-);
+// Report charts are inline SVG in the report component.  Do not copy a
+// canvas/chart runtime into the production bundle: the same DOM must be used
+// for screen preview and the browser's A3 print dialog, even when the school
+// network cannot install optional npm packages.
 
 const index = await readFile(resolve(output, 'index.html'), 'utf8');
 if (!index.includes('dir="rtl"') || !index.includes('type="module"')) {
@@ -30,7 +23,7 @@ if (!index.includes('dir="rtl"') || !index.includes('type="module"')) {
 
 await writeFile(resolve(output, 'build-meta.json'), JSON.stringify({
   app: 'hamamooz-frontend',
-  architecture: 'preact-esm',
+  architecture: 'preact-esm-react-compatible-report',
   builtAt: new Date().toISOString(),
 }, null, 2));
 
