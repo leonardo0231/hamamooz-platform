@@ -15,7 +15,7 @@ Represent a report template as an ordered list of allowlisted blocks plus bounde
 
 - New blocks are code-reviewed capabilities.
 - Report configuration is validated schema data, not executable content.
-- PDF rendering can remain WeasyPrint without a custom templating language.
+- The allowlisted template model remains valid; its historical WeasyPrint rendering consequence is superseded by the Chromium/Playwright production boundary.
 
 ## References
 
