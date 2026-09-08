@@ -46,8 +46,4 @@ def process_import_job(job_id):
         _legacy._load_rows = original_loader
 
 
-__all__ = [
-    name
-    for name in globals()
-    if not name.startswith("_")
-]
+__all__ = [name for name in globals() if not name.startswith("_")]
