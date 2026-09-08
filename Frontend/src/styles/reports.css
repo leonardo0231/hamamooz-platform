@@ -254,7 +254,7 @@ ol.report-bullet-list { list-style-type: decimal; }
   .analytical-sheet__heading strong { font-size: .78rem; }
   .analytical-sheet__header blockquote { font-size: .72rem; line-height: 1.55; }
   .analytical-sheet__subhead { min-height: 26px; padding: 4px 10px; font-size: .72rem; }
-  .analytical-analysis-strip { gap: 4px; padding: 4px 6px; }
+  .analytical-analysis-strip { grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; padding: 4px 6px; }
   .analytical-analysis-strip > span { padding: 4px 6px; }
   .analytical-analysis-strip b { font-size: .76rem; }
   .analytical-analysis-strip small { font-size: .68rem; }
