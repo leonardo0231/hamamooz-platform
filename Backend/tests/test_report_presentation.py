@@ -53,7 +53,7 @@ def test_visuals_are_derived_only_from_snapshot_data():
     assert visuals["attendance"]["rate"] == "۹۶"
     assert visuals["strengths"][0]["title"] == "ریاضی"
     assert visuals["improvements"][0]["title"] == "عربی"
-    assert visuals["activities"][0]["icon"] == "🔬"
+    assert visuals["activities"][0]["icon"] == "research"
     assert [item["title"] for item in visuals["awards"]] == ["پژوهش"]
 
 
@@ -65,7 +65,7 @@ def test_missing_data_stays_explicitly_empty_instead_of_becoming_fake_values():
     assert visuals["attendance"]["has_data"] is False
 
 
-def test_approved_parent_copy_is_visible_in_both_recommendation_areas():
+def test_recommendation_override_does_not_fill_independent_family_support_area():
     visuals = build_report_visuals(
         {
             "summary": {},
@@ -80,7 +80,27 @@ def test_approved_parent_copy_is_visible_in_both_recommendation_areas():
     )
 
     assert visuals["recommendations"][0] == "متن نهاییِ تأییدشده برای خانواده."
-    assert visuals["support"][0] == "متن نهاییِ تأییدشده برای خانواده."
+    assert visuals["support"] == []
+    assert visuals["support_status"] == "missing"
+
+
+def test_family_support_uses_only_explicit_support_notes():
+    visuals = build_report_visuals(
+        {
+            "summary": {},
+            "subjects": [],
+            "product_context": {
+                "approved_recommendations": [
+                    {"audience": "parent", "approved_text": "توصیه آموزشی."}
+                ],
+                "support_notes": [{"text": "تماس با خانواده در هفته آینده."}],
+            },
+        }
+    )
+
+    assert visuals["recommendations"] == ["توصیه آموزشی."]
+    assert visuals["support"] == ["تماس با خانواده در هفته آینده."]
+    assert visuals["support_status"] == "available"
 
 
 def test_all_available_evaluation_domains_are_retained_in_report_visuals():
@@ -112,3 +132,38 @@ def test_all_available_evaluation_domains_are_retained_in_report_visuals():
     assert visuals["domains"][4]["value"] == 85
     assert visuals["radar"]["has_data"] is True
     assert len(visuals["radar"]["labels"]) == 9
+
+
+def test_missing_evaluation_domains_are_canonical_and_not_zero():
+    visuals = build_report_visuals(
+        {
+            "summary": {},
+            "subjects": [],
+            "product_context": {
+                "evaluation_analysis": {
+                    "domain_scores": [
+                        {"code": "EDU", "title": "آموزشی", "score": 0},
+                        {"code": "DIS", "title": "انضباطی", "score": None},
+                    ]
+                }
+            },
+        }
+    )
+
+    assert [item["code"] for item in visuals["domains"]] == [
+        "EDU",
+        "DEV",
+        "CHR",
+        "DIS",
+        "CUL",
+        "RES",
+        "SPT",
+        "ART",
+        "PER",
+    ]
+    assert visuals["domains"][0]["value"] == 0
+    assert visuals["domains"][0]["has_data"] is True
+    assert visuals["domains"][3]["value"] is None
+    assert visuals["domains"][3]["has_data"] is False
+    assert visuals["radar"]["is_complete"] is False
+    assert visuals["radar"]["labels"][3]["value"] == "ثبت نشده"
