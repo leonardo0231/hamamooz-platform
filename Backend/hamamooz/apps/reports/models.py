@@ -114,7 +114,7 @@ class ReportBatch(TimeStampedUUIDModel):
         related_name="report_batches",
     )
     scope = models.CharField(max_length=10, choices=Scope.choices)
-    page_size = models.CharField(max_length=20, default="digital_3x2")
+    page_size = models.CharField(max_length=20, default="a3_landscape")
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.QUEUED, db_index=True
     )
@@ -235,7 +235,11 @@ class ReportTemplate(SoftDeleteModel):
             errors["blocks"] = "At least one allowlisted report block is required."
         if not isinstance(self.presentation, dict):
             errors["presentation"] = "Presentation must be an object."
-        elif self.presentation.get("page_size", "a4_portrait") not in ALLOWED_REPORT_PAGE_SIZES:
+        elif self.presentation.get("page_size", "a3_landscape") not in (
+            None,
+            "",
+            *ALLOWED_REPORT_PAGE_SIZES,
+        ):
             errors["presentation"] = "Unsupported report page size."
         if errors:
             raise ValidationError(errors)
