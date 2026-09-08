@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 
-
 INDICATOR_PATTERN = re.compile(r"^(EDU|DEV|CHR|PER|SOC|SKL)_?\d+$", re.I)
 
 
