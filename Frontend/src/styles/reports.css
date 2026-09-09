@@ -124,6 +124,7 @@ ul.report-bullet-list { list-style-type: disc; }
 ol.report-bullet-list { list-style-type: decimal; }
 .report-score-table { width: 100%; border-collapse: collapse; font-size: .86rem; }
 .report-score-table th, .report-score-table td { padding: 5px 6px; border-bottom: 1px solid #e1e9e7; text-align: center; white-space: nowrap; }
+.report-score-table__subject { display: block; overflow-wrap: anywhere; text-align: right; white-space: normal; }
 .report-score-table thead th { color: #0d605d; background: #eef8f6; font-weight: 900; }
 .report-score-table tbody th { color: #365453; font-weight: 700; text-align: right; }
 .report-score-table .is-current, .report-score-table .is-ok { color: #08766f; font-weight: 900; }
@@ -200,6 +201,10 @@ ol.report-bullet-list { list-style-type: decimal; }
 .report-qr { display: grid; grid-template-columns: repeat(21, 3px); grid-template-rows: repeat(21, 3px); gap: 1px; width: max-content; padding: 7px; border-radius: 5px; background: #fff; }
 .report-qr i { display: block; width: 3px; height: 3px; background: #fff; }
 .report-qr i.is-dark { background: #092f4c; }
+.report-qr-frame { display: grid; place-items: center; width: 97px; min-height: 97px; }
+.report-qr-image { display: block; width: 97px; height: 97px; object-fit: contain; padding: 7px; border-radius: 5px; background: #fff; }
+.report-qr-placeholder { display: grid; place-items: center; gap: 5px; width: 97px; min-height: 97px; padding: 9px; border: 1px dashed rgba(213, 233, 229, .75); border-radius: 7px; color: #d5e9e5; background: rgba(255, 255, 255, .08); text-align: center; }
+.report-qr-placeholder small { color: inherit; font-size: .67rem; line-height: 1.35; }
 
 .analytical-sheet__footer { display: grid; gap: 12px; padding: 14px 18px 12px; border: 1px solid #d9e4df; border-top: 0; border-radius: 0 0 15px 15px; color: #556266; background: #f4f7f5; }
 .report-signature-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }

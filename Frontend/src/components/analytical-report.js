@@ -170,6 +170,7 @@ const demo = {
   support: ['همراهی خانواده در مرور برنامه هفتگی', 'گفت‌وگوی کوتاه ماهانه با مشاور مدرسه'],
   attendance: { rate: 96, sessions: 42, unexcused: 1, late: 2 },
   accessCode: 'BAH-1405-99',
+  accessQrUrl: '',
   accessHref: '/reports',
 };
 
@@ -304,7 +305,7 @@ function mapSnapshot(snapshot) {
   const behavior = metricRows.filter(item => /^(DEV|CHR|DIS)_/.test(item.code ?? ''));
   const skills21 = metricRows.filter(item => /^PER_/.test(item.code ?? ''));
   const subjectRows = (report.subjects ?? []).map(item => ({
-    title: item.title, current: numericSubject(item), first: numericSubject(item.first), previous: numericSubject(item.previous),
+    title: item.title ?? 'درس / شاخص ثبت نشده', current: numericSubject(item), first: numericSubject(item.first), previous: numericSubject(item.previous),
     continuous: numericSubject(item.continuous), midterm: numericSubject(item.midterm), final: numericSubject(item.final), passed: item.passed,
   }));
   const history = (report.history ?? []).map(item => {
@@ -348,6 +349,7 @@ function mapSnapshot(snapshot) {
     support: supportNotes,
     attendance: { rate: attendanceRate, sessions: attendance.finalized_session_count ?? null, unexcused: attendance.unexcused_absence_count ?? null, late: attendance.late_count ?? null },
     accessCode: report.id ?? 'REPORT',
+    accessQrUrl: assetUrl(report.access?.qr_data_url || report.access?.qr_url || report.access_qr_url || context.access_qr_url || context.access_qr_data_url),
     accessHref: report.id ? `/reports?report=${encodeURIComponent(report.id)}` : '/reports',
   };
 }
@@ -426,7 +428,18 @@ function Sticker({ kind = 'activity', title }) {
   return html`<span class=${`report-sticker report-sticker--${kind}`} role="img" aria-label=${`نشان ${title}`}><${Icon} name=${icon} size=${27}/></span>`;
 }
 const qrRows = ['111111100101011111111', '100000101110010000001', '101110100011010111101', '101110101101010111101', '101110100010010111101', '100000101011010000001', '111111101010011111111', '000000001101000000000', '110111101001111010101', '001010010111000110010', '111001111010111001111', '010111000110101010100', '101000111001010111001', '000000001011101000111', '111111101110010010110', '100000100101111001001', '101110101011001111100', '101110100110100101010', '101110101001111010001', '100000101110001100111', '111111101001101010101'];
-function QrCode() { return html`<div class="report-qr" aria-label="کد دسترسی کارنامه">${qrRows.flatMap((row, y) => [...row].map((cell, x) => html`<i class=${cell === '1' ? 'is-dark' : ''} style=${`--x:${x};--y:${y}`}></i>`))}</div>`; }
+function QrCode({ report }) {
+  if (report.accessQrUrl) {
+    return html`<span class="report-qr-frame"><img class="report-qr-image" src=${report.accessQrUrl} alt="کد QR دسترسی به کارنامه" onError=${event => {
+      event.currentTarget.hidden = true;
+      event.currentTarget.parentElement?.querySelector('[data-qr-fallback]')?.removeAttribute('hidden');
+    }}/><span class="report-qr-placeholder" data-qr-fallback hidden role="status" aria-label="کد QR در دسترس نیست"><${Icon} name="link" size=${25}/><small>QR در دسترس نیست</small></span></span>`;
+  }
+  if (!report.demo) {
+    return html`<div class="report-qr-placeholder" role="status" aria-label="QR امن برای این کارنامه ثبت نشده"><${Icon} name="link" size=${25}/><small>QR امن ثبت نشده</small></div>`;
+  }
+  return html`<div class="report-qr" aria-label="نماد QR نمایشی؛ قابل اسکن نیست">${qrRows.flatMap((row, y) => [...row].map((cell, x) => html`<i class=${cell === '1' ? 'is-dark' : ''} style=${`--x:${x};--y:${y}`}></i>`))}</div>`;
+}
 function MetricAvailability({ report }) {
   const items = report.domainScores?.length ? report.domainScores : ANALYSIS_DOMAINS.map(domain => ({ ...domain, value: null, hasData: false, completedMetrics: 0 }));
   return html`<div class="analytical-analysis-strip" aria-label="وضعیت داده‌های تحلیلی">${items.map(item => {
@@ -455,7 +468,7 @@ export function AnalyticalReport({ snapshot, loading = false }) {
       <${Panel} title="مشخصات دانش‌آموز" className="analytical-identity" tone="navy"><div class="report-portrait"><${StudentPhoto} report=${report}/></div><dl class="report-identity-list"><div><dt>نام و نام خانوادگی</dt><dd>${report.student.name}</dd></div><div><dt>کد ملی</dt><dd><bdi dir="ltr">${report.student.nationalId}</bdi></dd></div><div><dt>شماره دانش‌آموزی</dt><dd><bdi dir="ltr">${report.student.number}</bdi></dd></div><div><dt>پایه و کلاس</dt><dd>${report.academic.grade} · ${report.academic.className}</dd></div></dl><div class="report-mini-kpis"><span><small>معدل کل</small><strong>${isNumber(report.average) ? reportNumber(report.average) : '—'}</strong></span><span><small>رتبه کلاس</small><strong>${report.rank ? reportNumber(report.rank) : '—'}</strong></span></div></${Panel}>
       <${Panel} title="نمودار روند رشد سه‌ساله" className="analytical-trend" action="میانگین و رتبه"><div class="trend-caption">مقایسهٔ میانگین نهایی سه سال اخیر</div>${loading ? html`<${Empty}/>` : html`<${EChart} option=${trend} label="نمودار روند تحصیلی سه‌ساله" className="echart--trend"/>`}${report.history?.length ? html`<div class="report-trend-foot">${report.history.map(item => html`<span><b>${item.label}</b><i>${reportNumber(item.average)}</i>${item.rank ? html`<small>رتبه ${reportNumber(item.rank)}</small>` : null}</span>`)}</div>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="گزارش مشاور و پیگیری هوشمند" className="analytical-insights" tone="gold"><div class="report-insight-group"><h4>گزارش مشاور</h4>${report.counselor?.length ? html`<ul class="report-bullet-list">${report.counselor.map(item => html`<li>${item}</li>`)}</ul>` : html`<${Empty}/>`}</div><div class="report-insight-group"><h4>موارد پیگیری</h4>${report.followUps?.length ? html`<ul class="report-bullet-list">${report.followUps.map(item => html`<li>${item}</li>`)}</ul>` : html`<${Empty}/>`}</div></${Panel}>
-      <${Panel} title="وضعیت آموزشی و نمرات نهایی" className="analytical-table" tone="teal"><table class="report-score-table"><thead><tr><th>درس / شاخص</th><th>مستمر</th><th>میان‌ترم</th><th>پایانی</th><th>میانگین</th><th>وضعیت</th></tr></thead><tbody>${report.subjects.slice(0, 12).map(subject => html`<tr><th>${subject.title}</th><td>${reportNumber(subject.continuous)}</td><td>${reportNumber(subject.midterm)}</td><td>${reportNumber(subject.final)}</td><td class=${isNumber(subject.current) && subject.current < 12 ? 'is-alert' : 'is-current'}>${reportNumber(subject.current)}</td><td><${SubjectStatus} subject=${subject}/></td></tr>`)}</tbody></table>${!report.subjects?.length && html`<${Empty}/>`}</${Panel}>
+      <${Panel} title="وضعیت آموزشی و نمرات نهایی" className="analytical-table" tone="teal"><table class="report-score-table"><thead><tr><th>درس / شاخص</th><th>مستمر</th><th>میان‌ترم</th><th>پایانی</th><th>میانگین</th><th>وضعیت</th></tr></thead><tbody>${report.subjects.slice(0, 12).map(subject => html`<tr><th><span class="report-score-table__subject">${subject.title}</span></th><td>${reportNumber(subject.continuous)}</td><td>${reportNumber(subject.midterm)}</td><td>${reportNumber(subject.final)}</td><td class=${isNumber(subject.current) && subject.current < 12 ? 'is-alert' : 'is-current'}>${reportNumber(subject.current)}</td><td><${SubjectStatus} subject=${subject}/></td></tr>`)}</tbody></table>${!report.subjects?.length && html`<${Empty}/>`}</${Panel}>
       <${Panel} title="نمودار ارزیابی مهارت‌ها" className="analytical-radar" tone="teal">${radar ? html`<${EChart} option=${radar} label="نمودار راداری مهارت‌های تحصیلی" className="echart--radar"/>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="گزارش تربیتی و رفتاری" className="analytical-behavior" tone="gold">${report.skills?.length ? html`<div class="report-rating-list">${report.skills.map(item => html`<div><span>${item.title}</span><${Stars} value=${item.value}/><${MetricPercent} value=${item.value}/></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="نقاط قوت علمی" className="analytical-strengths" tone="green">${strengths ? html`<${EChart} option=${strengths} label="نقاط قوت علمی" className="echart--bars"/>` : html`<${Empty}/>`}</${Panel}>
@@ -466,7 +479,7 @@ export function AnalyticalReport({ snapshot, loading = false }) {
       <${Panel} title="مشارکت‌ها و فعالیت‌های مدرسه" className="analytical-activities" tone="teal">${report.activities?.length ? html`<div class="report-activities">${report.activities.map(item => html`<div><${Sticker} kind=${item.icon} title=${item.title}/><strong>${item.title}</strong><small>${item.text}</small></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="آمادگی برای دوره متوسطه" className="analytical-readiness" tone="navy">${readiness ? html`<${EChart} option=${readiness} label="آمادگی تحصیلی برای دوره متوسطه" className="echart--readiness"/>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="افتخارات و عناوین کسب‌شده" className="analytical-awards" tone="gold">${report.awards?.length ? html`<div class="report-awards">${report.awards.map(item => html`<div><${Sticker} kind=${item.icon} title=${item.title}/><span><b>${item.title}</b><small>${item.text}</small></span></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
-      <${Panel} title="دسترسی سریع والدین" className="analytical-access" tone="navy" href=${report.accessHref}><div class="report-access"><${QrCode}/><strong>مشاهدهٔ نسخهٔ کامل</strong><small>${report.accessCode}</small></div></${Panel}>
+      <${Panel} title="دسترسی سریع والدین" className="analytical-access" tone="navy" href=${report.accessHref}><div class="report-access"><${QrCode} report=${report}/><strong>مشاهدهٔ نسخهٔ کامل</strong><small>${report.accessCode}</small></div></${Panel}>
     </div>
     <footer class="analytical-sheet__footer"><div class="report-signature-heading"><strong>امضا و تأیید مسئولان مدرسه</strong><span>این نسخه پس از بررسی اطلاعات تحصیلی و تربیتی صادر می‌شود.</span></div><div class="report-signatures"><span dir="ltr">Class Expert</span><span dir="ltr">Elementary Assistant</span><span dir="ltr">Educational Assistant</span><span dir="ltr">Executive Assistant</span><span dir="ltr">High School Principal</span></div></footer>
   </article>`;

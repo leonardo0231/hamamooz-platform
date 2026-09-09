@@ -140,3 +140,17 @@ test('photo, logo and family-support fallbacks are explicit', () => {
   assert.match(report, /support: supportNotes/);
   assert.match(report, /report-recommendation-group--empty/);
 });
+
+test('report access never presents a fixed QR as a real student link', () => {
+  assert.match(report, /accessQrUrl: assetUrl\(report\.access\?\.qr_data_url/);
+  assert.match(report, /نماد QR نمایشی؛ قابل اسکن نیست/);
+  assert.match(report, /QR امن ثبت نشده/);
+  assert.match(report, /report-qr-image/);
+  assert.match(report, /data-qr-fallback/);
+  assert.match(styles, /\.report-qr-placeholder/);
+});
+
+test('long subject names have a wrapping presentation path', () => {
+  assert.match(report, /report-score-table__subject/);
+  assert.match(styles, /\.report-score-table__subject \{ display: block; overflow-wrap: anywhere;/);
+});
