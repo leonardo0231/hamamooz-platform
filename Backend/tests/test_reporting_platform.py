@@ -11,7 +11,6 @@ from hamamooz.apps.reports.models import ReportArchive, ReportDraft, ReportTempl
 from hamamooz.apps.reports.services import (
     build_draft_snapshot,
     render_report_draft,
-    render_report_html,
     render_report_pdf,
 )
 
@@ -73,7 +72,7 @@ def test_report_template_rejects_executable_or_unknown_blocks(base_data):
 
 
 @pytest.mark.django_db
-def test_report_template_allows_only_safe_a3_landscape_page_configuration(base_data):
+def test_report_template_allows_only_safe_a3_landscape_page_configuration(base_data, settings):
     template = ReportTemplate(
         organization=base_data["organization"],
         school=base_data["school1"],
@@ -88,10 +87,11 @@ def test_report_template_allows_only_safe_a3_landscape_page_configuration(base_d
     snapshot = build_draft_snapshot(
         template, term=base_data["term"], class_section=base_data["class1"]
     )
-    assert "size: A3 landscape;" in render_report_html(snapshot)
+    assert snapshot["template"]["presentation"]["page_size"] == "a3_landscape"
+    settings.REPORT_FRONTEND_URL = "http://frontend:8080/report-sample.html"
 
     class FixtureRenderer:
-        def render(self, html, **kwargs):
+        def render_snapshot(self, snapshot, **kwargs):
             return b"%PDF-1.7\nfixture"
 
     assert render_report_pdf(snapshot, renderer=FixtureRenderer()).startswith(b"%PDF")
@@ -118,7 +118,6 @@ def test_legacy_report_page_profiles_are_normalized_to_fixed_a3(base_data):
         template, term=base_data["term"], class_section=base_data["class1"]
     )
     assert snapshot["template"]["presentation"]["page_size"] == "a3_landscape"
-    assert "size: A3 landscape;" in render_report_html(snapshot)
 
 
 @pytest.mark.django_db

@@ -1,9 +1,8 @@
 """The production report-PDF boundary.
 
 Report archives must use the same fixed A3 landscape print contract as the
-reviewed React report layout. Chromium is deliberately the only default
-renderer; there is no implicit WeasyPrint fallback when the browser runtime is
-missing.
+reviewed React report layout. The browser bundle is deliberately the only
+renderer; a missing browser runtime is an explicit failure.
 """
 
 import base64
@@ -62,35 +61,26 @@ def render_production_report_pdf(snapshot, *, renderer=None) -> bytes:
     """Render an approved snapshot through the Chromium production boundary.
 
     ``renderer`` is an explicit dependency-injection seam for deterministic
-    unit tests and controlled service integrations.  Production callers leave
-    it unset, which selects :class:`ChromiumReportRenderer`.  A missing
-    Playwright package or browser bundle raises ``ReportRendererUnavailable``;
-    it is intentionally not converted to a legacy engine fallback.
+    unit tests and controlled service integrations. Both the production
+    renderer and the injected renderer receive the frozen snapshot and the
+    React report entry URL; no server-side HTML template is rendered here.
     """
 
-    # Keep the legacy HTML call behind the explicit test/integration seam. It
-    # is useful for renderer unit tests but is not the production report path.
-    if renderer is not None:
-        from .services import render_report_html
-
-        html = render_report_html(prepare_react_snapshot(snapshot))
-        pdf = renderer.render(
-            html,
-            base_url=f"{Path(settings.BASE_DIR).resolve().as_uri()}/",
+    frontend_url = str(getattr(settings, "REPORT_FRONTEND_URL", "") or "").strip()
+    if not frontend_url:
+        raise ReportRendererUnavailable(
+            "React report rendering requires REPORT_FRONTEND_URL to point to the "
+            "built report-sample.html entry."
         )
-    else:
-        frontend_url = str(getattr(settings, "REPORT_FRONTEND_URL", "") or "").strip()
-        if not frontend_url:
-            raise ReportRendererUnavailable(
-                "Chromium React report rendering requires REPORT_FRONTEND_URL to point to "
-                "the built report-sample.html entry."
-            )
-        active_renderer = ChromiumReportRenderer()
-        pdf = active_renderer.render_snapshot(
-            prepare_react_snapshot(snapshot),
-            frontend_url=frontend_url,
-            timeout_ms=int(getattr(settings, "REPORT_RENDER_TIMEOUT_MS", 30_000)),
-        )
+    active_renderer = renderer or ChromiumReportRenderer()
+    render_snapshot = getattr(active_renderer, "render_snapshot", None)
+    if not callable(render_snapshot):
+        raise TypeError("The report renderer must implement render_snapshot().")
+    pdf = render_snapshot(
+        prepare_react_snapshot(snapshot),
+        frontend_url=frontend_url,
+        timeout_ms=int(getattr(settings, "REPORT_RENDER_TIMEOUT_MS", 30_000)),
+    )
     if not isinstance(pdf, bytes) or not pdf.startswith(b"%PDF"):
         raise RuntimeError("The Chromium React report renderer returned invalid PDF bytes.")
     return pdf

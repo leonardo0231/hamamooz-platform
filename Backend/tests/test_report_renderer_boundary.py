@@ -10,30 +10,27 @@ from hamamooz.apps.reports.chromium_renderer import (
     ReportRendererUnavailable,
     _print_url,
     _snapshot_init_script,
-    _with_base_url,
 )
 
 
-def test_production_boundary_uses_injected_renderer_and_application_base(monkeypatch):
+def test_production_boundary_uses_injected_react_snapshot_renderer(monkeypatch, settings):
     monkeypatch.setattr(services, "_pdf_snapshot", lambda snapshot: snapshot)
-    monkeypatch.setattr(
-        services,
-        "render_report_html",
-        lambda snapshot: "<html><head></head><body>report</body></html>",
-    )
+    settings.REPORT_FRONTEND_URL = "http://frontend:8080/report-sample.html"
+    settings.REPORT_RENDER_TIMEOUT_MS = 1234
     calls = {}
 
     class FakeRenderer:
-        def render(self, html, **kwargs):
-            calls["html"] = html
+        def render_snapshot(self, snapshot, **kwargs):
+            calls["snapshot"] = snapshot
             calls.update(kwargs)
             return b"%PDF-1.7\nfixture"
 
     pdf = rendering.render_production_report_pdf({"reports": []}, renderer=FakeRenderer())
 
     assert pdf.startswith(b"%PDF")
-    assert calls["base_url"].startswith("file:")
-    assert '<base href="file:' in _with_base_url(calls["html"], calls["base_url"])
+    assert calls["snapshot"] == {"reports": []}
+    assert calls["frontend_url"] == settings.REPORT_FRONTEND_URL
+    assert calls["timeout_ms"] == 1234
 
 
 def test_public_pdf_service_delegates_to_production_boundary(monkeypatch):
@@ -63,7 +60,9 @@ def test_missing_playwright_is_reported_without_a_legacy_fallback(monkeypatch):
     monkeypatch.setattr(builtins, "__import__", block_playwright)
 
     with pytest.raises(ReportRendererUnavailable, match="[Pp]laywright|Chromium"):
-        ChromiumReportRenderer().render("<html><body>report</body></html>")
+        ChromiumReportRenderer().render_snapshot(
+            {"reports": []}, frontend_url="http://frontend/report-sample.html"
+        )
 
 
 def test_react_production_boundary_uses_snapshot_renderer(monkeypatch, settings):
@@ -71,12 +70,6 @@ def test_react_production_boundary_uses_snapshot_renderer(monkeypatch, settings)
     calls = {}
 
     monkeypatch.setattr(services, "_pdf_snapshot", lambda value: value)
-    monkeypatch.setattr(
-        services,
-        "render_report_html",
-        lambda value: pytest.fail("The production React path must not render Django HTML."),
-    )
-
     class FakeRenderer:
         def render_snapshot(self, value, **kwargs):
             calls["snapshot"] = value

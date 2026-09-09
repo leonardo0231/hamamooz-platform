@@ -310,7 +310,7 @@ def test_forwarded_ip_is_trusted_only_when_explicitly_enabled(settings):
 
 
 @pytest.mark.django_db
-def test_report_pdf_renders_with_security_update(base_data):
+def test_report_pdf_renders_with_security_update(base_data, settings):
     locked_assessment_with_scores(base_data)
     snapshot = build_report_snapshot(
         ReportArchive.ReportType.STUDENT_REPORT_CARD,
@@ -319,8 +319,9 @@ def test_report_pdf_renders_with_security_update(base_data):
     )
 
     class FixtureRenderer:
-        def render(self, html, **kwargs):
+        def render_snapshot(self, snapshot, **kwargs):
             return b"%PDF-1.7\nfixture"
 
+    settings.REPORT_FRONTEND_URL = "http://frontend:8080/report-sample.html"
     pdf = render_report_pdf(snapshot, renderer=FixtureRenderer())
     assert pdf.startswith(b"%PDF")

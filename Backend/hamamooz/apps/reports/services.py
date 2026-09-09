@@ -10,7 +10,6 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Count, Q
-from django.template.loader import render_to_string
 from django.utils import timezone
 
 from hamamooz.apps.academics.calculations import (
@@ -31,7 +30,6 @@ from hamamooz.apps.evaluations.catalog import DOMAIN_DEFINITIONS
 from hamamooz.apps.students.models import Enrollment
 
 from .models import ReportArchive, ReportBatch, ReportBatchItem, ReportDraft
-from .presentation import build_report_visuals
 
 ALLOWED_REPORT_BLOCKS = {
     "student_identity",
@@ -365,25 +363,6 @@ def render_report_batch(batch_id):
     return batch
 
 
-def render_report_html(snapshot, *, preview=False):
-    template = snapshot.get("template", {})
-    rendered_snapshot = deepcopy(snapshot)
-    content_overrides = rendered_snapshot.get("content_overrides", {})
-    for report in rendered_snapshot.get("reports", []):
-        report["visuals"] = build_report_visuals(report, content_overrides=content_overrides)
-    return render_to_string(
-        "reports/report_card.html",
-        {
-            "reports": rendered_snapshot["reports"],
-            "preview": preview,
-            "blocks": template.get("blocks", ALLOWED_REPORT_BLOCKS),
-            "overrides": content_overrides,
-            "page_size": report_page_size(template.get("presentation")),
-            "generated_at": timezone.now(),
-        },
-    )
-
-
 def _local_media_file_url(url):
     if not url or not url.startswith(settings.MEDIA_URL):
         return url
@@ -415,7 +394,7 @@ def render_report_pdf(snapshot, *, renderer=None):
     The optional renderer seam is intended for unit tests and controlled
     integrations.  Production calls use the explicitly provisioned Chromium
     renderer and raise a clear error when Playwright or its browser bundle is
-    unavailable; no WeasyPrint fallback is attempted.
+    unavailable; no alternate server-side renderer fallback is attempted.
     """
 
     from .rendering import render_production_report_pdf
