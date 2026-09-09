@@ -66,7 +66,14 @@ def process_import_job(job_id):
     try:
         loaded = enrich_comprehensive_rows(job, services._load_rows(job))
         prepared, errors = validate_flexible_hardened_comprehensive_workbook(job, loaded.rows)
-        if errors:
+        # Uploaded files keep the existing all-or-nothing contract.  The
+        # mounted Data directory is a reconciliation source containing
+        # overlapping operational workbooks, so valid rows must still be
+        # recorded when a small number of source rows are malformed.  The
+        # errors remain attached to the child job and the parent run becomes
+        # ``partial`` instead of silently discarding the valid records.
+        is_data_path = job.source_kind == ImportJob.SourceKind.DATA_PATH
+        if errors and not is_data_path:
             with transaction.atomic():
                 locked_job = ImportJob.objects.select_for_update().get(pk=job_id)
                 if locked_job.status == ImportJob.Status.CANCELLED:
@@ -83,6 +90,9 @@ def process_import_job(job_id):
                 locked_job.save()
                 return locked_job
 
+        if is_data_path and not prepared.get("students"):
+            raise ValueError("هیچ ردیف معتبر دانش‌آموزی برای ثبت در این فایل پیدا نشد.")
+
         with transaction.atomic():
             locked_job = ImportJob.objects.select_for_update().get(pk=job_id)
             if locked_job.status == ImportJob.Status.CANCELLED:
@@ -93,10 +103,12 @@ def process_import_job(job_id):
             summary["normalization_warnings"] = warnings[:1000]
             locked_job.status = ImportJob.Status.COMPLETED
             locked_job.total_rows = loaded.source_row_count
-            locked_job.successful_rows = loaded.source_row_count
-            locked_job.error_count = 0
-            locked_job.errors = []
+            locked_job.successful_rows = max(0, loaded.source_row_count - len(errors))
+            locked_job.error_count = len(errors)
+            locked_job.errors = errors[:1000]
             locked_job.result_summary = summary
+            if errors:
+                locked_job.result_summary["validation_errors"] = errors[:1000]
             locked_job.finished_at = timezone.now()
             locked_job.save()
             return locked_job

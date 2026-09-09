@@ -228,16 +228,19 @@ function normalizeSignatureLabels(value) {
   const source = Array.isArray(value) && value.length ? value : DEFAULT_SIGNATURE_LABELS;
   return source.map(item => typeof item === 'string' ? item : item?.title ?? item?.label ?? item?.role).filter(Boolean).slice(0, 5);
 }
-function metricValue(value) {
-  // MonthlyEvaluation/MetricScore is an explicit 0–5 integer rubric.  Do not
-  // infer a unit from the magnitude: EDU_01 in the source workbooks is a
-  // 0–20 academic score, while EDU_02 can be decimal, negative, or «ندارد».
-  // Those values are not this rubric and must remain unavailable until the
-  // school approves a mapping.
+function metricValue(value, metadata = {}) {
+  // Data-path records declare their unit.  This keeps a 0–20 academic score,
+  // a 0–5 rubric, and a signed progress/delta value from being conflated.
   if (typeof value !== 'number' && typeof value !== 'string') return null;
   if (typeof value === 'string' && value.trim() === '') return null;
   const numeric = Number(value);
-  if (!Number.isFinite(numeric) || !Number.isInteger(numeric) || numeric < 0 || numeric > 5) return null;
+  if (!Number.isFinite(numeric)) return null;
+  const kind = String(metadata.value_kind ?? metadata.valueKind ?? '').trim().toLowerCase();
+  if (kind === 'score_20') return numeric >= 0 && numeric <= 20 ? numeric * 5 : null;
+  if (kind === 'rubric_5') return Number.isInteger(numeric) && numeric >= 0 && numeric <= 5 ? numeric * 20 : null;
+  if (kind === 'delta' || kind === 'raw_numeric' || kind === 'raw_text' || kind === 'not_recorded') return null;
+  // Backwards-compatible legacy MetricScore contract.
+  if (!Number.isInteger(numeric) || numeric < 0 || numeric > 5) return null;
   return numeric * 20;
 }
 function numericSubject(row) {
@@ -346,12 +349,13 @@ export function mapSnapshot(snapshot) {
     : Object.entries(rawMetrics).map(([code, value]) => ({ code, title: titleForMetric(code), value }));
   const metricRows = metrics.map(item => {
     const code = item?.code ?? item?.metric_code;
-    const value = metricValue(item?.value);
+    const value = metricValue(item?.value, item);
     return {
       ...item,
       code,
       title: item?.title ?? titleForMetric(code),
       value,
+      rawValue: item?.raw_value ?? item?.rawValue ?? null,
       hasData: value !== null,
     };
   }).filter(item => item.code);
@@ -483,6 +487,11 @@ function MetricPercent({ value }) {
     ? html`${reportNumber(value)}٪`
     : html`<span class="report-rating-missing" role="status">ثبت نشده</span>`;
 }
+function MetricDisplay({ item }) {
+  if (isNumber(item?.value)) return html`<${MetricPercent} value=${item.value}/>`;
+  if (item?.rawValue) return html`<bdi class="report-rating-raw" dir="auto">${item.rawValue}</bdi>`;
+  return html`<span class="report-rating-missing" role="status">ثبت نشده</span>`;
+}
 function SubjectStatus({ subject }) {
   if (subject.passed === true) return html`<b class="is-ok">قبول</b>`;
   if (subject.passed === false) return html`<b class="is-alert">پیگیری</b>`;
@@ -542,12 +551,12 @@ export function AnalyticalReport({ snapshot, loading = false }) {
       <${Panel} title="گزارش مشاور و پیگیری هوشمند" className="analytical-insights" tone="gold"><div class="report-insight-group"><h4>گزارش مشاور</h4>${report.counselor?.length ? html`<ul class="report-bullet-list">${report.counselor.map(item => html`<li>${item}</li>`)}</ul><${OverflowNote} count=${report.counselorOmitted}/>` : html`<${Empty}/>`}</div><div class="report-insight-group"><h4>موارد پیگیری</h4>${report.followUps?.length ? html`<ul class="report-bullet-list">${report.followUps.map(item => html`<li>${item}</li>`)}</ul><${OverflowNote} count=${report.followUpsOmitted}/>` : html`<${Empty}/>`}</div></${Panel}>
       <${Panel} title="وضعیت آموزشی و نمرات نهایی" className="analytical-table" tone="teal"><table class="report-score-table"><caption class="sr-only">نمرات و وضعیت آموزشی دانش‌آموز</caption><thead><tr><th scope="col">درس / شاخص</th><th scope="col">مستمر</th><th scope="col">میان‌ترم</th><th scope="col">پایانی</th><th scope="col">میانگین</th><th scope="col">وضعیت</th></tr></thead><tbody>${report.subjects.map(subject => html`<tr><th scope="row"><span class="report-score-table__subject">${subject.title}</span></th><td>${reportNumber(subject.continuous)}</td><td>${reportNumber(subject.midterm)}</td><td>${reportNumber(subject.final)}</td><td class=${isNumber(subject.current) && subject.current < 12 ? 'is-alert' : 'is-current'}>${reportNumber(subject.current)}</td><td><${SubjectStatus} subject=${subject}/></td></tr>`)}${report.subjectsOmitted ? html`<tr class="report-overflow-row"><td colspan="6"><${OverflowNote} count=${report.subjectsOmitted}/></td></tr>` : null}</tbody></table>${!report.subjects?.length && html`<${Empty}/>`}</${Panel}>
       <${Panel} title="نمودار ارزیابی مهارت‌ها" className="analytical-radar" tone="teal">${radar ? html`<${EChart} option=${radar} label="نمودار راداری مهارت‌های تحصیلی" className="echart--radar"/>` : html`<${Empty}/>`}</${Panel}>
-      <${Panel} title="گزارش تربیتی و رفتاری" className="analytical-behavior" tone="gold">${report.skills?.length ? html`<div class="report-rating-list">${report.skills.map(item => html`<div><span>${item.title}</span><${Stars} value=${item.value}/><${MetricPercent} value=${item.value}/></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
+      <${Panel} title="گزارش تربیتی و رفتاری" className="analytical-behavior" tone="gold">${report.skills?.length ? html`<div class="report-rating-list">${report.skills.map(item => html`<div><span>${item.title}</span><${Stars} value=${item.value}/><${MetricDisplay} item=${item}/></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="نقاط قوت علمی" className="analytical-strengths" tone="green">${strengths ? html`<${EChart} option=${strengths} label="نقاط قوت علمی" className="echart--bars"/><${OverflowNote} count=${report.strengthsOmitted}/>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="نقاط قابل بهبود" className="analytical-improvements" tone="rose">${improvements ? html`<${EChart} option=${improvements} label="نقاط قابل بهبود" className="echart--bars"/><${OverflowNote} count=${report.improvementsOmitted}/>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="توصیه‌ها و برنامهٔ حمایت" className="analytical-recommendations" tone="gold"><div class="report-recommendation-grid"><${RecommendationGroup} title="والدین و دانش‌آموز" items=${report.recommendations} omitted=${report.recommendationsOmitted} ordered tone="gold"/><${RecommendationGroup} title="معلمان و کادر آموزشی" items=${report.teacherRecommendations} omitted=${report.teacherRecommendationsOmitted} tone="navy"/><${RecommendationGroup} title="حمایت خانواده" items=${report.support} omitted=${report.supportOmitted} tone="teal"/></div></${Panel}>
       <${Panel} title="حضور و غیاب" className="analytical-attendance" tone="navy"><div class="attendance-score"><strong>${attendanceRate === null ? '—' : html`${reportNumber(attendanceRate)}٪`}</strong><span>درصد حضور ثبت‌شده</span></div><div class="attendance-meta"><span>جلسات نهایی <b>${reportNumber(report.attendance.sessions)}</b></span><span>غیبت غیرموجه <b>${reportNumber(report.attendance.unexcused)}</b></span><span>تأخیر <b>${reportNumber(report.attendance.late)}</b></span></div></${Panel}>
-      <${Panel} title="مهارت‌های قرن بیست‌ویکم" className="analytical-skills21" tone="teal">${report.skills21?.length ? html`<div class="report-rating-list">${report.skills21.map(item => html`<div><span>${item.title}</span><${Stars} value=${item.value}/><${MetricPercent} value=${item.value}/></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
+      <${Panel} title="مهارت‌های قرن بیست‌ویکم" className="analytical-skills21" tone="teal">${report.skills21?.length ? html`<div class="report-rating-list">${report.skills21.map(item => html`<div><span>${item.title}</span><${Stars} value=${item.value}/><${MetricDisplay} item=${item}/></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="مشارکت‌ها و فعالیت‌های مدرسه" className="analytical-activities" tone="teal">${report.activities?.length ? html`<div class="report-activities">${report.activities.map(item => html`<div><${Sticker} kind=${item.icon} title=${item.title}/><strong>${item.title}</strong><small>${item.text}</small></div>`)}</div><${OverflowNote} count=${report.activitiesOmitted}/>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="آمادگی برای دوره متوسطه" className="analytical-readiness" tone="navy">${readiness ? html`<${EChart} option=${readiness} label="آمادگی تحصیلی برای دوره متوسطه" className="echart--readiness"/>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="افتخارات و عناوین کسب‌شده" className="analytical-awards" tone="gold">${report.awards?.length ? html`<div class="report-awards">${report.awards.map(item => html`<div><${Sticker} kind=${item.icon} title=${item.title}/><span><b>${item.title}</b><small>${item.text}</small></span></div>`)}</div><${OverflowNote} count=${report.awardsOmitted}/>` : html`<${Empty}/>`}</${Panel}>

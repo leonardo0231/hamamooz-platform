@@ -97,7 +97,7 @@ def _load_rows(job):
     with job.source_file.open("rb") as source:
         payload = source.read()
     extension = Path(job.source_file.name).suffix.lower()
-    if extension == ".xlsx":
+    if extension in {".xlsx", ".xlsm"}:
         try:
             with ZipFile(BytesIO(payload)) as archive:
                 infos = archive.infolist()

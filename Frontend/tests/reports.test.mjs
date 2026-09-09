@@ -101,11 +101,12 @@ test('report header and signatures are reference-aligned and data-driven', () =>
   assert.match(styles, /\.analytical-identity \.report-avatar-fallback small \{ font-size: 9px; line-height: 1; white-space: nowrap; \}/);
 });
 
-test('report output is browser-native and never exposes the legacy PDF/ZIP controls', () => {
+test('report output stays browser-native and exposes authenticated batch ZIP output', () => {
   assert.match(report, /printAnalyticalReport/);
   assert.match(report, /report-printing/);
   assert.match(page, /printAnalyticalReport/);
-  assert.doesNotMatch(page, /downloadFile|downloadBlob|downloadError|downloading|zip_download_url/);
+  assert.match(page, /downloadBlob/);
+  assert.match(page, /zip_download_url/);
   assert.doesNotMatch(page, /reports\/(?:[^'"` ]+\/)?download\//);
   assert.match(chart, /data-chart-renderer="svg"/);
   assert.match(chart, /<svg class="echart__svg/);

@@ -26,6 +26,7 @@ x-backend-environment: &backend-environment
   SEED_ADMIN_USERNAME: ${SEED_ADMIN_USERNAME:-admin}
   SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@example.com}
   SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-Admin123!ChangeMe}
+  HAMAMOOZ_DATA_ROOT: ${HAMAMOOZ_DATA_ROOT:-/app/Data}
 
 x-backend: &backend
   build:
@@ -38,6 +39,7 @@ x-backend: &backend
   volumes:
     - static_data:/app/staticfiles
     - media_data:/app/media
+    - ./Data:/app/Data:ro
 
 services:
   db:

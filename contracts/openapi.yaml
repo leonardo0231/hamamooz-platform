@@ -7104,6 +7104,9 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/ImportJobCreateRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportJobCreateRequest'
         required: true
       security:
       - jwtAuth: []
@@ -7153,6 +7156,9 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/ImportJobRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportJobRequest'
         required: true
       security:
       - jwtAuth: []
@@ -7178,6 +7184,9 @@ paths:
       requestBody:
         content:
           multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedImportJobRequest'
+          application/json:
             schema:
               $ref: '#/components/schemas/PatchedImportJobRequest'
       security:
@@ -7224,6 +7233,9 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/ImportJobRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportJobRequest'
         required: true
       security:
       - jwtAuth: []
@@ -7252,6 +7264,9 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/ImportJobRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportJobRequest'
         required: true
       security:
       - jwtAuth: []
@@ -7261,6 +7276,69 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ImportJob'
+          description: ''
+  /api/v1/imports/data-path-imports/:
+    get:
+      operationId: imports_data_path_imports_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - imports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDataPathImportList'
+          description: ''
+  /api/v1/imports/from-data-path/:
+    post:
+      operationId: imports_from_data_path_create
+      description: Queue a server-side scan of the mounted repository Data folder.
+      tags:
+      - imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DataPathImportCreateRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataPathImportCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataPathImport'
           description: ''
   /api/v1/monthly-evaluations/:
     get:
@@ -8547,6 +8625,10 @@ paths:
         schema:
           type: string
           format: uuid
+      - in: query
+        name: month_no
+        schema:
+          type: integer
       - name: ordering
         required: false
         in: query
@@ -8565,6 +8647,16 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - in: query
+        name: report_mode
+        schema:
+          type: string
+          enum:
+          - data_monthly
+          - official_term
+        description: |-
+          * `official_term` - نوبت رسمی
+          * `data_monthly` - گزارش ماهانه مسیر Data
       - in: query
         name: report_type
         schema:
@@ -10733,7 +10825,7 @@ paths:
         name: id
         schema:
           type: integer
-        description: A unique integer value identifying this user.
+        description: A unique integer value identifying this کاربر.
         required: true
       tags:
       - users
@@ -10753,7 +10845,7 @@ paths:
         name: id
         schema:
           type: integer
-        description: A unique integer value identifying this user.
+        description: A unique integer value identifying this کاربر.
         required: true
       tags:
       - users
@@ -10785,7 +10877,7 @@ paths:
         name: id
         schema:
           type: integer
-        description: A unique integer value identifying this user.
+        description: A unique integer value identifying this کاربر.
         required: true
       tags:
       - users
@@ -10817,7 +10909,7 @@ paths:
         name: id
         schema:
           type: integer
-        description: A unique integer value identifying this user.
+        description: A unique integer value identifying this کاربر.
         required: true
       tags:
       - users
@@ -10850,7 +10942,7 @@ paths:
         name: id
         schema:
           type: integer
-        description: A unique integer value identifying this user.
+        description: A unique integer value identifying this کاربر.
         required: true
       tags:
       - users
@@ -13926,6 +14018,122 @@ components:
       required:
       - id
       - title
+    DataPathImport:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        organization:
+          type: string
+          format: uuid
+          readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
+        school:
+          type: string
+          format: uuid
+        school_name:
+          type: string
+          readOnly: true
+        source_root:
+          type: string
+          maxLength: 1000
+        status:
+          allOf:
+          - $ref: '#/components/schemas/DataPathImportStatusEnum'
+          readOnly: true
+        status_display:
+          type: string
+          readOnly: true
+        overwrite_photos:
+          type: boolean
+        generate_reports:
+          type: boolean
+        report_month:
+          type: integer
+          maximum: 12
+          minimum: 1
+          nullable: true
+        manifest:
+          readOnly: true
+        result_summary:
+          readOnly: true
+        errors:
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - errors
+      - finished_at
+      - id
+      - manifest
+      - organization
+      - organization_name
+      - result_summary
+      - school
+      - school_name
+      - source_root
+      - started_at
+      - status
+      - status_display
+      - updated_at
+    DataPathImportCreateRequest:
+      type: object
+      properties:
+        school:
+          type: string
+          format: uuid
+        source_root:
+          type: string
+        overwrite_photos:
+          type: boolean
+          default: false
+        generate_reports:
+          type: boolean
+          default: true
+        report_month:
+          type: integer
+          maximum: 12
+          minimum: 1
+          nullable: true
+      required:
+      - school
+    DataPathImportStatusEnum:
+      enum:
+      - queued
+      - scanning
+      - processing
+      - completed
+      - partial
+      - failed
+      type: string
+      description: |-
+        * `queued` - در صف
+        * `scanning` - در حال اسکن مسیر Data
+        * `processing` - در حال ثبت اطلاعات
+        * `completed` - تکمیل‌شده
+        * `partial` - تکمیل با هشدار
+        * `failed` - ناموفق
     DomainScore:
       type: object
       properties:
@@ -14771,6 +14979,15 @@ components:
         source_file:
           type: string
           format: uri
+        source_kind:
+          allOf:
+          - $ref: '#/components/schemas/SourceKindEnum'
+          readOnly: true
+        data_path_import:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
         checksum:
           type: string
           readOnly: true
@@ -14816,6 +15033,7 @@ components:
       required:
       - checksum
       - created_at
+      - data_path_import
       - error_count
       - errors
       - finished_at
@@ -14829,6 +15047,7 @@ components:
       - result_summary
       - school_name
       - source_file
+      - source_kind
       - started_at
       - status
       - status_display
@@ -14868,6 +15087,15 @@ components:
         source_file:
           type: string
           format: uri
+        source_kind:
+          allOf:
+          - $ref: '#/components/schemas/SourceKindEnum'
+          readOnly: true
+        data_path_import:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
         checksum:
           type: string
           readOnly: true
@@ -14913,6 +15141,7 @@ components:
       required:
       - checksum
       - created_at
+      - data_path_import
       - error_count
       - errors
       - finished_at
@@ -14926,6 +15155,7 @@ components:
       - result_summary
       - school_name
       - source_file
+      - source_kind
       - started_at
       - status
       - status_display
@@ -16073,6 +16303,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CourseOffering'
+    PaginatedDataPathImportList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataPathImport'
     PaginatedEnrollmentList:
       type: object
       required:
@@ -17622,8 +17875,9 @@ components:
         username:
           type: string
           minLength: 1
-          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
-            only.
+          title: نام کاربری
+          description: الزامی. 150 کاراکتر یا کمتر. فقط شامل حروف، اعداد، و علامات
+            @/./+/-/_
           pattern: ^[\w.@+-]+$
           maxLength: 150
         email:
@@ -17637,9 +17891,11 @@ components:
           minLength: 1
         first_name:
           type: string
+          title: نام
           maxLength: 150
         last_name:
           type: string
+          title: نام خانوادگی
           maxLength: 150
         phone:
           type: string
@@ -17650,9 +17906,9 @@ components:
           maxLength: 10
         is_active:
           type: boolean
-          title: Active
-          description: Designates whether this user should be treated as active. Unselect
-            this instead of deleting accounts.
+          title: فعال
+          description: نشان می‌دهد که آیا این کاربر اجازهٔ فعالیت دارد یا خیر. به
+            جای حذف کاربر این تیک را بردارید.
     PolarityEnum:
       enum:
       - positive
@@ -18161,6 +18417,14 @@ components:
         term:
           type: string
           format: uuid
+          nullable: true
+        report_mode:
+          $ref: '#/components/schemas/ReportModeEnum'
+        month_no:
+          type: integer
+          maximum: 12
+          minimum: 1
+          nullable: true
         report_type:
           $ref: '#/components/schemas/ReportTypeEnum'
         status:
@@ -18249,7 +18513,6 @@ components:
       - started_at
       - status
       - status_display
-      - term
       - updated_at
     ReportArchiveRequest:
       type: object
@@ -18257,6 +18520,14 @@ components:
         term:
           type: string
           format: uuid
+          nullable: true
+        report_mode:
+          $ref: '#/components/schemas/ReportModeEnum'
+        month_no:
+          type: integer
+          maximum: 12
+          minimum: 1
+          nullable: true
         report_type:
           $ref: '#/components/schemas/ReportTypeEnum'
         enrollment:
@@ -18269,7 +18540,6 @@ components:
           nullable: true
       required:
       - report_type
-      - term
     ReportBatch:
       type: object
       properties:
@@ -18293,6 +18563,15 @@ components:
           type: string
           format: uuid
           readOnly: true
+          nullable: true
+        report_mode:
+          allOf:
+          - $ref: '#/components/schemas/ReportModeEnum'
+          readOnly: true
+        month_no:
+          type: integer
+          readOnly: true
+          nullable: true
         class_section:
           type: string
           format: uuid
@@ -18360,9 +18639,11 @@ components:
       - failed_count
       - id
       - items
+      - month_no
       - organization
       - page_size
       - progress_percent
+      - report_mode
       - requested_by
       - school
       - scope
@@ -18607,6 +18888,14 @@ components:
         * `approved` - Approved
         * `rejected` - Rejected
         * `rendered` - Rendered
+    ReportModeEnum:
+      enum:
+      - official_term
+      - data_monthly
+      type: string
+      description: |-
+        * `official_term` - نوبت رسمی
+        * `data_monthly` - گزارش ماهانه مسیر Data
     ReportOutputFormatEnum:
       enum:
       - pdf
@@ -19260,6 +19549,14 @@ components:
         * `medium` - Medium
         * `high` - High
         * `critical` - Critical
+    SourceKindEnum:
+      enum:
+      - upload
+      - data_path
+      type: string
+      description: |-
+        * `upload` - آپلود کاربر
+        * `data_path` - مسیر Data مخزن
     StateEnum:
       enum:
       - active
@@ -20241,8 +20538,9 @@ components:
           readOnly: true
         username:
           type: string
-          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
-            only.
+          title: نام کاربری
+          description: الزامی. 150 کاراکتر یا کمتر. فقط شامل حروف، اعداد، و علامات
+            @/./+/-/_
           pattern: ^[\w.@+-]+$
           maxLength: 150
         email:
@@ -20251,9 +20549,11 @@ components:
           maxLength: 254
         first_name:
           type: string
+          title: نام
           maxLength: 150
         last_name:
           type: string
+          title: نام خانوادگی
           maxLength: 150
         phone:
           type: string
@@ -20264,9 +20564,9 @@ components:
           maxLength: 10
         is_active:
           type: boolean
-          title: Active
-          description: Designates whether this user should be treated as active. Unselect
-            this instead of deleting accounts.
+          title: فعال
+          description: نشان می‌دهد که آیا این کاربر اجازهٔ فعالیت دارد یا خیر. به
+            جای حذف کاربر این تیک را بردارید.
         must_change_password:
           type: boolean
           readOnly: true
@@ -20280,10 +20580,12 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+          title: آخرین ورود
         date_joined:
           type: string
           format: date-time
           readOnly: true
+          title: تاریخ پیوستن
       required:
       - date_joined
       - email
@@ -20298,8 +20600,9 @@ components:
         username:
           type: string
           minLength: 1
-          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
-            only.
+          title: نام کاربری
+          description: الزامی. 150 کاراکتر یا کمتر. فقط شامل حروف، اعداد، و علامات
+            @/./+/-/_
           pattern: ^[\w.@+-]+$
           maxLength: 150
         email:
@@ -20313,9 +20616,11 @@ components:
           minLength: 1
         first_name:
           type: string
+          title: نام
           maxLength: 150
         last_name:
           type: string
+          title: نام خانوادگی
           maxLength: 150
         phone:
           type: string
@@ -20326,9 +20631,9 @@ components:
           maxLength: 10
         is_active:
           type: boolean
-          title: Active
-          description: Designates whether this user should be treated as active. Unselect
-            this instead of deleting accounts.
+          title: فعال
+          description: نشان می‌دهد که آیا این کاربر اجازهٔ فعالیت دارد یا خیر. به
+            جای حذف کاربر این تیک را بردارید.
       required:
       - email
       - username

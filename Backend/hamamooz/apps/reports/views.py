@@ -92,6 +92,8 @@ class ReportArchiveViewSet(AuditedModelViewSet):
         "school",
         "academic_year",
         "term",
+        "report_mode",
+        "month_no",
         "report_type",
         "status",
         "enrollment",
@@ -133,9 +135,11 @@ class ReportArchiveViewSet(AuditedModelViewSet):
         data = serializer.validated_data
         snapshot = build_report_render_snapshot(
             data["report_type"],
-            data["term"],
+            data.get("term"),
             enrollment=data.get("enrollment"),
             class_section=data.get("class_section"),
+            report_mode=data.get("report_mode", ReportArchive.ReportMode.OFFICIAL_TERM),
+            month_no=data.get("month_no"),
         )
         frontend_url = str(getattr(settings, "REPORT_FRONTEND_URL", "") or "").strip()
         return Response(

@@ -20,4 +20,7 @@ class AssessmentRecordSerializer(serializers.Serializer):
     student = serializers.UUIDField()
     period = serializers.UUIDField()
     indicator = serializers.UUIDField()
-    score = serializers.DecimalField(max_digits=6, decimal_places=2)
+    score = serializers.DecimalField(max_digits=6, decimal_places=2, allow_null=True)
+    raw_value = serializers.CharField(required=False, allow_blank=True)
+    value_kind = serializers.CharField(required=False)
+    status = serializers.CharField(required=False)

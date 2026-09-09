@@ -8,6 +8,11 @@ from corsheaders.defaults import default_headers
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 
+# The registrar's source files live beside the Backend directory in the
+# repository.  Deployments may override this path when the repository Data
+# directory is mounted into the application container.
+DATA_ROOT = Path(os.getenv("HAMAMOOZ_DATA_ROOT", str(BASE_DIR.parent / "Data"))).resolve()
+
 
 def env_bool(name: str, default: bool = False) -> bool:
     return os.getenv(name, str(default)).strip().lower() in {"1", "true", "yes", "on"}

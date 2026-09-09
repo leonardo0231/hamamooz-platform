@@ -10,7 +10,13 @@ from hamamooz.apps.evaluations.catalog import (
     METRIC_CATALOGS,
     metric_catalog_for,
 )
-from hamamooz.apps.evaluations.models import MetricScore, MonthlyEvaluation
+from hamamooz.apps.evaluations.models import (
+    AssessmentPeriod,
+    AssessmentRecord,
+    Indicator,
+    MetricScore,
+    MonthlyEvaluation,
+)
 from hamamooz.apps.organizations.models import AcademicYear, ClassSection, GradeLevel
 from hamamooz.apps.students.models import Enrollment, Student
 
@@ -64,6 +70,7 @@ MONTH_NUMBERS = {
     "اردیبهشت": 11,
     "خرداد": 12,
 }
+MONTH_LABELS = {number: title for title, number in MONTH_NUMBERS.items()}
 PERSIAN_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
 GENDER_VALUES = {
     "دختر": Student.Gender.FEMALE,
@@ -619,6 +626,67 @@ def _restore(instance):
         instance.deleted_at = None
 
 
+def _save_data_path_assessment(*, job, student, academic_year, month_no, metric_code, payload, definition):
+    """Upsert the lossless dynamic representation of a Data-path cell."""
+
+    period, _created = AssessmentPeriod.objects.get_or_create(
+        academic_year=academic_year,
+        title=f"ماه {MONTH_LABELS.get(month_no, month_no)}",
+        defaults={
+            "period_type": AssessmentPeriod.PeriodType.MONTHLY,
+            "order": month_no,
+        },
+    )
+    if period.period_type != AssessmentPeriod.PeriodType.MONTHLY or period.order != month_no:
+        period.period_type = AssessmentPeriod.PeriodType.MONTHLY
+        period.order = month_no
+        period.save(update_fields=["period_type", "order", "updated_at"])
+
+    value_kind = str(payload.get("value_kind") or "raw_text")
+    indicator, _created = Indicator.objects.get_or_create(
+        code=metric_code,
+        defaults={
+            "title": definition.get("title", metric_code),
+            "category": definition.get("domain_code", ""),
+            "indicator_type": "data_path",
+            "max_score": 20,
+            "weight": definition.get("domain_weight", 1),
+        },
+    )
+    desired = {
+        "title": definition.get("title", metric_code),
+        "category": definition.get("domain_code", ""),
+        "indicator_type": "data_path",
+        "max_score": 20,
+        "weight": definition.get("domain_weight", 1),
+    }
+    changed = []
+    for field, value in desired.items():
+        if getattr(indicator, field) != value:
+            setattr(indicator, field, value)
+            changed.append(field)
+    if changed:
+        indicator.save(update_fields=[*changed, "updated_at"])
+
+    score = payload.get("score")
+    if score is not None:
+        score = Decimal(str(score))
+    record, created = AssessmentRecord.objects.update_or_create(
+        student=student,
+        period=period,
+        indicator=indicator,
+        defaults={
+            "score": score,
+            "raw_value": str(payload.get("raw_value") or "")[:5000],
+            "value_kind": value_kind,
+            "status": str(payload.get("status") or "recorded"),
+            "recorded_by": job.requested_by,
+            "source_import_job": job,
+        },
+    )
+    return record, created
+
+
 def apply_comprehensive_workbook(job, prepared):
     academic_year = prepared["academic_year"]
     if academic_year is None:
@@ -635,7 +703,11 @@ def apply_comprehensive_workbook(job, prepared):
         "metric_scores_upserted": 0,
         "final_evaluations": 0,
         "provisional_evaluations": 0,
+        "assessment_records_upserted": 0,
+        "raw_metrics_preserved": 0,
+        "not_recorded_metrics": 0,
         "framework_version": prepared.get("framework_version", FRAMEWORK_VERSION),
+        "academic_year_id": str(academic_year.id),
     }
 
     class_instances = {}
@@ -778,12 +850,42 @@ def apply_comprehensive_workbook(job, prepared):
             )
             summary["evaluations_updated"] += 1
         for metric_code, score in item["metrics"].items():
-            MetricScore.objects.update_or_create(
-                evaluation=evaluation,
-                metric_code=metric_code,
-                defaults={"value": score},
-            )
-            summary["metric_scores_upserted"] += 1
+            if isinstance(score, dict):
+                definition = catalog.get(metric_code, {})
+                record, _created = _save_data_path_assessment(
+                    job=job,
+                    student=enrollment.student,
+                    academic_year=academic_year,
+                    month_no=item["month_no"],
+                    metric_code=metric_code,
+                    payload=score,
+                    definition=definition,
+                )
+                summary["assessment_records_upserted"] += 1
+                if record.value_kind in {"raw_text", "raw_numeric", "preserved"}:
+                    summary["raw_metrics_preserved"] += 1
+                if record.status == "not_recorded":
+                    summary["not_recorded_metrics"] += 1
+                # Keep the legacy table populated only for values whose unit
+                # is unambiguously the historical 0..5 rubric.  Everything
+                # else remains available through AssessmentRecord without a
+                # lossy coercion.
+                if score.get("value_kind") == "rubric_5" and score.get("score") is not None:
+                    rubric_score = Decimal(str(score["score"]))
+                    if rubric_score == int(rubric_score) and 0 <= rubric_score <= 5:
+                        MetricScore.objects.update_or_create(
+                            evaluation=evaluation,
+                            metric_code=metric_code,
+                            defaults={"value": int(rubric_score)},
+                        )
+                        summary["metric_scores_upserted"] += 1
+            else:
+                MetricScore.objects.update_or_create(
+                    evaluation=evaluation,
+                    metric_code=metric_code,
+                    defaults={"value": score},
+                )
+                summary["metric_scores_upserted"] += 1
         if len(item["metrics"]) == len(catalog):
             summary["final_evaluations"] += 1
         else:

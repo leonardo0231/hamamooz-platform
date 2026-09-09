@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from hamamooz.apps.core.models import SoftDeleteModel, TimeStampedUUIDModel
@@ -12,6 +13,10 @@ class ReportArchive(SoftDeleteModel):
     class ReportType(models.TextChoices):
         STUDENT_REPORT_CARD = "student_report_card", "کارنامه دانش‌آموز"
         CLASS_REPORT_CARDS = "class_report_cards", "کارنامه گروهی کلاس"
+
+    class ReportMode(models.TextChoices):
+        OFFICIAL_TERM = "official_term", "نوبت رسمی"
+        DATA_MONTHLY = "data_monthly", "گزارش ماهانه مسیر Data"
 
     class Status(models.TextChoices):
         QUEUED = "queued", "در صف"
@@ -28,7 +33,24 @@ class ReportArchive(SoftDeleteModel):
     academic_year = models.ForeignKey(
         "organizations.AcademicYear", on_delete=models.PROTECT, related_name="reports"
     )
-    term = models.ForeignKey("organizations.Term", on_delete=models.PROTECT, related_name="reports")
+    term = models.ForeignKey(
+        "organizations.Term",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="reports",
+    )
+    report_mode = models.CharField(
+        max_length=20,
+        choices=ReportMode.choices,
+        default=ReportMode.OFFICIAL_TERM,
+        db_index=True,
+    )
+    month_no = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(12)],
+    )
     report_type = models.CharField(max_length=40, choices=ReportType.choices)
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.QUEUED, db_index=True
@@ -94,6 +116,10 @@ class ReportBatch(TimeStampedUUIDModel):
         PARTIAL = "partial", "Partially completed"
         FAILED = "failed", "Failed"
 
+    class ReportMode(models.TextChoices):
+        OFFICIAL_TERM = "official_term", "نوبت رسمی"
+        DATA_MONTHLY = "data_monthly", "گزارش ماهانه مسیر Data"
+
     organization = models.ForeignKey(
         "organizations.Organization", on_delete=models.PROTECT, related_name="report_batches"
     )
@@ -104,7 +130,22 @@ class ReportBatch(TimeStampedUUIDModel):
         "organizations.AcademicYear", on_delete=models.PROTECT, related_name="report_batches"
     )
     term = models.ForeignKey(
-        "organizations.Term", on_delete=models.PROTECT, related_name="report_batches"
+        "organizations.Term",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="report_batches",
+    )
+    report_mode = models.CharField(
+        max_length=20,
+        choices=ReportMode.choices,
+        default=ReportMode.OFFICIAL_TERM,
+        db_index=True,
+    )
+    month_no = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(12)],
     )
     class_section = models.ForeignKey(
         "organizations.ClassSection",

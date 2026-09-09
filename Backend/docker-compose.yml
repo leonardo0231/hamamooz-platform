@@ -3,10 +3,13 @@ name: hamamooz-mvp
 x-app: &app
   build: .
   env_file: .env
+  environment:
+    HAMAMOOZ_DATA_ROOT: /app/Data
   restart: unless-stopped
   volumes:
     - static_data:/app/staticfiles
     - media_data:/app/media
+    - ../Data:/app/Data:ro
 
 services:
   release:

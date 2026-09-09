@@ -1,5 +1,5 @@
 import { html, useEffect, useMemo, useState } from '../core/view.js';
-import { apiRequest } from '../core/api.js';
+import { apiRequest, downloadBlob } from '../core/api.js';
 import { AnalyticalReport, printAnalyticalReport } from '../components/analytical-report.js';
 import { Badge, Button, Card, ErrorState, PageHeader, Progress, Skeleton, StatCard } from '../components/ui.js';
 
@@ -16,9 +16,9 @@ function ScopeSelect({ value, onChange }) {
   </select></label>`;
 }
 
-function Field({ label, value, onChange, options = [], placeholder, disabled = false, required = false }) {
+function Field({ label, value, onChange, options = [], placeholder, disabled = false, required = false, type = 'text' }) {
   if (!options.length) {
-    return html`<label>${label}<input required=${required} disabled=${disabled} value=${value} placeholder=${placeholder} onInput=${event => onChange(event.currentTarget.value)}/></label>`;
+    return html`<label>${label}<input type=${type} required=${required} disabled=${disabled} value=${value} placeholder=${placeholder} onInput=${event => onChange(event.currentTarget.value)}/></label>`;
   }
   return html`<label>${label}<select required=${required} disabled=${disabled} value=${value} onInput=${event => onChange(event.currentTarget.value)}>
     <option value="">${placeholder ?? `انتخاب ${label}`}</option>${options.map(item => html`<option value=${item.id}>${entityLabel(item)}</option>`)}
@@ -42,7 +42,7 @@ export function ReportsPage() {
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [error, setError] = useState(null);
   const [catalog, setCatalog] = useState({ schools: [], years: [], terms: [], classes: [] });
-  const [form, setForm] = useState({ school: '', academic_year: '', term: '', class_section: '', scope: 'class', page_size: REPORT_PAGE_SIZE });
+  const [form, setForm] = useState({ school: '', academic_year: '', report_mode: 'data_monthly', month_no: '', term: '', class_section: '', scope: 'class', page_size: REPORT_PAGE_SIZE });
   const [creating, setCreating] = useState(false);
   const [previewSnapshot, setPreviewSnapshot] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -120,6 +120,7 @@ export function ReportsPage() {
       [field]: value,
       ...(field === 'school' ? { class_section: '' } : {}),
       ...(field === 'academic_year' ? { term: '', class_section: '' } : {}),
+      ...(field === 'report_mode' && value === 'data_monthly' ? { term: '' } : {}),
     }));
   };
 
@@ -127,7 +128,13 @@ export function ReportsPage() {
     event.preventDefault();
     setCreating(true);
     try {
-      const payload = { ...form, page_size: REPORT_PAGE_SIZE, class_section: form.scope === 'class' ? form.class_section : null };
+      const payload = {
+        ...form,
+        page_size: REPORT_PAGE_SIZE,
+        term: form.report_mode === 'official_term' ? form.term : null,
+        month_no: form.report_mode === 'data_monthly' ? Number(form.month_no) : null,
+        class_section: form.scope === 'class' ? form.class_section : null,
+      };
       const batch = await apiRequest('reports/batches/', { method: 'POST', body: payload });
       setBatches(current => [batch, ...current]);
       setError(null);
@@ -135,6 +142,16 @@ export function ReportsPage() {
       setError(err);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const downloadBatch = async batch => {
+    if (!batch?.zip_download_url) return;
+    try {
+      const blob = await apiRequest(batch.zip_download_url, { responseType: 'blob' });
+      downloadBlob(blob, `report-batch-${batch.id}.zip`);
+    } catch (err) {
+      setError(err);
     }
   };
 
@@ -153,20 +170,21 @@ export function ReportsPage() {
       ${previewError ? html`<${ErrorState} error=${previewError} onRetry=${() => setPreviewError(null)}/>` : html`<${AnalyticalReport} snapshot=${previewSnapshot} loading=${previewLoading}/>`}
     </section>
 
-    <${Card} className="report-create" title="تولید گروهی کارنامه" subtitle="انتخاب‌ها فقط در محدودهٔ دسترسی فعلی شما اعتبارسنجی می‌شوند. خروجی نهایی هر کارنامه در مرورگر و با قالب ثابت A3 چاپ می‌شود.">
+    <${Card} className="report-create" title="تولید گروهی کارنامه" subtitle="برای داده‌های مسیر Data، گزارش ماهانه بدون وابستگی به نوبت رسمی تولید می‌شود و ZIP کارنامه‌ها از همین صفحه قابل دانلود است.">
       <form onSubmit=${create} class="report-create__form">
         <${Field} label="مدرسه" required=${true} value=${form.school} options=${catalog.schools} placeholder=${catalogLoading ? 'در حال دریافت…' : 'انتخاب مدرسه'} onChange=${value => updateForm('school', value)}/>
         <${Field} label="سال تحصیلی" required=${true} value=${form.academic_year} options=${years} placeholder=${catalogLoading ? 'در حال دریافت…' : 'انتخاب سال'} onChange=${value => updateForm('academic_year', value)}/>
-        <${Field} label="نوبت" required=${true} value=${form.term} options=${terms} placeholder=${catalogLoading ? 'در حال دریافت…' : 'انتخاب نوبت'} onChange=${value => updateForm('term', value)}/>
+        <label>نوع گزارش<select value=${form.report_mode} onInput=${event => updateForm('report_mode', event.currentTarget.value)}><option value="data_monthly">ماهانه از مسیر Data</option><option value="official_term">نوبت رسمی دروس</option></select></label>
+        ${form.report_mode === 'data_monthly' ? html`<${Field} label="شماره ماه" type="number" required=${true} value=${form.month_no} placeholder="مثلاً ۴" onChange=${value => updateForm('month_no', value)}/>` : html`<${Field} label="نوبت" required=${true} value=${form.term} options=${terms} placeholder=${catalogLoading ? 'در حال دریافت…' : 'انتخاب نوبت'} onChange=${value => updateForm('term', value)}/>`}
         <${ScopeSelect} value=${form.scope} onChange=${value => updateForm('scope', value)}/>
         ${form.scope === 'class' && html`<${Field} label="کلاس" required=${true} value=${form.class_section} options=${classes} placeholder=${catalogLoading ? 'در حال دریافت…' : 'انتخاب کلاس'} onChange=${value => updateForm('class_section', value)}/>`}
         <div class="report-create__format" role="status"><span>A3 افقی</span><small>قالب ثابت و آمادهٔ چاپ برای همهٔ کارنامه‌ها</small></div>
-        <div class="report-create__action"><${Button} icon="report" disabled=${creating}>${creating ? 'در حال ثبت…' : 'شروع تولید گروهی'}</${Button}><small>برای هر دانش‌آموز، پیش‌نمایش React را باز کنید و از همان‌جا چاپ بگیرید.</small></div>
+        <div class="report-create__action"><${Button} icon="report" disabled=${creating}>${creating ? 'در حال ثبت…' : 'شروع تولید گروهی'}</${Button}><small>پس از آماده‌شدن، پیش‌نمایش React و دانلود ZIP هر کارنامه در دسترس است.</small></div>
       </form>
     </${Card}>
 
-    <${Card} title="بسته‌های تولیدشده" subtitle="خطای یک دانش‌آموز باعث توقف دیگر خروجی‌ها نمی‌شود. با انتخاب هر موردِ آماده، همان کارنامهٔ نهایی در بالا نمایش داده می‌شود؛ چاپ فقط از پیش‌نمایش React انجام می‌شود." action=${html`<${Button} variant="outline" onClick=${load}>به‌روزرسانی</${Button}>`}>
-      ${loading ? html`<${Skeleton} lines=${6}/>` : error ? html`<${ErrorState} error=${error} onRetry=${load}/>` : html`<div class="report-batches">${batches.map(batch => html`<article class="report-batch"><header><div><strong>${batch.scope === 'school' ? 'کل مدرسه' : 'کلاس منتخب'}</strong><small>${pageSizeLabel(batch.page_size)}</small></div><${Badge} tone=${statusTone(batch.status)}>${statusLabel(batch.status)}</${Badge}></header><${Progress} value=${batch.progress_percent} label="پیشرفت تولید"/><footer><span>${fa(batch.completed_count)} آماده از ${fa(batch.total_count)} · ${fa(batch.failed_count)} ناموفق</span><small class="report-batch__print-note">خروجی: چاپ React در پیش‌نمایش</small></footer>${batch.items?.length ? html`<div class="report-batch__students">${batch.items.map(item => html`<div><span><b>${item.student_name}</b><small>${item.national_id}</small></span><${Badge} tone=${statusTone(item.status === 'completed' ? 'completed' : item.status === 'failed' ? 'failed' : 'processing')}>${statusLabel(item.status)}</${Badge}>${item.report_id && html`<button class="report-batch__preview" type="button" onClick=${() => void openPreview(item)}>نمایش و چاپ</button>`}</div>`)}</div>` : null}</article>`)}${!batches.length && html`<p class="report-empty">هنوز بسته‌ای تولید نشده است.</p>`}</div>`}
+    <${Card} title="بسته‌های تولیدشده" subtitle="خطای یک دانش‌آموز باعث توقف دیگر خروجی‌ها نمی‌شود. با انتخاب هر موردِ آماده، همان کارنامهٔ نهایی در بالا نمایش داده می‌شود." action=${html`<${Button} variant="outline" onClick=${load}>به‌روزرسانی</${Button}>`}>
+      ${loading ? html`<${Skeleton} lines=${6}/>` : error ? html`<${ErrorState} error=${error} onRetry=${load}/>` : html`<div class="report-batches">${batches.map(batch => html`<article class="report-batch"><header><div><strong>${batch.report_mode === 'data_monthly' ? `گزارش ماه ${fa(batch.month_no)}` : batch.scope === 'school' ? 'کل مدرسه' : 'کلاس منتخب'}</strong><small>${pageSizeLabel(batch.page_size)}</small></div><${Badge} tone=${statusTone(batch.status)}>${statusLabel(batch.status)}</${Badge}></header><${Progress} value=${batch.progress_percent} label="پیشرفت تولید"/><footer><span>${fa(batch.completed_count)} آماده از ${fa(batch.total_count)} · ${fa(batch.failed_count)} ناموفق</span>${batch.zip_download_url && html`<${Button} type="button" variant="outline" icon="download" onClick=${() => void downloadBatch(batch)}>دانلود ZIP کارنامه‌ها</${Button}>`}</footer>${batch.items?.length ? html`<div class="report-batch__students">${batch.items.map(item => html`<div><span><b>${item.student_name}</b><small>${item.national_id}</small></span><${Badge} tone=${statusTone(item.status === 'completed' ? 'completed' : item.status === 'failed' ? 'failed' : 'processing')}>${statusLabel(item.status)}</${Badge}>${item.report_id && html`<button class="report-batch__preview" type="button" onClick=${() => void openPreview(item)}>نمایش و چاپ</button>`}</div>`)}</div>` : null}</article>`)}${!batches.length && html`<p class="report-empty">هنوز بسته‌ای تولید نشده است.</p>`}</div>`}
     </${Card}>
   </div>`;
 }

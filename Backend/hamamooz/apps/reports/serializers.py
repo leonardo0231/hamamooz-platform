@@ -19,7 +19,16 @@ def validate_report_selection(attrs, request):
     report_type = attrs["report_type"]
     enrollment = attrs.get("enrollment")
     class_section = attrs.get("class_section")
-    term = attrs["term"]
+    report_mode = attrs.get("report_mode", ReportArchive.ReportMode.OFFICIAL_TERM)
+    term = attrs.get("term")
+    month_no = attrs.get("month_no")
+    if report_mode == ReportArchive.ReportMode.DATA_MONTHLY:
+        if term is not None:
+            raise serializers.ValidationError({"term": "گزارش ماهانه مسیر Data نوبت رسمی نمی‌پذیرد."})
+        if month_no is None:
+            raise serializers.ValidationError({"month_no": "ماه گزارش الزامی است."})
+    elif term is None:
+        raise serializers.ValidationError({"term": "برای گزارش رسمی انتخاب نوبت الزامی است."})
     if report_type == ReportArchive.ReportType.STUDENT_REPORT_CARD:
         if not enrollment or class_section:
             raise serializers.ValidationError(
@@ -35,7 +44,7 @@ def validate_report_selection(attrs, request):
             )
         school = class_section.school
         academic_year = class_section.academic_year
-    if term.academic_year_id != academic_year.id:
+    if term is not None and term.academic_year_id != academic_year.id:
         raise serializers.ValidationError({"term": "نوبت متعلق به سال تحصیلی انتخاب‌شده نیست."})
     if school.id not in set(accessible_school_ids(request.user)):
         raise serializers.ValidationError("به این شعبه دسترسی ندارید.")
@@ -101,6 +110,8 @@ class ReportArchiveSerializer(serializers.ModelSerializer):
             "school_name",
             "academic_year",
             "term",
+            "report_mode",
+            "month_no",
             "report_type",
             "status",
             "status_display",
@@ -153,7 +164,9 @@ class ReportArchiveSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         attrs = validate_report_selection(attrs, self.context["request"])
-        return validate_official_report_readiness(attrs)
+        if attrs.get("report_mode", ReportArchive.ReportMode.OFFICIAL_TERM) == ReportArchive.ReportMode.OFFICIAL_TERM:
+            return validate_official_report_readiness(attrs)
+        return attrs
 
     def create(self, validated_data):
         school = validated_data.pop("_school")
@@ -198,6 +211,8 @@ class ReportBatchSerializer(serializers.ModelSerializer):
             "school",
             "academic_year",
             "term",
+            "report_mode",
+            "month_no",
             "class_section",
             "scope",
             "page_size",
@@ -242,8 +257,15 @@ class ReportBatchCreateSerializer(serializers.Serializer):
         queryset=ReportArchive._meta.get_field("academic_year").remote_field.model.objects.all()
     )
     term = serializers.PrimaryKeyRelatedField(
-        queryset=ReportArchive._meta.get_field("term").remote_field.model.objects.all()
+        queryset=ReportArchive._meta.get_field("term").remote_field.model.objects.all(),
+        required=False,
+        allow_null=True,
     )
+    report_mode = serializers.ChoiceField(
+        choices=ReportBatch.ReportMode.choices,
+        default=ReportBatch.ReportMode.OFFICIAL_TERM,
+    )
+    month_no = serializers.IntegerField(required=False, allow_null=True, min_value=1, max_value=12)
     scope = serializers.ChoiceField(choices=ReportBatch.Scope.choices)
     class_section = serializers.PrimaryKeyRelatedField(
         queryset=ReportArchive._meta.get_field("class_section").remote_field.model.objects.all(),
@@ -261,18 +283,33 @@ class ReportBatchCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError(str(exc)) from exc
 
     def validate(self, attrs):
-        request, school, year, term = (
+        request, school, year, term, report_mode = (
             self.context["request"],
             attrs["school"],
             attrs["academic_year"],
-            attrs["term"],
+            attrs.get("term"),
+            attrs["report_mode"],
         )
         if school.id not in set(accessible_school_ids(request.user)):
             raise serializers.ValidationError({"school": "School is outside your access scope."})
-        if year.organization_id != school.organization_id or term.academic_year_id != year.id:
+        if year.organization_id != school.organization_id:
             raise serializers.ValidationError(
-                {"term": "Term must belong to the selected academic year."}
+                {"academic_year": "Academic year must belong to the selected school."}
             )
+        if report_mode == ReportBatch.ReportMode.OFFICIAL_TERM:
+            if term is None:
+                raise serializers.ValidationError({"term": "برای گزارش رسمی نوبت الزامی است."})
+            if term.academic_year_id != year.id:
+                raise serializers.ValidationError(
+                    {"term": "Term must belong to the selected academic year."}
+                )
+        else:
+            if term is not None:
+                raise serializers.ValidationError(
+                    {"term": "گزارش ماهانه مسیر Data نوبت رسمی نمی‌پذیرد."}
+                )
+            if attrs.get("month_no") is None:
+                raise serializers.ValidationError({"month_no": "ماه گزارش الزامی است."})
         section = attrs.get("class_section")
         if attrs["scope"] == ReportBatch.Scope.CLASS:
             if not section or section.school_id != school.id or section.academic_year_id != year.id:
@@ -293,17 +330,20 @@ class ReportBatchCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"detail": "One or more classes are outside your access scope."}
             )
-        # A group is official only when every selected class has locked, complete scores.
-        for selected_class in ReportArchive._meta.get_field(
-            "class_section"
-        ).remote_field.model.objects.filter(id__in=target_classes):
-            validate_official_report_readiness(
-                {
-                    "report_type": ReportArchive.ReportType.CLASS_REPORT_CARDS,
-                    "term": term,
-                    "class_section": selected_class,
-                }
-            )
+        # A group is official only when every selected class has locked,
+        # complete scores. Data-path monthly reports intentionally do not
+        # require Term/TermResult rows.
+        if report_mode == ReportBatch.ReportMode.OFFICIAL_TERM:
+            for selected_class in ReportArchive._meta.get_field(
+                "class_section"
+            ).remote_field.model.objects.filter(id__in=target_classes):
+                validate_official_report_readiness(
+                    {
+                        "report_type": ReportArchive.ReportType.CLASS_REPORT_CARDS,
+                        "term": term,
+                        "class_section": selected_class,
+                    }
+                )
         attrs["_target_classes"] = target_classes
         return attrs
 
@@ -331,8 +371,15 @@ class ReportBatchCreateSerializer(serializers.Serializer):
 class ReportPreviewSerializer(serializers.Serializer):
     report_type = serializers.ChoiceField(choices=ReportArchive.ReportType.choices)
     term = serializers.PrimaryKeyRelatedField(
-        queryset=ReportArchive._meta.get_field("term").remote_field.model.objects.all()
+        queryset=ReportArchive._meta.get_field("term").remote_field.model.objects.all(),
+        required=False,
+        allow_null=True,
     )
+    report_mode = serializers.ChoiceField(
+        choices=ReportArchive.ReportMode.choices,
+        default=ReportArchive.ReportMode.OFFICIAL_TERM,
+    )
+    month_no = serializers.IntegerField(required=False, allow_null=True, min_value=1, max_value=12)
     enrollment = serializers.PrimaryKeyRelatedField(
         queryset=ReportArchive._meta.get_field("enrollment").remote_field.model.objects.all(),
         required=False,

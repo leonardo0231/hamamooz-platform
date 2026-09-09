@@ -26,7 +26,8 @@ from hamamooz.apps.academics.models import (
     SubjectResult,
     TermResult,
 )
-from hamamooz.apps.evaluations.catalog import DOMAIN_DEFINITIONS
+from hamamooz.apps.evaluations.catalog import DOMAIN_DEFINITIONS, METRIC_CATALOG, metric_catalog_for
+from hamamooz.apps.evaluations.models import AssessmentPeriod, AssessmentRecord, MonthlyEvaluation
 from hamamooz.apps.students.models import Enrollment
 
 from .models import ReportArchive, ReportBatch, ReportBatchItem, ReportDraft
@@ -53,6 +54,21 @@ ALLOWED_REPORT_PAGE_SIZES = {
     "digital_3x2": "420mm 280mm",
 }
 REPORT_PAGE_SIZE_CSS = ALLOWED_REPORT_PAGE_SIZES[REPORT_PAGE_SIZE_KEY]
+
+MONTH_LABELS = {
+    1: "تیر",
+    2: "مرداد",
+    3: "شهریور",
+    4: "مهر",
+    5: "آبان",
+    6: "آذر",
+    7: "دی",
+    8: "بهمن",
+    9: "اسفند",
+    10: "فروردین",
+    11: "اردیبهشت",
+    12: "خرداد",
+}
 
 
 def normalize_report_page_size(value=None):
@@ -108,6 +124,9 @@ def _canonical_domain_scores(rows):
             "title": item.get("title") or item.get("domain_title") or title,
             "weight": item.get("weight", weight),
             "score": item.get("score") if item.get("score") is not None else None,
+            "percent": item.get("percent") if item.get("percent") is not None else None,
+            "value_unit": item.get("value_unit", "score_20"),
+            "has_data": item.get("has_data", item.get("score") is not None),
             "completed_metrics": item.get("completed_metrics", 0),
             "total_metrics": item.get("total_metrics", 0),
         }
@@ -222,6 +241,352 @@ def build_student_snapshot(enrollment, term, *, recalculate=True):
     }
 
 
+def _json_number(value):
+    if value is None:
+        return None
+    value = Decimal(str(value))
+    return int(value) if value == int(value) else float(value)
+
+
+def _data_path_metric_score(record):
+    """Return an analytical 0..20 score only when the unit is authoritative."""
+
+    if record.status != "recorded" or record.score is None:
+        return None
+    if record.value_kind == "rubric_5":
+        return record.score * Decimal("4")
+    if record.value_kind == "score_20":
+        return record.score
+    # Signed deltas and unknown numeric/text values are stored and displayed,
+    # but they are not silently mixed into a level/average score.
+    return None
+
+
+def _data_path_metric_row(record, catalog):
+    definition = catalog.get(record.indicator.code) or METRIC_CATALOG.get(record.indicator.code, {})
+    return {
+        "code": record.indicator.code,
+        "title": definition.get("title", record.indicator.title),
+        "domain_code": definition.get("domain_code", record.indicator.category),
+        "domain_title": definition.get(
+            "domain_title",
+            DOMAIN_DEFINITIONS.get(record.indicator.category, (record.indicator.category, 0))[0],
+        ),
+        "value": _json_number(record.score),
+        "raw_value": record.raw_value,
+        "value_kind": record.value_kind,
+        "value_unit": record.value_kind,
+        "status": record.status,
+        "has_data": record.status == "recorded" and record.score is not None,
+    }
+
+
+def _data_path_month_summary(records, catalog):
+    rows = [_data_path_metric_row(record, catalog) for record in records]
+    grouped = defaultdict(list)
+    for record in records:
+        score = _data_path_metric_score(record)
+        domain_code = record.indicator.category
+        if score is not None and domain_code:
+            grouped[domain_code].append(score)
+
+    domain_scores = []
+    for code, (title, weight) in DOMAIN_DEFINITIONS.items():
+        values = grouped.get(code, [])
+        total_metrics = sum(
+            1
+            for definition in catalog.values()
+            if definition.get("domain_code") == code
+        )
+        score = (sum(values) / len(values)).quantize(Decimal("0.01")) if values else None
+        domain_scores.append(
+            {
+                "code": code,
+                "title": title,
+                "weight": weight,
+                "score": _json_number(score),
+                "percent": _json_number(score * Decimal("5")) if score is not None else None,
+                "value_unit": "score_20",
+                "completed_metrics": sum(
+                    1 for record in records if record.indicator.category == code
+                ),
+                "total_metrics": total_metrics,
+                "has_data": score is not None,
+            }
+        )
+    scored_domains = [item for item in domain_scores if item["score"] is not None]
+    total_weight = sum(item["weight"] for item in scored_domains)
+    overall = (
+        sum(Decimal(str(item["score"])) * item["weight"] for item in scored_domains)
+        / total_weight
+        if total_weight
+        else None
+    )
+    total_metrics = len(catalog)
+    completed_metrics = sum(1 for record in records if record.status == "recorded")
+    completion_percent = round(completed_metrics * 100 / total_metrics, 2) if total_metrics else 0.0
+    required_metrics = total_metrics
+    return {
+        "metrics": rows,
+        "metric_scores": {
+            row["code"]: row["value"] for row in rows if row["value"] is not None
+        },
+        "domain_scores": domain_scores,
+        "overall_score": _json_number(overall.quantize(Decimal("0.01"))) if overall else None,
+        "completed_metrics": completed_metrics,
+        "required_metrics": required_metrics,
+        "completion_percent": completion_percent,
+        "completion_status": "final" if completed_metrics >= required_metrics else "provisional",
+        "completion_warning": (
+            None
+            if completed_metrics >= required_metrics
+            else f"اطلاعات ناقص است؛ {completed_metrics} شاخص از {required_metrics} شاخص ثبت شده است."
+        ),
+    }
+
+
+def _data_path_extended_context(enrollment, month_no):
+    records = list(
+        AssessmentRecord.objects.filter(
+            student=enrollment.student,
+            period__academic_year=enrollment.academic_year,
+            period__period_type=AssessmentPeriod.PeriodType.MONTHLY,
+            period__order__lte=month_no,
+        )
+        .select_related("period", "indicator")
+        .order_by("period__order", "indicator__code")
+    )
+    records_by_month = defaultdict(list)
+    for record in records:
+        records_by_month[record.period.order].append(record)
+
+    # Older manual imports predate AssessmentRecord.  Make them visible in a
+    # Data report without changing their canonical legacy storage.
+    if not records:
+        for evaluation in (
+            MonthlyEvaluation.objects.filter(
+                enrollment=enrollment,
+                month_no__lte=month_no,
+            )
+            .prefetch_related("metric_scores")
+            .order_by("month_no")
+        ):
+            catalog = metric_catalog_for(evaluation.framework_version) or METRIC_CATALOG
+            for metric in evaluation.metric_scores.all():
+                definition = catalog.get(metric.metric_code, {})
+                records_by_month[evaluation.month_no].append(
+                    {
+                        "indicator": type(
+                            "LegacyIndicator",
+                            (),
+                            {
+                                "code": metric.metric_code,
+                                "title": definition.get("title", metric.metric_code),
+                                "category": definition.get("domain_code", ""),
+                            },
+                        )(),
+                        "score": Decimal(metric.value),
+                        "raw_value": str(metric.value),
+                        "value_kind": "rubric_5",
+                        "status": "recorded",
+                    }
+                )
+
+    evaluations = []
+    all_catalog = METRIC_CATALOG
+    for current_month, month_records in sorted(records_by_month.items()):
+        real_records = [record for record in month_records if not isinstance(record, dict)]
+        if real_records:
+            catalog = all_catalog
+            summary = _data_path_month_summary(real_records, catalog)
+        else:
+            # Convert legacy rows to the same public contract without relying
+            # on the dynamic model's fields.
+            rows = []
+            grouped = defaultdict(list)
+            for record in month_records:
+                indicator = record["indicator"]
+                domain_code = indicator.category
+                score = record["score"] * Decimal("4")
+                rows.append(
+                    {
+                        "code": indicator.code,
+                        "title": indicator.title,
+                        "domain_code": domain_code,
+                        "domain_title": DOMAIN_DEFINITIONS.get(domain_code, ("", 0))[0],
+                        "value": _json_number(record["score"]),
+                        "raw_value": record["raw_value"],
+                        "value_kind": "rubric_5",
+                        "value_unit": "rubric_5",
+                        "status": "recorded",
+                        "has_data": True,
+                    }
+                )
+                grouped[domain_code].append(score)
+            domains = []
+            for code, (title, weight) in DOMAIN_DEFINITIONS.items():
+                values = grouped.get(code, [])
+                score = sum(values) / len(values) if values else None
+                domains.append(
+                    {
+                        "code": code,
+                        "title": title,
+                        "weight": weight,
+                        "score": _json_number(score),
+                        "percent": _json_number(score * Decimal("5")) if score is not None else None,
+                        "value_unit": "score_20",
+                        "completed_metrics": len(values),
+                        "total_metrics": sum(1 for item in METRIC_CATALOG.values() if item["domain_code"] == code),
+                        "has_data": score is not None,
+                    }
+                )
+            scored = [item for item in domains if item["score"] is not None]
+            total_weight = sum(item["weight"] for item in scored)
+            overall = (
+                sum(Decimal(str(item["score"])) * item["weight"] for item in scored) / total_weight
+                if total_weight
+                else None
+            )
+            summary = {
+                "metrics": rows,
+                "metric_scores": {row["code"]: row["value"] for row in rows},
+                "domain_scores": domains,
+                "overall_score": _json_number(overall),
+                "completed_metrics": len(rows),
+                "required_metrics": len(METRIC_CATALOG),
+                "completion_percent": round(len(rows) * 100 / len(METRIC_CATALOG), 2),
+                "completion_status": "provisional",
+                "completion_warning": "دادهٔ قدیمی فقط برای شاخص‌های ثبت‌شده در دسترس است.",
+            }
+        evaluations.append(
+            {
+                "month_no": current_month,
+                "month_title": MONTH_LABELS.get(current_month, str(current_month)),
+                "framework_version": "data_path",
+                **summary,
+            }
+        )
+
+    latest = next(
+        (item for item in evaluations if item["month_no"] == month_no),
+        evaluations[-1] if evaluations else None,
+    )
+    current_domain_scores = latest["domain_scores"] if latest else [
+        {
+            "code": code,
+            "title": title,
+            "weight": weight,
+            "score": None,
+            "percent": None,
+            "value_unit": "score_20",
+            "completed_metrics": 0,
+            "total_metrics": sum(1 for item in METRIC_CATALOG.values() if item["domain_code"] == code),
+            "has_data": False,
+        }
+        for code, (title, weight) in DOMAIN_DEFINITIONS.items()
+    ]
+    analysis = {
+        "completion_status": latest["completion_status"] if latest else "provisional",
+        "completion_percent": latest["completion_percent"] if latest else 0.0,
+        "overall_score": latest["overall_score"] if latest else None,
+        "performance_level": None,
+        "first_month": evaluations[0]["month_no"] if evaluations else None,
+        "last_month": latest["month_no"] if latest else None,
+        "change": None,
+        "trend": "insufficient_data",
+        "trend_label": "داده ناکافی",
+        "recommendation": None,
+        "completion_warning": latest["completion_warning"] if latest else "هنوز ارزیابی ماهانه‌ای ثبت نشده است.",
+        "rank_scope": "class",
+        "rank": None,
+        "ranked_count": 0,
+        "domain_scores": _canonical_domain_scores(current_domain_scores),
+        "monthly_scores": [
+            {
+                key: value
+                for key, value in item.items()
+                if key not in {"metrics", "metric_scores"}
+            }
+            for item in evaluations
+        ],
+    }
+    return {
+        "evaluations": evaluations,
+        "evaluation_analysis": analysis,
+        "latest_evaluation": latest,
+        "report_mode": ReportArchive.ReportMode.DATA_MONTHLY,
+        "month_no": month_no,
+        "attendance": {
+            "finalized_session_count": 0,
+            "record_count": 0,
+            "present_count": 0,
+            "unexcused_absence_count": 0,
+            "excused_absence_count": 0,
+            "late_count": 0,
+            "attendance_rate": None,
+        },
+        "behavior_events": [],
+        "activities": [],
+        "analytics_signals": [],
+        "approved_recommendations": [],
+        "support_notes": [],
+    }
+
+
+def build_data_path_student_snapshot(enrollment, month_no):
+    school = enrollment.school
+    logo_url = (
+        school.logo.url
+        if school.logo
+        else school.organization.logo.url
+        if school.organization.logo
+        else ""
+    )
+    return {
+        "organization": {"name": school.organization.name},
+        "school": {
+            "name": school.official_name or school.name,
+            "branch": school.name if school.official_name else "",
+            "address": school.address,
+            "phone": school.phone,
+            "manager": school.manager_name,
+            "logo_url": logo_url,
+        },
+        "student": {
+            "full_name": enrollment.student.full_name,
+            "national_id": enrollment.student.national_id,
+            "student_number": enrollment.student_number,
+            "photo_url": enrollment.student.photo.url if enrollment.student.photo else "",
+        },
+        "academic": {
+            "year": enrollment.academic_year.title,
+            "term": f"ماه {MONTH_LABELS.get(month_no, month_no)}",
+            "grade": enrollment.grade_level.title,
+            "class": enrollment.class_section.title,
+        },
+        "subjects": [],
+        "summary": {
+            "average": None,
+            "class_rank": None,
+            "passed": None,
+            "status_label": "گزارش ماهانه مسیر Data",
+            "formula_version": "data_path_monthly_v1",
+        },
+    }
+
+
+def build_monthly_analytical_snapshot(enrollment, month_no, *, page_size=REPORT_PAGE_SIZE_KEY):
+    snapshot = {"reports": [build_data_path_student_snapshot(enrollment, month_no)]}
+    report = snapshot["reports"][0]
+    report["product_context"] = _data_path_extended_context(enrollment, month_no)
+    report["history"] = []
+    snapshot["template"] = {
+        "blocks": list(ALLOWED_REPORT_BLOCKS),
+        "presentation": {"page_size": normalize_report_page_size(page_size)},
+    }
+    return snapshot
+
+
 def build_report_snapshot(report_type, term, enrollment=None, class_section=None):
     if report_type == ReportArchive.ReportType.STUDENT_REPORT_CARD:
         return {"reports": [build_student_snapshot(enrollment, term)]}
@@ -278,7 +643,15 @@ def build_analytical_snapshot(enrollment, term, *, page_size=REPORT_PAGE_SIZE_KE
     return snapshot
 
 
-def build_report_render_snapshot(report_type, term, *, enrollment=None, class_section=None):
+def build_report_render_snapshot(
+    report_type,
+    term,
+    *,
+    enrollment=None,
+    class_section=None,
+    report_mode=ReportArchive.ReportMode.OFFICIAL_TERM,
+    month_no=None,
+):
     """Build the presentation snapshot used by preview and archived reports.
 
     Student report cards have a richer, A3 analytical presentation.  Keeping this
@@ -286,6 +659,28 @@ def build_report_render_snapshot(report_type, term, *, enrollment=None, class_se
     batch report from silently using different data contracts.
     """
 
+    if report_mode == ReportArchive.ReportMode.DATA_MONTHLY:
+        if month_no is None:
+            raise ValueError("گزارش ماهانه مسیر Data به شماره ماه نیاز دارد.")
+        if report_type == ReportArchive.ReportType.STUDENT_REPORT_CARD:
+            if enrollment is None:
+                raise ValueError("Student report cards require an enrollment.")
+            return build_monthly_analytical_snapshot(enrollment, month_no)
+        enrollments = Enrollment.objects.filter(
+            class_section=class_section,
+            academic_year=class_section.academic_year,
+            status=Enrollment.Status.ACTIVE,
+        ).select_related("student", "school", "academic_year", "grade_level", "class_section")
+        return {
+            "reports": [
+                build_monthly_analytical_snapshot(item, month_no)["reports"][0]
+                for item in enrollments
+            ],
+            "template": {
+                "blocks": list(ALLOWED_REPORT_BLOCKS),
+                "presentation": {"page_size": REPORT_PAGE_SIZE_KEY},
+            },
+        }
     if report_type == ReportArchive.ReportType.STUDENT_REPORT_CARD:
         if enrollment is None:
             raise ValueError("Student report cards require an enrollment.")
@@ -310,14 +705,22 @@ def render_report_batch(batch_id):
             item.status = ReportBatchItem.Status.PROCESSING
             item.save(update_fields=["status", "updated_at"])
             try:
-                snapshot = build_analytical_snapshot(
-                    batch_item_enrollment := item.enrollment, batch.term, page_size=batch.page_size
-                )
+                batch_item_enrollment = item.enrollment
+                if batch.report_mode == ReportBatch.ReportMode.DATA_MONTHLY:
+                    snapshot = build_monthly_analytical_snapshot(
+                        batch_item_enrollment, batch.month_no, page_size=batch.page_size
+                    )
+                else:
+                    snapshot = build_analytical_snapshot(
+                        batch_item_enrollment, batch.term, page_size=batch.page_size
+                    )
                 report = ReportArchive.objects.create(
                     organization=batch.organization,
                     school=batch.school,
                     academic_year=batch.academic_year,
                     term=batch.term,
+                    report_mode=batch.report_mode,
+                    month_no=batch.month_no,
                     report_type=ReportArchive.ReportType.STUDENT_REPORT_CARD,
                     status=ReportArchive.Status.PROCESSING,
                     enrollment=batch_item_enrollment,
@@ -746,6 +1149,8 @@ def generate_report(report_id):
             report.term,
             enrollment=report.enrollment,
             class_section=report.class_section,
+            report_mode=report.report_mode,
+            month_no=report.month_no,
         )
         pdf = render_report_pdf(snapshot)
         first = snapshot["reports"][0] if snapshot["reports"] else None

@@ -71,8 +71,22 @@ class AssessmentRecord(TimeStampedUUIDModel):
         related_name="records",
     )
     score = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    # Data-path workbooks are not limited to the legacy integer 0..5 rubric.
+    # Keep the normalized numeric value when one exists, and always retain
+    # the source cell so a registrar can audit values such as ``ندارد``,
+    # signed progress numbers, or a decimal written with ``/``.
+    raw_value = models.CharField(max_length=5000, blank=True)
+    value_kind = models.CharField(max_length=30, default="rubric_5")
+    status = models.CharField(max_length=20, default="recorded")
     recorded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="dynamic_assessment_records",
+    )
+    source_import_job = models.ForeignKey(
+        "imports.ImportJob",
         null=True,
         blank=True,
         on_delete=models.PROTECT,

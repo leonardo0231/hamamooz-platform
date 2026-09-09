@@ -1,6 +1,7 @@
 import hashlib
 from pathlib import Path
 
+from django.conf import settings
 from django.db import IntegrityError, transaction
 from rest_framework import serializers
 
@@ -8,7 +9,7 @@ from hamamooz.apps.accounts.access import accessible_school_ids
 from hamamooz.apps.organizations.models import School
 
 from .defaults import get_default_school
-from .models import ImportJob
+from .models import DataPathImport, ImportJob
 
 
 def uploaded_file_checksum(uploaded_file):
@@ -40,6 +41,8 @@ class ImportJobSerializer(serializers.ModelSerializer):
             "status",
             "status_display",
             "source_file",
+            "source_kind",
+            "data_path_import",
             "checksum",
             "requested_by",
             "requested_by_name",
@@ -62,6 +65,8 @@ class ImportJobSerializer(serializers.ModelSerializer):
             "status",
             "status_display",
             "checksum",
+            "source_kind",
+            "data_path_import",
             "requested_by",
             "requested_by_name",
             "total_rows",
@@ -146,3 +151,79 @@ class ImportJobCreateSerializer(ImportJobSerializer):
     import_type = serializers.ChoiceField(
         choices=[(ImportJob.ImportType.COMPREHENSIVE_SCHOOL, "فایل جامع مدرسه")]
     )
+
+
+class DataPathImportSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
+    school_name = serializers.CharField(source="school.name", read_only=True)
+
+    class Meta:
+        model = DataPathImport
+        fields = [
+            "id",
+            "organization",
+            "organization_name",
+            "school",
+            "school_name",
+            "source_root",
+            "status",
+            "status_display",
+            "overwrite_photos",
+            "generate_reports",
+            "report_month",
+            "manifest",
+            "result_summary",
+            "errors",
+            "started_at",
+            "finished_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "organization",
+            "organization_name",
+            "school_name",
+            "status",
+            "status_display",
+            "manifest",
+            "result_summary",
+            "errors",
+            "started_at",
+            "finished_at",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class DataPathImportCreateSerializer(serializers.Serializer):
+    school = serializers.PrimaryKeyRelatedField(queryset=School.objects.all())
+    source_root = serializers.CharField(required=False, allow_blank=True)
+    overwrite_photos = serializers.BooleanField(required=False, default=False)
+    generate_reports = serializers.BooleanField(required=False, default=True)
+    report_month = serializers.IntegerField(required=False, allow_null=True, min_value=1, max_value=12)
+
+    def validate(self, attrs):
+        request = self.context["request"]
+        school = attrs["school"]
+        if school.id not in set(accessible_school_ids(request.user)):
+            raise serializers.ValidationError({"school": "به این شعبه دسترسی ندارید."})
+        source_root = Path(attrs.get("source_root") or settings.DATA_ROOT).expanduser().resolve()
+        configured_root = Path(settings.DATA_ROOT).resolve()
+        if source_root != configured_root:
+            raise serializers.ValidationError(
+                {"source_root": "برای امنیت، API فقط مسیر Data پیکربندی‌شدهٔ سرور را می‌خواند."}
+            )
+        if not source_root.is_dir():
+            raise serializers.ValidationError({"source_root": "مسیر Data روی سرور پیدا نشد."})
+        attrs["source_root"] = str(source_root)
+        return attrs
+
+    def create(self, validated_data):
+        school = validated_data["school"]
+        return DataPathImport.objects.create(
+            organization=school.organization,
+            requested_by=self.context["request"].user,
+            **validated_data,
+        )

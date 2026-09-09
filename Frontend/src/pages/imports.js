@@ -28,6 +28,7 @@ const summaryLabels = {
   enrollments_created: 'ثبت‌نام جدید', enrollments_updated: 'ثبت‌نام به‌روزشده', enrollments_unchanged: 'ثبت‌نام بدون تغییر',
   evaluations_created: 'ارزیابی جدید', evaluations_updated: 'ارزیابی به‌روزشده', evaluations_unchanged: 'ارزیابی بدون تغییر',
   metric_scores_created: 'شاخص جدید', metric_scores_updated: 'شاخص به‌روزشده', metric_scores_unchanged: 'شاخص بدون تغییر',
+  metric_scores_upserted: 'شاخص‌های قدیمی', assessment_records_upserted: 'رکوردهای خام شاخص', raw_metrics_preserved: 'مقادیر خام نگه‌داری‌شده', not_recorded_metrics: 'مقادیر ثبت‌نشده',
   records_deleted: 'رکورد حذف‌شده',
 };
 
@@ -79,9 +80,12 @@ function ImportJob({ job, actionKey, onRetry, onCancel, onDownloadErrors }) {
 
 export function ImportsPage() {
   const scope = useStore(state => state.scope);
-  const DEFAULT_SCHOOL_NAME = "مدرسه بعثت";
+  const [schools, setSchools] = useState([]);
+  const [selectedSchool, setSelectedSchool] = useState(scope.schoolId || '');
+  const [catalogLoading, setCatalogLoading] = useState(true);
   const [catalogError, setCatalogError] = useState(null);
   const [jobs, setJobs] = useState([]);
+  const [dataRuns, setDataRuns] = useState([]);
   const [jobsLoading, setJobsLoading] = useState(true);
   const [jobsError, setJobsError] = useState(null);
   const [file, setFile] = useState(null);
@@ -92,6 +96,44 @@ export function ImportsPage() {
   const [actionKey, setActionKey] = useState('');
   const inputRef = useRef(null);
 
+  const loadSchools = useCallback(async () => {
+    setCatalogLoading(true);
+    if (config.demoMode) {
+      setSchools(demoSchools);
+      setSelectedSchool(current => current || demoSchools[0].id);
+      setCatalogError(null);
+      setCatalogLoading(false);
+      return;
+    }
+    try {
+      const response = await apiRequest('schools/', { query: { page_size: 100 } });
+      const listed = results(response);
+      setSchools(listed);
+      setSelectedSchool(current => current || scope.schoolId || String(listed[0]?.id ?? ''));
+      setCatalogError(null);
+    } catch (error) {
+      setCatalogError(error);
+    } finally {
+      setCatalogLoading(false);
+    }
+  }, [scope.schoolId]);
+
+  const loadDataRuns = useCallback(async ({ silent = false } = {}) => {
+    if (config.demoMode) {
+      setDataRuns([]);
+      return;
+    }
+    try {
+      const response = await apiRequest('imports/data-path-imports/', {
+        query: { page_size: 20, ...(selectedSchool ? { school: selectedSchool } : {}) },
+      });
+      setDataRuns(results(response));
+    } catch (error) {
+      if (!silent) setSubmitError(error);
+    }
+  }, [selectedSchool]);
+
+  useEffect(() => { void loadSchools(); }, [loadSchools]);
 
   const loadJobs = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setJobsLoading(true);
@@ -115,14 +157,14 @@ export function ImportsPage() {
     }
   }, [selectedSchool]);
 
-  useEffect(() => { void loadSchools(); }, [loadSchools]);
+  useEffect(() => { if (selectedSchool) { void loadJobs(); void loadDataRuns(); } }, [selectedSchool, loadJobs, loadDataRuns]);
 
-  const hasActiveJob = jobs.some(isImportInProgress);
+  const hasActiveJob = jobs.some(isImportInProgress) || dataRuns.some(item => ['queued', 'scanning', 'processing'].includes(item.status));
   useEffect(() => {
     if (config.demoMode || !hasActiveJob) return undefined;
-    const timer = window.setInterval(() => { void loadJobs({ silent: true }); }, IMPORT_POLL_INTERVAL_MS);
+    const timer = window.setInterval(() => { void loadJobs({ silent: true }); void loadDataRuns({ silent: true }); }, IMPORT_POLL_INTERVAL_MS);
     return () => window.clearInterval(timer);
-  }, [hasActiveJob, loadJobs]);
+  }, [hasActiveJob, loadJobs, loadDataRuns]);
 
   const totals = useMemo(() => jobs.reduce((result, job) => ({
     total: result.total + 1,
@@ -200,6 +242,33 @@ export function ImportsPage() {
     }
   };
 
+  const importDataPath = async () => {
+    if (!selectedSchool) {
+      setSubmitError(new Error('مدرسهٔ مقصد را انتخاب کنید.'));
+      return;
+    }
+    setActionKey('data-path');
+    setSubmitError(null);
+    setNotice('');
+    try {
+      if (config.demoMode) {
+        setNotice('در حالت نمایشی، مسیر Data روی سرور اسکن نمی‌شود.');
+        return;
+      }
+      const run = await apiRequest('imports/from-data-path/', {
+        method: 'POST',
+        body: { school: selectedSchool, overwrite_photos: false, generate_reports: true },
+      });
+      setDataRuns(current => [run, ...current.filter(item => String(item.id) !== String(run.id))]);
+      setNotice('مسیر Data ثبت شد؛ فایل‌های Excel و تصاویر مستقیماً روی سرور پردازش می‌شوند و کارنامه‌های ماهانه در صف تولید قرار می‌گیرند.');
+      void loadJobs({ silent: true });
+    } catch (error) {
+      setSubmitError(error);
+    } finally {
+      setActionKey('');
+    }
+  };
+
   const updateJob = job => setJobs(current => current.map(item => String(item.id) === String(job.id) ? job : item));
 
   const retry = async job => {
@@ -252,6 +321,14 @@ export function ImportsPage() {
       actions=${html`<${Button} type="button" variant="outline" icon="download" disabled=${actionKey === 'template'} onClick=${downloadTemplate}>${actionKey === 'template' ? 'در حال دانلود…' : 'دانلود قالب جامع'}</${Button}>`}
     />
     <section class="stats-grid import-stats"><${StatCard} label="Jobهای ورود" value=${fa(totals.total)} icon="folder" tone="purple"/><${StatCard} label="در صف یا پردازش" value=${fa(totals.active)} icon="upload" tone="orange"/><${StatCard} label="تکمیل‌شده" value=${fa(totals.completed)} icon="check" tone="green"/><${StatCard} label="خطاهای ثبت‌شده" value=${fa(totals.errors)} icon="alert" tone="pink"/></section>
+
+    <${Card} className="import-data-path-card" title="خواندن مستقیم مسیر Data" subtitle="سرور پوشهٔ Data/Excel و Data/Photo را مستقیم می‌خواند؛ نیازی به انتخاب یا آپلود فایل در مرورگر نیست." icon="folder">
+      <div class="import-data-path-card__body"><label class="import-field">مدرسهٔ مقصد<select value=${selectedSchool} disabled=${catalogLoading || !schools.length} onInput=${event => setSelectedSchool(event.currentTarget.value)}>
+        <option value="">${catalogLoading ? 'در حال دریافت مدرسه‌ها…' : 'انتخاب مدرسه'}</option>
+        ${schools.map(school => html`<option value=${school.id} key=${school.id}>${schoolName(school)}</option>`)}
+      </select></label><div><strong>محتوای خوانده‌شده</strong><p>همهٔ فایل‌های Excel، عکس‌های نام‌گذاری‌شده با کد ملی، فایل‌های ZIP عکس و موارد ناسازگار در یک اجرای قابل پیگیری ثبت می‌شوند.</p></div><${Button} icon="folder" disabled=${actionKey === 'data-path' || !selectedSchool} onClick=${importDataPath}>${actionKey === 'data-path' ? 'در حال ثبت مسیر…' : 'اسکن و ثبت مستقیم Data'}</${Button}></div>
+      ${dataRuns.length ? html`<div class="import-data-path-card__runs">${dataRuns.slice(0, 3).map(run => html`<div><span><b>${run.school_name || 'مدرسهٔ انتخاب‌شده'}</b><small>${run.result_summary?.excel_files_seen ? `${fa(run.result_summary.excel_files_seen)} فایل Excel` : 'در حال اسکن مسیر Data'}</small></span><${Badge} tone=${run.status === 'completed' ? 'success' : run.status === 'partial' ? 'important' : run.status === 'failed' ? 'critical' : 'info'}>${run.status_display || run.status}</${Badge}></div>`)}</div>` : null}
+    </${Card}>
 
     <section class="import-layout">
       <${Card} className="import-upload-card" title="ارسال فایل جامع مدرسه" subtitle="فقط Excel با پسوند XLSX و حداکثر حجم ۱۰ مگابایت پذیرفته می‌شود." icon="upload">

@@ -342,6 +342,96 @@ def _normalize_metric_score(value, metric_code, row, warnings):
     raise ValueError(f"امتیاز {metric_code} باید عدد صحیح ۰ تا ۵ باشد.")
 
 
+def _normalize_data_path_metric(value, metric_code, row, warnings):
+    """Preserve a registrar cell while exposing a safe numeric interpretation.
+
+    The mounted ``Data`` directory is an operational source, not a single
+    manually curated template.  Its workbooks contain rubric values, 0..20
+    academic values, signed progress values, decimal separators written as
+    ``/``, and explicit text such as ``ندارد``.  Rejecting the whole workbook
+    for any of those values loses valid student records, so Data imports keep
+    both the source representation and a typed value kind.
+    """
+
+    raw_value = "" if value is None else str(value).strip()
+    normalized_text = _text(value)
+    marker = normalized_text.replace("—", "-").strip().lower()
+    if marker in {"ندارد", "نداشته", "ثبت نشده", "ثبت‌نشده", "-", "—", "n/a", "na"}:
+        return {
+            "score": None,
+            "raw_value": raw_value,
+            "value_kind": "not_recorded",
+            "status": "not_recorded",
+        }
+
+    numeric_text = normalized_text.replace(",", ".")
+    # Several source sheets use a slash as the decimal separator (for example
+    # 16/70).  Convert only a single numeric slash; retain all other text.
+    if re.fullmatch(r"[+-]?\d+\s*/\s*\d+", numeric_text):
+        numeric_text = numeric_text.replace("/", ".")
+        warnings.append(
+            _warning(
+                EVALUATION_SHEET,
+                row,
+                metric_code,
+                "metric_decimal_separator",
+                f"مقدار {metric_code} با جداکننده / به عدد اعشاری تبدیل شد و مقدار اصلی نگه‌داری شد.",
+                original=raw_value,
+                normalized=numeric_text,
+            )
+        )
+
+    try:
+        decimal = Decimal(numeric_text)
+    except (InvalidOperation, TypeError, ValueError):
+        warnings.append(
+            _warning(
+                EVALUATION_SHEET,
+                row,
+                metric_code,
+                "metric_raw_text",
+                f"مقدار {metric_code} عددی نبود؛ متن اصلی بدون تفسیر عددی ذخیره شد.",
+                original=raw_value,
+            )
+        )
+        return {
+            "score": None,
+            "raw_value": raw_value,
+            "value_kind": "raw_text",
+            "status": "preserved",
+        }
+
+    integer = int(decimal)
+    if decimal == integer and 0 <= integer <= 5:
+        value_kind = "rubric_5"
+    elif metric_code == "EDU_02":
+        # EDU_02 is explicitly a progress/delta field in the registrar data;
+        # negative and decimal values are meaningful and must not be clamped.
+        value_kind = "delta"
+    elif 0 <= decimal <= 20:
+        value_kind = "score_20"
+    else:
+        value_kind = "raw_numeric"
+
+    warnings.append(
+        _warning(
+            EVALUATION_SHEET,
+            row,
+            metric_code,
+            "metric_data_path_preserved",
+            f"مقدار {metric_code} با نوع {value_kind} ثبت شد؛ مقدار خام نیز نگه‌داری شد.",
+            original=raw_value,
+            normalized=str(decimal),
+        )
+    )
+    return {
+        "score": decimal,
+        "raw_value": raw_value,
+        "value_kind": value_kind,
+        "status": "recorded",
+    }
+
+
 def validate_flexible_hardened_comprehensive_workbook(job, rows):
     """Validate the comprehensive workbook while normalizing common school Excel conventions.
 
@@ -697,9 +787,14 @@ def validate_flexible_hardened_comprehensive_workbook(job, rows):
                 metric_failed = True
                 continue
             try:
-                metrics[metric_code] = _normalize_metric_score(
-                    value, metric_code, source_row, warnings
-                )
+                if getattr(job, "source_kind", "upload") == job.SourceKind.DATA_PATH:
+                    metrics[metric_code] = _normalize_data_path_metric(
+                        value, metric_code, source_row, warnings
+                    )
+                else:
+                    metrics[metric_code] = _normalize_metric_score(
+                        value, metric_code, source_row, warnings
+                    )
             except ValueError as exc:
                 errors.append(
                     _error(EVALUATION_SHEET, source_row, metric_code, "evaluation", str(exc))
