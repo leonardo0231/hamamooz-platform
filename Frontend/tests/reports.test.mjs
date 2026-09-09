@@ -116,7 +116,7 @@ test('standalone report entry exposes a readiness marker for browser print autom
   assert.match(sampleScript, /printAnalyticalReport/);
   assert.match(styles, /body\.report-printing \.sidebar/);
   assert.match(styles, /height:\s*calc\(297mm - 12mm\)/);
-  assert.match(styles, /grid-template-rows:\s*160px 130px 270px 120px 60px 48px/);
+  assert.match(styles, /grid-template-rows:\s*182px 278px 195px 95px/);
   assert.match(styles, /\.echart--radar \{ height: 242px; min-height: 242px; padding-bottom: 72px; \}/);
   assert.match(styles, /\.echart__svg--radar text \{ font-size: 20px; \}/);
   assert.match(styles, /\.echart--radar \.echart__svg \{ display: block; width: 100%; min-width: 0; height: 170px; min-height: 170px; \}/);
@@ -129,7 +129,10 @@ test('standalone report entry exposes a readiness marker for browser print autom
   assert.match(styles, /\.analytical-sheet__footer \{ flex: 0 0 86px; min-height: 86px; max-height: 86px; margin-top: auto/);
   assert.match(styles, /\.report-recommendation-group \.report-bullet-list li \{ white-space: normal; overflow-wrap: anywhere;/);
   assert.match(styles, /\.analytical-recommendations \.analytical-panel__body \{ padding: 0; overflow: visible; \}/);
-  assert.match(styles, /\.analytical-sheet__grid \{ flex: 0 0 827px; height: 827px; min-height: 827px;[\s\S]*overflow: visible; \}/);
+  assert.match(styles, /\.analytical-sheet__grid \{ flex: 0 0 790px; height: 790px; min-height: 790px;[\s\S]*grid-template-areas: "identity trend trend behavior insights" "table radar strengths improvements recommendations" "attendance skills21 activities activities readiness" "awards awards awards awards awards";[\s\S]*overflow: visible; \}/);
+  assert.match(styles, /\.analytical-sheet__header[^\{]*\{[^}]*direction: ltr/);
+  assert.match(styles, /\.analytical-sheet__grid[^\{]*\{[^}]*direction: ltr/);
+  assert.match(styles, /\.analytical-panel[^\{]*\{[^}]*direction: rtl/);
   assert.match(sample, /\.report-sample--print \.report-sample\{display:flex;flex-direction:column;[\s\S]*overflow:visible/);
   assert.doesNotMatch(page, /React\/Preact/);
 });

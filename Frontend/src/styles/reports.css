@@ -34,16 +34,16 @@
 
 /* Screen and print intentionally share one A3-landscape composition. */
 .analytical-sheet { direction: rtl; width: 100%; max-width: 1587px; margin: 0 auto; padding: 14px; color: #16323d; background: #fbfcf8; font-family: var(--font-body); font-size: 14px; line-height: 1.55; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-.analytical-sheet__header { display: grid; grid-template-columns: 150px 1fr 300px; align-items: center; min-height: 112px; padding: 16px 22px; border: 1px solid #dec87d; border-bottom: 0; border-radius: 15px 15px 0 0; background: radial-gradient(circle at 88% 0, rgba(212, 161, 30, .2), transparent 31%), linear-gradient(135deg, #07334f, #073d4e 50%, #0d746f); }
+.analytical-sheet__header { display: grid; grid-template-columns: 150px 1fr 300px; align-items: center; min-height: 112px; padding: 16px 22px; border: 1px solid #dec87d; border-bottom: 0; border-radius: 15px 15px 0 0; background: radial-gradient(circle at 88% 0, rgba(212, 161, 30, .2), transparent 31%), linear-gradient(135deg, #07334f, #073d4e 50%, #0d746f); direction: ltr; }
 .analytical-sheet__mark { display: grid; place-items: center; align-content: center; justify-self: start; width: 102px; height: 86px; overflow: hidden; border: 1px solid rgba(255, 255, 255, .65); border-radius: 10px; color: #fff; background: rgba(255, 255, 255, .08); }
 .analytical-sheet__mark img { display: block; width: 100%; height: 100%; object-fit: contain; border-radius: 9px; }
 .analytical-sheet__mark span { font-family: var(--font-display); font-size: 22px; font-weight: 900; line-height: 1; }
 .analytical-sheet__mark small { font-size: 10px; font-weight: 700; }
-.analytical-sheet__heading { text-align: center; color: #fff; }
+.analytical-sheet__heading { direction: rtl; text-align: center; color: #fff; }
 .analytical-sheet__heading p { margin: 0; font-size: clamp(1.35rem, 1.8vw, 1.8rem); font-family: var(--font-display); font-weight: 900; }
 .analytical-sheet__heading h2 { margin: 5px 0; color: #f9d976; font-size: clamp(1.12rem, 1.35vw, 1.4rem); }
 .analytical-sheet__heading strong { font-size: .95rem; font-weight: 600; }
-.analytical-sheet__header blockquote { margin: 0; color: #fef5d5; font-size: .9rem; line-height: 1.9; text-align: center; }
+.analytical-sheet__header blockquote { direction: rtl; margin: 0; color: #fef5d5; font-size: .9rem; line-height: 1.9; text-align: center; }
 .analytical-sheet__subhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 18px; border: 1px solid #d6e4dd; background: #fff; color: #51706d; font-size: .8rem; }
 .analytical-sheet__subhead > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .analytical-sheet__subhead em { flex: none; padding: 3px 10px; border-radius: 20px; color: #946d13; background: #fff4d5; font-style: normal; font-weight: 800; }
@@ -57,8 +57,8 @@
 .analytical-analysis-strip .is-available i { background: #0d8b77; box-shadow: 0 0 0 3px rgba(13, 139, 119, .13); }
 .analytical-analysis-strip .is-missing { opacity: .68; }
 
-.analytical-sheet__grid { display: grid; grid-template-columns: minmax(205px, 1.06fr) minmax(290px, 1.3fr) minmax(290px, 1.3fr) minmax(230px, 1fr); grid-template-rows: auto auto auto auto auto auto; gap: 11px; padding: 11px; border: 1px solid #d6e4dd; border-top: 0; background: #fff; }
-.analytical-panel { min-width: 0; overflow: hidden; border: 1px solid #dfe7e5; border-radius: 11px; background: #fff; box-shadow: 0 2px 6px rgba(15, 59, 62, .045); align-self: stretch; break-inside: avoid; }
+.analytical-sheet__grid { display: grid; grid-template-columns: minmax(205px, 1.04fr) minmax(170px, .82fr) minmax(220px, 1.08fr) minmax(220px, 1fr) minmax(220px, 1.08fr); grid-template-rows: auto auto auto auto; grid-template-areas: "identity trend trend behavior insights" "table radar strengths improvements recommendations" "attendance skills21 activities activities readiness" "awards awards awards awards awards"; gap: 11px; padding: 11px; border: 1px solid #d6e4dd; border-top: 0; background: #fff; direction: ltr; }
+.analytical-panel { min-width: 0; overflow: hidden; border: 1px solid #dfe7e5; border-radius: 11px; background: #fff; box-shadow: 0 2px 6px rgba(15, 59, 62, .045); align-self: stretch; break-inside: avoid; direction: rtl; }
 .analytical-panel__header { display: flex; align-items: center; justify-content: space-between; min-height: 37px; padding: 7px 13px; color: #fff; background: #0d746f; }
 .analytical-panel__header h3 { margin: 0; color: inherit; font-size: 1rem; line-height: 1.4; font-weight: 900; }
 .analytical-panel__header span { color: #dff9f3; font-size: .78rem; }
@@ -68,20 +68,20 @@
 .analytical-panel--gold .analytical-panel__header { background: #b48b16; }
 .analytical-panel--rose .analytical-panel__header { background: #9e2754; }
 
-.analytical-identity { grid-column: 1; grid-row: 1 / span 2; }
-.analytical-trend { grid-column: 2 / span 2; grid-row: 1; }
-.analytical-insights { grid-column: 4; grid-row: 1 / span 2; }
-.analytical-table { grid-column: 2 / span 2; grid-row: 2; }
-.analytical-radar { grid-column: 1; grid-row: 3; }
-.analytical-strengths { grid-column: 2; grid-row: 3; }
-.analytical-improvements { grid-column: 3; grid-row: 3; }
-.analytical-behavior { grid-column: 4; grid-row: 3; }
-.analytical-recommendations { grid-column: 1 / span 2; grid-row: 4; }
-.analytical-attendance { grid-column: 3; grid-row: 4; }
-.analytical-skills21 { grid-column: 4; grid-row: 4; }
-.analytical-activities { grid-column: 1 / span 2; grid-row: 5; }
-.analytical-readiness { grid-column: 3; grid-row: 5; }
-.analytical-awards { grid-column: 1 / span 4; grid-row: 6; }
+.analytical-identity { grid-area: identity; }
+.analytical-trend { grid-area: trend; }
+.analytical-insights { grid-area: insights; }
+.analytical-table { grid-area: table; }
+.analytical-radar { grid-area: radar; }
+.analytical-strengths { grid-area: strengths; }
+.analytical-improvements { grid-area: improvements; }
+.analytical-behavior { grid-area: behavior; }
+.analytical-recommendations { grid-area: recommendations; }
+.analytical-attendance { grid-area: attendance; }
+.analytical-skills21 { grid-area: skills21; }
+.analytical-activities { grid-area: activities; }
+.analytical-readiness { grid-area: readiness; }
+.analytical-awards { grid-area: awards; }
 
 .report-portrait { display: grid; place-items: center; width: 132px; height: 145px; margin: 0 auto 12px; overflow: hidden; border: 4px solid #eff6f3; border-radius: 12px; background: #edf7f4; box-shadow: inset 0 0 0 1px #8eb0a9; }
 .report-photo { display: block; width: 100%; height: 100%; }
@@ -203,7 +203,7 @@ ol.report-bullet-list { list-style-type: decimal; }
 
 @media screen and (max-width: 1150px) {
   .analytical-sheet__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto; }
-  .analytical-identity, .analytical-trend, .analytical-insights, .analytical-table, .analytical-radar, .analytical-strengths, .analytical-improvements, .analytical-behavior, .analytical-recommendations, .analytical-attendance, .analytical-skills21, .analytical-activities, .analytical-readiness, .analytical-awards { grid-column: auto; grid-row: auto; }
+  .analytical-identity, .analytical-trend, .analytical-insights, .analytical-table, .analytical-radar, .analytical-strengths, .analytical-improvements, .analytical-behavior, .analytical-recommendations, .analytical-attendance, .analytical-skills21, .analytical-activities, .analytical-readiness, .analytical-awards { grid-area: auto; }
   .analytical-identity, .analytical-trend, .analytical-insights, .analytical-table, .analytical-recommendations, .analytical-activities, .analytical-awards { grid-column: 1 / span 2; }
   .report-create__form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -223,7 +223,7 @@ ol.report-bullet-list { list-style-type: decimal; }
   .analytical-sheet__subhead { display: grid; gap: 3px; font-size: .65rem; }
   .analytical-analysis-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .analytical-sheet__grid { grid-template-columns: 1fr; padding: 6px; }
-  .analytical-identity, .analytical-trend, .analytical-insights, .analytical-table, .analytical-radar, .analytical-strengths, .analytical-improvements, .analytical-behavior, .analytical-recommendations, .analytical-attendance, .analytical-skills21, .analytical-activities, .analytical-readiness, .analytical-awards { grid-column: auto; grid-row: auto; }
+  .analytical-identity, .analytical-trend, .analytical-insights, .analytical-table, .analytical-radar, .analytical-strengths, .analytical-improvements, .analytical-behavior, .analytical-recommendations, .analytical-attendance, .analytical-skills21, .analytical-activities, .analytical-readiness, .analytical-awards { grid-area: auto; }
   .report-recommendation-grid { grid-template-columns: 1fr; }
   .report-activities { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .report-signature-heading { display: grid; gap: 3px; }
@@ -252,7 +252,7 @@ ol.report-bullet-list { list-style-type: decimal; }
   .analytical-analysis-strip > span { padding: 4px 6px; }
   .analytical-analysis-strip b { font-size: 13px; }
   .analytical-analysis-strip small { font-size: 13px; }
-  .analytical-sheet__grid { flex: 0 0 827px; height: 827px; min-height: 827px; grid-template-rows: 160px 130px 270px 120px 60px 48px; gap: 5px; padding: 5px; overflow: visible; }
+  .analytical-sheet__grid { flex: 0 0 790px; height: 790px; min-height: 790px; grid-template-columns: minmax(170px, 1.04fr) minmax(138px, .82fr) minmax(185px, 1.08fr) minmax(185px, 1fr) minmax(185px, 1.08fr); grid-template-rows: 182px 278px 195px 95px; grid-template-areas: "identity trend trend behavior insights" "table radar strengths improvements recommendations" "attendance skills21 activities activities readiness" "awards awards awards awards awards"; gap: 5px; padding: 5px; overflow: visible; }
   .analytical-panel__header { min-height: 26px; padding: 4px 8px; }
   .analytical-panel__header h3 { font-size: 1rem; line-height: 1.3; }
   .analytical-panel__header span { font-size: .8rem; }
