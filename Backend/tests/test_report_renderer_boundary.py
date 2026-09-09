@@ -69,6 +69,7 @@ def test_react_production_boundary_uses_snapshot_renderer(monkeypatch, settings)
     calls = {}
 
     monkeypatch.setattr(services, "_pdf_snapshot", lambda value: value)
+
     class FakeRenderer:
         def render_snapshot(self, value, **kwargs):
             calls["snapshot"] = value
@@ -192,7 +193,10 @@ def test_render_snapshot_waits_for_react_readiness_before_printing(monkeypatch):
         {"wait_until": "domcontentloaded", "timeout": 1234},
     )
     assert calls[4][0] == "ready"
-    assert calls[4][1] == "globalThis.__REPORT_READY__ === true || typeof globalThis.__REPORT_ERROR__ === 'string' && globalThis.__REPORT_ERROR__"
+    assert (
+        calls[4][1]
+        == "globalThis.__REPORT_READY__ === true || typeof globalThis.__REPORT_ERROR__ === 'string' && globalThis.__REPORT_ERROR__"
+    )
     assert calls[5] == ("fonts", "globalThis.__REPORT_ERROR__ || ''")
     assert calls[6][0] == "fonts"
     assert calls[7][0] == "pdf"
