@@ -20,12 +20,19 @@ const paths = {
   upload: ['M12 21V9', 'm7 14 5-5 5 5', 'M5 3h14'], edit: ['M12 20h9', 'M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z'],
   user: ['M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z', 'M4 21a8 8 0 0 1 16 0'],
   school: ['M3 21h18', 'M5 21V8l7-5 7 5v13', 'M9 21v-6h6v6', 'M9 10h.01', 'M15 10h.01'],
+  trophy: ['M8 21h8', 'M12 17v4', 'M7 4h10v5a5 5 0 0 1-10 0V4Z', 'M5 4H3v2a4 4 0 0 0 4 4', 'M19 4h2v2a4 4 0 0 1-4 4'],
+  dumbbell: ['M6.5 6.5v11', 'M17.5 6.5v11', 'M3 9v6', 'M21 9v6', 'M3 12h18', 'M6.5 9.5h11'],
+  microscope: ['M6 20h12', 'M9 20a6 6 0 0 1 6-6h1', 'M11 14 7 10l3-3 4 4', 'M14 11l3-3', 'M17 8l-2-2 2-2 2 2-2 2'],
+  bookOpen: ['M2 4.5A2.5 2.5 0 0 1 4.5 2H11v17H4.5A2.5 2.5 0 0 0 2 21.5V4.5Z', 'M22 4.5A2.5 2.5 0 0 0 19.5 2H13v17h6.5a2.5 2.5 0 0 1 2.5 2.5V4.5Z'],
+  palette: ['M12 3a9 9 0 1 0 0 18h1.5a2 2 0 0 0 0-4H12a2 2 0 0 1 0-4h3.5a5.5 5.5 0 0 0 0-11H12Z', 'M7.5 10h.01', 'M6 6.5h.01', 'M11 6h.01', 'M16 8h.01'],
+  shieldCheck: ['M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z', 'm9 12 2 2 4-4'],
+  star: ['m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.7 6.4 20.2 7.5 14 3 9.6l6.2-.9Z'],
   more: ['M5 12h.01', 'M12 12h.01', 'M19 12h.01'],
 };
 
 export function Icon({ name, size = 22, className = '' }) {
   const items = paths[name] ?? paths.home;
-  return html`<svg class=${`icon ${className}`} width=${size} height=${size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  return html`<svg class=${`icon ${className}`} width=${size} height=${size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
     ${items.map((value, index) => html`<path key=${`${name}-${index}`} d=${value} />`)}
   </svg>`;
 }

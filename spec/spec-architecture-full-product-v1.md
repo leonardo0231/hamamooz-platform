@@ -142,7 +142,7 @@ Target additions such as `behavior`, `activities`, `risks` and `recommendations`
 
 ### Technology Platform Dependencies
 
-- **PLT-001**: Django REST Framework, drf-spectacular, Python 3.12, TypeScript/esbuild and WeasyPrint remain platform choices.
+- **PLT-001**: Django REST Framework, drf-spectacular, Python 3.12, TypeScript/Vite and Chromium/Playwright remain platform choices for browser-native report PDFs.
 
 ### Compliance Dependencies
 

@@ -4,12 +4,13 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
+from hamamooz.apps.evaluations.catalog import DOMAIN_DEFINITIONS
+from hamamooz.apps.evaluations.models import MetricScore, MonthlyEvaluation
 from hamamooz.apps.recommendations.models import Recommendation
 from hamamooz.apps.reports.models import ReportArchive, ReportDraft, ReportTemplate
 from hamamooz.apps.reports.services import (
     build_draft_snapshot,
     render_report_draft,
-    render_report_html,
     render_report_pdf,
 )
 
@@ -71,7 +72,9 @@ def test_report_template_rejects_executable_or_unknown_blocks(base_data):
 
 
 @pytest.mark.django_db
-def test_report_template_allows_only_safe_a3_landscape_page_configuration(base_data):
+def test_report_template_allows_only_safe_a3_landscape_page_configuration(
+    base_data, settings, monkeypatch
+):
     template = ReportTemplate(
         organization=base_data["organization"],
         school=base_data["school1"],
@@ -86,12 +89,38 @@ def test_report_template_allows_only_safe_a3_landscape_page_configuration(base_d
     snapshot = build_draft_snapshot(
         template, term=base_data["term"], class_section=base_data["class1"]
     )
-    assert "size: A3 landscape;" in render_report_html(snapshot)
+    assert snapshot["template"]["presentation"]["page_size"] == "a3_landscape"
+    settings.REPORT_FRONTEND_URL = "http://frontend:8080/report-sample.html"
+
+    class FixtureRenderer:
+        def render_snapshot(self, snapshot, **kwargs):
+            return b"%PDF-1.7\nfixture"
+
+    monkeypatch.setattr("hamamooz.apps.reports.rendering.ChromiumReportRenderer", FixtureRenderer)
     assert render_report_pdf(snapshot).startswith(b"%PDF")
 
     template.presentation = {"page_size": "A3 landscape; @import url(https://invalid.example)"}
     with pytest.raises(ValidationError):
         template.full_clean()
+
+
+@pytest.mark.django_db
+def test_legacy_report_page_profiles_are_normalized_to_fixed_a3(base_data):
+    template = ReportTemplate(
+        organization=base_data["organization"],
+        school=base_data["school1"],
+        code="legacy-page-profile",
+        title="Legacy page profile",
+        report_type=ReportArchive.ReportType.CLASS_REPORT_CARDS,
+        blocks=["student_identity"],
+        presentation={"page_size": "digital_3x2"},
+    )
+    template.full_clean()
+
+    snapshot = build_draft_snapshot(
+        template, term=base_data["term"], class_section=base_data["class1"]
+    )
+    assert snapshot["template"]["presentation"]["page_size"] == "a3_landscape"
 
 
 @pytest.mark.django_db
@@ -128,6 +157,40 @@ def test_report_snapshot_never_includes_counselor_audience_recommendations(base_
 
     recommendations = snapshot["reports"][0]["product_context"]["approved_recommendations"]
     assert [item["audience"] for item in recommendations] == [Recommendation.Audience.PARENT]
+
+
+@pytest.mark.django_db
+def test_report_snapshot_includes_canonical_nine_domain_analysis_without_counseling_data(base_data):
+    enrollment = base_data["enrollments"][0]
+    evaluation = MonthlyEvaluation.objects.create(
+        enrollment=enrollment,
+        month_no=1,
+        framework_version="2.0",
+        recorded_by=base_data["manager"],
+    )
+    # One available metric in every catalog domain is enough to prove that the
+    # report carries partial analysis explicitly; the service still marks it
+    # provisional until the configured completion threshold is met.
+    for code in [f"{domain}_01" for domain in DOMAIN_DEFINITIONS]:
+        MetricScore.objects.create(evaluation=evaluation, metric_code=code, value=4)
+
+    template = ReportTemplate.objects.create(
+        organization=base_data["organization"],
+        school=base_data["school1"],
+        code="nine-domain-analysis",
+        title="Nine domain analysis",
+        report_type=ReportArchive.ReportType.STUDENT_REPORT_CARD,
+        blocks=["student_identity", "evaluation_radar"],
+    )
+    snapshot = build_draft_snapshot(template, term=base_data["term"], enrollment=enrollment)
+    context = snapshot["reports"][0]["product_context"]
+    analysis = context["evaluation_analysis"]
+
+    assert [item["code"] for item in analysis["domain_scores"]] == list(DOMAIN_DEFINITIONS)
+    assert all(item["score"] == 16 for item in analysis["domain_scores"])
+    assert len(context["latest_evaluation"]["metrics"]) == len(DOMAIN_DEFINITIONS)
+    assert "counseling" not in context
+    assert "counselor_report" not in context
 
 
 @pytest.mark.django_db

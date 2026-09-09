@@ -308,6 +308,77 @@ if not payload.get('html'):
     raise SystemExit('Report preview did not include rendered HTML.')
 PY
 
+
+# Print the exact React report entry in the deployed Chromium runtime and keep
+# the resulting A3 PDF as CI evidence. This validates the browser output path
+# without creating a second report renderer or changing any source data.
+report_output_evidence() {
+    local web_container
+    web_container="$("${COMPOSE[@]}" ps -q web)"
+    [[ -n "$web_container" ]] || fail 'Could not resolve the web container for report output evidence.'
+    "$DOCKER_BIN" cp "$WORK_DIR/report-preview-response.json" "$web_container:/tmp/report-preview-response.json"
+    "${COMPOSE[@]}" exec -T web python - <<'PY'
+import json
+import re
+from pathlib import Path
+
+from playwright.sync_api import sync_playwright
+
+payload = json.loads(Path('/tmp/report-preview-response.json').read_text(encoding='utf-8'))
+snapshot = payload.get('snapshot')
+if not isinstance(snapshot, dict):
+    raise SystemExit('The report preview snapshot is not an object.')
+
+init_script = (
+    'globalThis.__REPORT_SNAPSHOT__='
+    + json.dumps(snapshot, ensure_ascii=False, allow_nan=False, separators=(',', ':'))
+    + ';globalThis.__REPORT_AUTOMATION__=true;'
+)
+with sync_playwright() as playwright:
+    browser = playwright.chromium.launch()
+    page = browser.new_page()
+    page.add_init_script(init_script)
+    page.goto('http://frontend:8080/report-sample.html?print=1', wait_until='domcontentloaded')
+    page.wait_for_function('globalThis.__REPORT_READY__ === true')
+    page.emulate_media(media='print')
+    pdf = page.pdf(
+        format='A3',
+        landscape=True,
+        print_background=True,
+        prefer_css_page_size=True,
+    )
+    browser.close()
+
+Path('/tmp/report-output-evidence.pdf').write_bytes(pdf)
+media_box = re.search(
+    rb'/MediaBox\s*\[\s*0\s+0\s+([0-9.]+)\s+([0-9.]+)\s*\]',
+    pdf,
+)
+if media_box is None:
+    raise SystemExit('The browser output has no PDF MediaBox.')
+width, height = (float(value) for value in media_box.groups())
+page_count = len(re.findall(rb'/Type\s*/Page\b', pdf))
+if page_count != 1:
+    raise SystemExit(f'Expected one-page report output, received {page_count} pages.')
+if not (1185 <= width <= 1195 and 838 <= height <= 845 and width > height):
+    raise SystemExit(f'Expected A3 landscape points, received {width} x {height}.')
+Path('/tmp/report-output-evidence.txt').write_text(
+    f'Chromium React report output\\nMediaBox: {width:.2f} x {height:.2f} pt\\n',
+    encoding='utf-8',
+)
+PY
+    "$DOCKER_BIN" cp "$web_container:/tmp/report-output-evidence.pdf" "$WORK_DIR/report-output-evidence.pdf"
+    "$DOCKER_BIN" cp "$web_container:/tmp/report-output-evidence.txt" "$WORK_DIR/report-output-evidence.txt"
+    if [[ -n "${REPORT_OUTPUT_ARTIFACT_DIR:-}" ]]; then
+        mkdir -p "${REPORT_OUTPUT_ARTIFACT_DIR}"
+        cp "$WORK_DIR/report-output-evidence.pdf" "${REPORT_OUTPUT_ARTIFACT_DIR}/report-output-evidence.pdf"
+        cp "$WORK_DIR/report-output-evidence.txt" "${REPORT_OUTPUT_ARTIFACT_DIR}/report-output-evidence.txt"
+    fi
+    printf 'Browser A3 report output evidence passed (MediaBox is landscape A3).\\n'
+}
+
+report_output_evidence
+
 "$SMOKE_PYTHON" - "$WORK_DIR/logout.json" "$REFRESH_TOKEN" <<'PY'
 import json
 import sys

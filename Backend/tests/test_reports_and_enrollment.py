@@ -12,8 +12,12 @@ from hamamooz.apps.students.services import transfer_enrollment
 
 
 @pytest.mark.django_db
-def test_student_report_is_archived_as_pdf(base_data, settings, tmp_path):
+def test_student_report_is_archived_as_pdf(base_data, settings, tmp_path, monkeypatch):
     settings.MEDIA_ROOT = tmp_path
+    monkeypatch.setattr(
+        "hamamooz.apps.reports.services.render_report_pdf",
+        lambda snapshot: b"%PDF-1.7\nfixture",
+    )
     assessment = Assessment.objects.create(
         course_offering=base_data["offering1"],
         assessment_type=base_data["final"],
@@ -48,7 +52,7 @@ def test_student_report_is_archived_as_pdf(base_data, settings, tmp_path):
     with report.output_file.open("rb") as output:
         assert output.read(4) == b"%PDF"
     assert report.snapshot["reports"][0]["student"]["national_id"] == "0012345678"
-    assert report.snapshot["template"]["presentation"]["page_size"] == "digital_3x2"
+    assert report.snapshot["template"]["presentation"]["page_size"] == "a3_landscape"
     assert "product_context" in report.snapshot["reports"][0]
     assert "history" in report.snapshot["reports"][0]
 

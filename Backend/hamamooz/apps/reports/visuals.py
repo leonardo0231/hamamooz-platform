@@ -1,6 +1,3 @@
-from statistics import mean
-
-
 def build_growth_chart(history):
     """Prepare growth chart data from assessment history."""
     return {

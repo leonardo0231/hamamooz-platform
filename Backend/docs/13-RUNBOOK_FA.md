@@ -70,12 +70,15 @@ python manage.py dispatch_attendance_notifications --limit 100
 
 - همه Assessmentهای فعال باید `locked` باشند.
 - Resultها و CalculationPolicy مربوط را بررسی کنید.
-- WeasyPrint/Pango داخل Image را تست کنید:
+- وجود Playwright و browser bundle داخل Image را تست کنید:
 
 ```bash
 docker compose exec web python -c \
-  "from weasyprint import HTML; print(HTML(string='<p>ok</p>').write_pdf()[:4])"
+  "from playwright.sync_api import sync_playwright; p=sync_playwright().start(); b=p.chromium.launch(headless=True); print('Chromium OK'); b.close(); p.stop()"
 ```
+
+اگر این بررسی شکست خورد، Image را با `playwright install --with-deps chromium` بازسازی کنید؛
+تولید PDF عمداً به renderer قدیمی fallback نمی‌کند.
 
 - فضای media/S3 و permission فایل را بررسی کنید.
 - Report stale/failed را پس از رفع علت دوباره ایجاد کنید.

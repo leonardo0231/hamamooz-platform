@@ -1,7 +1,9 @@
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.http import FileResponse
 from django.utils import timezone
+from django.utils.html import escape
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
@@ -12,6 +14,7 @@ from hamamooz.apps.accounts.models import Role
 from hamamooz.apps.core.services import record_audit
 from hamamooz.apps.core.viewsets import AuditedModelViewSet
 
+from .chromium_renderer import _print_url
 from .models import ReportArchive, ReportBatch, ReportDraft, ReportTemplate
 from .serializers import (
     ReportArchiveSerializer,
@@ -24,7 +27,7 @@ from .serializers import (
     ReportPreviewSerializer,
     ReportTemplateSerializer,
 )
-from .services import build_report_render_snapshot, render_report_draft, render_report_html
+from .services import build_report_render_snapshot, render_report_draft
 from .tasks import generate_report_batch_task, generate_report_task
 
 REPORTERS = [
@@ -41,6 +44,38 @@ REPORT_REVIEWERS = [
     Role.SCHOOL_MANAGER,
     Role.EDUCATIONAL_DEPUTY,
 ]
+
+
+def _react_preview_markup():
+    """Return the React preview hand-off, never a legacy Django report page.
+
+    The browser report entry owns the actual DOM, charts, fonts, and print CSS.
+    The API keeps the historical html key for clients that expect it, but
+    its value is a small, non-rendering contract that points at the React
+    bundle; the authorized snapshot is returned separately and is what the
+    frontend consumes.
+    """
+
+    frontend_url = str(getattr(settings, "REPORT_FRONTEND_URL", "") or "").strip()
+    if frontend_url:
+        print_url = escape(_print_url(frontend_url))
+        entry = (
+            f'<a data-report-preview-entry="react" href="{print_url}">'
+            "بازکردن پیش‌نمایش React / چاپ A3"
+            "</a>"
+        )
+    else:
+        entry = (
+            '<span data-report-preview-entry="react">مسیر React در این محیط تنظیم نشده است.</span>'
+        )
+    return (
+        '<section class="react-report-preview-contract" '
+        'data-report-renderer="react" data-report-layout="a3-landscape" '
+        'lang="fa" dir="rtl">'
+        "<h1>کارنامه تحصیلی هم‌آموز</h1>"
+        "<p>این پیش‌نمایش از باندل React و snapshot مجاز گزارش ساخته می‌شود.</p>"
+        f"{entry}</section>"
+    )
 
 
 def _safe_filename_part(value):
@@ -102,7 +137,19 @@ class ReportArchiveViewSet(AuditedModelViewSet):
             enrollment=data.get("enrollment"),
             class_section=data.get("class_section"),
         )
-        return Response({"html": render_report_html(snapshot, preview=True), "snapshot": snapshot})
+        frontend_url = str(getattr(settings, "REPORT_FRONTEND_URL", "") or "").strip()
+        return Response(
+            {
+                # html remains a compatibility key, but is explicitly a
+                # React hand-off rather than a server-rendered report.
+                "html": _react_preview_markup(),
+                "renderer": "react",
+                "layout": "a3_landscape",
+                "frontend_url": frontend_url,
+                "print_url": _print_url(frontend_url) if frontend_url else None,
+                "snapshot": snapshot,
+            }
+        )
 
     @action(detail=True, methods=["get"])
     def download(self, request, pk=None):

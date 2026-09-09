@@ -79,9 +79,7 @@ function ImportJob({ job, actionKey, onRetry, onCancel, onDownloadErrors }) {
 
 export function ImportsPage() {
   const scope = useStore(state => state.scope);
-  const [schools, setSchools] = useState([]);
-  const [selectedSchool, setSelectedSchool] = useState('');
-  const [catalogLoading, setCatalogLoading] = useState(true);
+  const DEFAULT_SCHOOL_NAME = "مدرسه بعثت";
   const [catalogError, setCatalogError] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [jobsLoading, setJobsLoading] = useState(true);
@@ -94,32 +92,6 @@ export function ImportsPage() {
   const [actionKey, setActionKey] = useState('');
   const inputRef = useRef(null);
 
-  const loadSchools = useCallback(async () => {
-    setCatalogLoading(true);
-    if (config.demoMode) {
-      setSchools(demoSchools);
-      setCatalogError(null);
-      setCatalogLoading(false);
-      return;
-    }
-    try {
-      const response = await apiRequest('schools/', { query: { page_size: 100 } });
-      const listed = results(response);
-      const scopedId = scope.schoolId ? String(scope.schoolId) : '';
-      const hasScopedSchool = scopedId && listed.some(item => String(item.id) === scopedId);
-      setSchools(hasScopedSchool || !scopedId ? listed : [{ id: scopedId, name: 'مدرسهٔ فعال' }, ...listed]);
-      setCatalogError(null);
-    } catch (error) {
-      if (scope.schoolId) {
-        setSchools([{ id: String(scope.schoolId), name: 'مدرسهٔ فعال' }]);
-        setCatalogError(null);
-      } else {
-        setCatalogError(error);
-      }
-    } finally {
-      setCatalogLoading(false);
-    }
-  }, [scope.schoolId]);
 
   const loadJobs = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setJobsLoading(true);
@@ -144,12 +116,6 @@ export function ImportsPage() {
   }, [selectedSchool]);
 
   useEffect(() => { void loadSchools(); }, [loadSchools]);
-  useEffect(() => {
-    if (selectedSchool) return;
-    if (scope.schoolId) setSelectedSchool(String(scope.schoolId));
-    else if (schools.length) setSelectedSchool(String(schools[0].id));
-  }, [schools, scope.schoolId, selectedSchool]);
-  useEffect(() => { void loadJobs(); }, [loadJobs]);
 
   const hasActiveJob = jobs.some(isImportInProgress);
   useEffect(() => {
@@ -202,10 +168,6 @@ export function ImportsPage() {
     const validationError = validateComprehensiveImportFile(file);
     if (validationError) {
       setFileError(validationError);
-      return;
-    }
-    if (!selectedSchool) {
-      setSubmitError({ message: 'ابتدا مدرسهٔ مقصد را انتخاب کنید.' });
       return;
     }
     setUploading(true);

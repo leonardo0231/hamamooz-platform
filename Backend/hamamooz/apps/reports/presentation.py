@@ -2,14 +2,16 @@
 
 The report snapshot deliberately stores source facts, rather than HTML or CSS.
 This module derives only deterministic visual coordinates and formatted values
-from that frozen data just before rendering.  It keeps browser chart code out
-of WeasyPrint while preserving the same analysis model in the PDF.
+from that frozen data just before rendering.  It keeps browser chart code in the
+browser print path while preserving the same analysis model in the PDF.
 """
 
 from __future__ import annotations
 
-from math import cos, pi, sin
+from math import cos, isfinite, pi, sin
 from typing import Any
+
+from hamamooz.apps.evaluations.catalog import DOMAIN_DEFINITIONS
 
 PERSIAN_DIGITS = str.maketrans("0123456789.-", "۰۱۲۳۴۵۶۷۸۹٫-")
 
@@ -40,9 +42,10 @@ def _number(value: Any) -> float | None:
     if value in (None, ""):
         return None
     try:
-        return float(value)
+        number = float(value)
     except (TypeError, ValueError):
         return None
+    return number if isfinite(number) else None
 
 
 def _fa(value: float | None, places: int = 0) -> str:
@@ -54,9 +57,9 @@ def _fa(value: float | None, places: int = 0) -> str:
     return rendered.translate(PERSIAN_DIGITS)
 
 
-def _percent(value: float | None, maximum: float = 100) -> int:
+def _percent(value: float | None, maximum: float = 100) -> int | None:
     if value is None:
-        return 0
+        return None
     return int(max(0, min(maximum, round(value))))
 
 
@@ -85,6 +88,75 @@ def _metric_items(context: dict[str, Any]) -> list[dict[str, Any]]:
             }
         )
     return normalized
+
+
+def _domain_items(context: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return the canonical nine-domain analysis in report-friendly units.
+
+    ``EvaluationAnalyticsService`` stores domain scores on a 0–20 scale while
+    the report visuals use percentages.  Preserve both values and retain
+    domains with no score so the report can distinguish "not assessed" from a
+    zero result.  A metric-only fallback keeps old frozen snapshots readable.
+    """
+    analysis = context.get("evaluation_analysis") or context.get("analysis") or {}
+    rows = analysis.get("domain_scores") or []
+    if not rows:
+        # Older snapshots do not have the service result.  Group the latest
+        # metric values by their persisted domain metadata where available.
+        latest = (context.get("evaluations") or [])[-1:]
+        grouped: dict[str, list[float]] = {}
+        titles: dict[str, str] = {}
+        for evaluation in latest:
+            metrics = evaluation.get("metrics") or []
+            for metric in metrics:
+                code = str(metric.get("domain_code") or metric.get("code") or "")
+                domain_code = code.split("_", 1)[0]
+                if not domain_code:
+                    continue
+                raw = _number(metric.get("value"))
+                if raw is None:
+                    continue
+                grouped.setdefault(domain_code, []).append(raw * 4)
+                titles.setdefault(domain_code, metric.get("domain_title") or domain_code)
+        rows = [
+            {"code": code, "title": titles[code], "score": sum(values) / len(values)}
+            for code, values in grouped.items()
+        ]
+    # A report must expose a stable nine-domain contract even when a workbook
+    # contains only a subset of the indicators.  The old implementation
+    # returned only rows present in the snapshot, which made the same student
+    # appear to have a different set of analyses from month to month.
+    rows_by_code = {
+        str(item.get("code")): item
+        for item in rows
+        if isinstance(item, dict) and str(item.get("code") or "") in DOMAIN_DEFINITIONS
+    }
+    domains = []
+    for code, (canonical_title, weight) in DOMAIN_DEFINITIONS.items():
+        item = rows_by_code.get(code, {})
+        raw_score = _number(item.get("score"))
+        score = raw_score if raw_score is not None and 0 <= raw_score <= 20 else None
+        # The analytics service stores a 0–20 score.  ``value`` is accepted as
+        # an explicit percentage only for old frozen integrations; it is never
+        # synthesized when both source values are absent or null.
+        raw_value = _number(item.get("value"))
+        value = score * 5 if score is not None else raw_value
+        if value is not None:
+            value = max(0, min(100, value))
+        domains.append(
+            {
+                "code": code,
+                "title": item.get("title") or item.get("domain_title") or canonical_title,
+                "score": score,
+                "value": value,
+                "percent": _percent(value) if value is not None else None,
+                "weight": item.get("weight", weight),
+                "completed_metrics": item.get("completed_metrics", 0),
+                "total_metrics": item.get("total_metrics", 0),
+                "has_data": value is not None,
+            }
+        )
+    return domains
 
 
 def _trend(history: list[dict[str, Any]]) -> dict[str, Any]:
@@ -179,7 +251,15 @@ def _trend(history: list[dict[str, Any]]) -> dict[str, Any]:
 
 def _radar(items: list[dict[str, Any]]) -> dict[str, Any]:
     if len(items) < 3:
-        return {"has_data": False, "labels": [], "outline": "", "value_points": "", "grids": []}
+        return {
+            "has_data": False,
+            "is_complete": False,
+            "available_count": 0,
+            "labels": [],
+            "outline": "",
+            "value_points": "",
+            "grids": [],
+        }
     center = 60
     radius = 42
     count = len(items)
@@ -190,14 +270,29 @@ def _radar(items: list[dict[str, Any]]) -> dict[str, Any]:
 
     labels = []
     values = []
+    available_values = []
     outline = []
     for index, item in enumerate(items):
         x, y = point(index, radius)
         label_x, label_y = point(index, radius + 12)
-        value_x, value_y = point(index, radius * item["value"] / 100)
+        value = _number(item.get("value"))
+        value_x, value_y = point(index, radius * (value or 0) / 100)
         outline.append(f"{x:.1f},{y:.1f}")
         values.append(f"{value_x:.1f},{value_y:.1f}")
-        labels.append({"x": f"{label_x:.1f}", "y": f"{label_y:.1f}", "title": item["title"]})
+        if value is not None:
+            available_values.append(value)
+        labels.append(
+            {
+                "x": f"{label_x:.1f}",
+                "y": f"{label_y:.1f}",
+                "title": item["title"],
+                # Keep the numeric key beside every axis label so the printed
+                # chart remains interpretable without colour or hover state.
+                "value": _fa(value, 0) if value is not None else "ثبت نشده",
+                "value_raw": value,
+                "has_data": value is not None,
+            }
+        )
     grids = []
     for scale in (0.25, 0.5, 0.75, 1):
         grids.append(
@@ -207,10 +302,16 @@ def _radar(items: list[dict[str, Any]]) -> dict[str, Any]:
             )
         )
     return {
-        "has_data": True,
+        "has_data": bool(available_values),
+        "is_complete": len(available_values) == len(items),
+        "available_count": len(available_values),
         "labels": labels,
         "outline": " ".join(outline),
-        "value_points": " ".join(values),
+        # A filled polygon with missing vertices visually turns null into a
+        # zero.  Keep the geometry available for clients that can render
+        # gaps, but leave the print polygon empty unless every domain has a
+        # measured value.
+        "value_points": " ".join(values) if len(available_values) == len(items) else "",
         "grids": grids,
     }
 
@@ -253,32 +354,44 @@ def build_report_visuals(
                 "final": row.get("final") or "—",
                 "average": average,
                 "average_display": _fa(average, 2),
-                "passed": bool(row.get("passed")),
+                # Preserve the unknown state for incomplete snapshots.  The
+                # report UI distinguishes missing data from a failed result.
+                "passed": row.get("passed"),
             }
         )
 
     attendance = context.get("attendance") or {}
     attendance_rate = _number(attendance.get("attendance_rate"))
     metrics = _metric_items(context)
+    domains = _domain_items(context)
     metric_map = {item["code"]: item for item in metrics}
     behavior = [item for item in metrics if item["code"].startswith(("DEV_", "CHR_", "DIS_"))][:10]
     academic = [item for item in metrics if item["code"].startswith(("EDU_", "PER_"))][:6]
 
-    radar_items = []
+    # Prefer the canonical nine domains when available.  This makes the radar
+    # and its companion list reflect exactly what the analysis service knows,
+    # instead of silently dropping cultural, research, sport and arts data.
+    # Keep all canonical axes in the radar, including unassessed domains.  A
+    # missing axis is labelled explicitly instead of being removed or treated
+    # as a score of zero.
+    radar_items = [{"title": item["title"], "value": item["value"]} for item in domains]
+    if not domains:
+        radar_items = []
+        academic_average = _number(report.get("summary", {}).get("average"))
+        if academic_average is not None:
+            radar_items.append({"title": "آموزشی", "value": academic_average * 5})
+        if attendance_rate is not None:
+            radar_items.append({"title": "حضور", "value": attendance_rate})
+        for code, title in (
+            ("DEV_02", "مسئولیت"),
+            ("EDU_05", "تمرکز"),
+            ("DEV_01", "همکاری"),
+            ("PER_01", "مدیریت زمان"),
+        ):
+            if code in metric_map:
+                radar_items.append({"title": title, "value": metric_map[code]["value"]})
+        radar_items = radar_items[:6]
     academic_average = _number(report.get("summary", {}).get("average"))
-    if academic_average is not None:
-        radar_items.append({"title": "آموزشی", "value": academic_average * 5})
-    if attendance_rate is not None:
-        radar_items.append({"title": "حضور", "value": attendance_rate})
-    for code, title in (
-        ("DEV_02", "مسئولیت"),
-        ("EDU_05", "تمرکز"),
-        ("DEV_01", "همکاری"),
-        ("PER_01", "مدیریت زمان"),
-    ):
-        if code in metric_map:
-            radar_items.append({"title": title, "value": metric_map[code]["value"]})
-    radar_items = radar_items[:6]
 
     readiness = academic or [
         {"title": item["title"], "value": item["average"] * 5}
@@ -286,15 +399,27 @@ def build_report_visuals(
         if item["average"] is not None
     ]
     activity_icons = {
-        "sport": "⚽",
-        "research": "🔬",
-        "competition": "🏅",
-        "cultural": "✦",
-        "art": "✎",
+        # Keep the snapshot semantic and font-independent.  The HTML
+        # presenter maps these names to local SVG sticker artwork so a PDF
+        # never depends on an emoji glyph installed on the host machine.
+        "sport": "sport",
+        "research": "research",
+        "competition": "competition",
+        "cultural": "cultural",
+        "art": "art",
+    }
+    activity_badges = {
+        "sport": "SPORT",
+        "research": "EDU",
+        "competition": "AWARD",
+        "cultural": "CULT",
+        "art": "ART",
     }
     activities = [
         {
-            "icon": activity_icons.get(item.get("kind"), "●"),
+            "icon": activity_icons.get(item.get("kind"), "school"),
+            "kind": item.get("kind") or "school",
+            "badge": activity_badges.get(item.get("kind"), "ACT"),
             "title": item.get("title", "فعالیت مدرسه"),
             "text": item.get("result")
             or (
@@ -346,17 +471,16 @@ def build_report_visuals(
     recommendation_override = overrides.get("recommendations")
     if isinstance(recommendation_override, str) and recommendation_override.strip():
         recommendations = [recommendation_override.strip(), *recommendations]
-        support = [recommendation_override.strip(), *support]
-    if not support:
-        # Parent-facing approved recommendations are the closest authoritative
-        # source for the family-support panel when a school has not registered
-        # a separate support note yet.  Never invent a recommendation.
-        support = recommendations[:3]
+    # Family support is an independent source.  Approved recommendations are
+    # intentionally not copied into this panel: an instructional recommendation
+    # is not evidence that the family-support team has recorded a plan.
     awards = [item for item in activities if item.get("text") and item.get("text") != "ثبت‌شده"][:5]
 
     return {
         "trend": _trend(report.get("history") or []),
         "radar": _radar(radar_items),
+        "domains": domains,
+        "domain_scores": domains,
         "subjects": subjects,
         "strengths": _bars(
             [
@@ -388,6 +512,7 @@ def build_report_visuals(
         "counselor": counselor,
         "teacher_recommendations": teacher_recommendations,
         "support": support,
+        "support_status": "available" if support else "missing",
         "recommendations": recommendations[:4],
         "follow_ups": follow_ups,
         "attendance": {

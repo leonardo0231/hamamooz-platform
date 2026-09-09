@@ -561,7 +561,15 @@ def process_import_job(job_id):
         if job.status == ImportJob.Status.PROCESSING:
             if job.started_at and job.started_at >= stale_before:
                 return job
-        elif job.status not in [ImportJob.Status.QUEUED, ImportJob.Status.FAILED]:
+        # API-created jobs start as ``uploaded`` and may be explicitly
+        # confirmed before a worker runs them.  Keep those states retryable,
+        # alongside the historical queue/failed states.
+        elif job.status not in [
+            ImportJob.Status.QUEUED,
+            ImportJob.Status.UPLOADED,
+            ImportJob.Status.CONFIRMED,
+            ImportJob.Status.FAILED,
+        ]:
             return job
         job.status = ImportJob.Status.PROCESSING
         job.started_at = timezone.now()

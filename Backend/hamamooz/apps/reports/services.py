@@ -10,7 +10,6 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Count, Q
-from django.template.loader import render_to_string
 from django.utils import timezone
 
 from hamamooz.apps.academics.calculations import (
@@ -27,10 +26,10 @@ from hamamooz.apps.academics.models import (
     SubjectResult,
     TermResult,
 )
+from hamamooz.apps.evaluations.catalog import DOMAIN_DEFINITIONS
 from hamamooz.apps.students.models import Enrollment
 
 from .models import ReportArchive, ReportBatch, ReportBatchItem, ReportDraft
-from .presentation import build_report_visuals
 
 ALLOWED_REPORT_BLOCKS = {
     "student_identity",
@@ -45,28 +44,76 @@ ALLOWED_REPORT_BLOCKS = {
 
 # The layout is data, but not executable template source.  Keeping the CSS
 # values here prevents a manager-provided presentation JSON object from
-# influencing @page with arbitrary text.
+# influencing @page with arbitrary text.  Legacy keys remain accepted while
+# the renderer normalizes every report to the reviewed A3 print profile.
+REPORT_PAGE_SIZE_KEY = "a3_landscape"
 ALLOWED_REPORT_PAGE_SIZES = {
     "a4_portrait": "A4 portrait",
     "a3_landscape": "A3 landscape",
-    # The provided visual reference is a 3:2 canvas.  Keep this separate from
-    # A3 so schools can choose an exact digital handout without changing the
-    # standard print profile.
     "digital_3x2": "420mm 280mm",
 }
+REPORT_PAGE_SIZE_CSS = ALLOWED_REPORT_PAGE_SIZES[REPORT_PAGE_SIZE_KEY]
+
+
+def normalize_report_page_size(value=None):
+    """Return the single supported report page profile.
+
+    Older snapshots and API clients may still carry ``a4_portrait`` or
+    ``digital_3x2``.  They are accepted as migration-compatible input, but
+    they must never produce a differently sized report after the print format
+    was fixed.
+    """
+
+    if value in (None, ""):
+        return REPORT_PAGE_SIZE_KEY
+    if value not in ALLOWED_REPORT_PAGE_SIZES:
+        raise ValueError("Unsupported report page size.")
+    return REPORT_PAGE_SIZE_KEY
 
 
 def report_page_size(presentation):
-    """Return a safe CSS @page value for a frozen template presentation."""
-    if not isinstance(presentation, dict):
-        return ALLOWED_REPORT_PAGE_SIZES["a4_portrait"]
-    return ALLOWED_REPORT_PAGE_SIZES.get(
-        presentation.get("page_size"), ALLOWED_REPORT_PAGE_SIZES["a4_portrait"]
-    )
+    """Return the safe, fixed CSS @page value for a frozen presentation."""
+
+    if isinstance(presentation, dict) and presentation.get("page_size") not in (
+        None,
+        "",
+    ):
+        # Keep validation strict for unknown values even though all known
+        # legacy profiles resolve to A3.
+        normalize_report_page_size(presentation.get("page_size"))
+    return REPORT_PAGE_SIZE_CSS
 
 
 def _decimal_string(value, decimal_places=2):
     return f"{value:.{decimal_places}f}" if value is not None else None
+
+
+def _canonical_domain_scores(rows):
+    """Normalize an analytics payload to the nine official report domains.
+
+    The evaluator normally already returns all domains.  This boundary helper
+    also covers empty/partial historical snapshots so consumers never infer a
+    missing analysis from a shifted list index.  ``None`` remains ``None``;
+    zero is preserved only when it was explicitly recorded.
+    """
+
+    by_code = {
+        str(item.get("code")): item
+        for item in (rows or [])
+        if isinstance(item, dict) and str(item.get("code") or "") in DOMAIN_DEFINITIONS
+    }
+    return [
+        {
+            "code": code,
+            "title": item.get("title") or item.get("domain_title") or title,
+            "weight": item.get("weight", weight),
+            "score": item.get("score") if item.get("score") is not None else None,
+            "completed_metrics": item.get("completed_metrics", 0),
+            "total_metrics": item.get("total_metrics", 0),
+        }
+        for code, (title, weight) in DOMAIN_DEFINITIONS.items()
+        for item in [by_code.get(code, {})]
+    ]
 
 
 def build_student_snapshot(enrollment, term, *, recalculate=True):
@@ -123,11 +170,23 @@ def build_student_snapshot(enrollment, term, *, recalculate=True):
                 "average": _decimal_string(
                     result.average if result else None, policy.decimal_places
                 ),
-                "passed": result.passed if result else False,
+                # A missing subject result is not the same as a failed subject.
+                # Keep the tri-state value so the React report can show
+                # «ثبت نشده» instead of inventing a follow-up status.
+                "passed": result.passed if result else None,
             }
         )
     school = enrollment.school
-    logo_url = school.logo.url if school.logo else ""
+    # Prefer the school-specific mark, while retaining the organization mark
+    # as a deterministic fallback for schools that have not uploaded a branch
+    # logo yet. The URL is frozen into the report snapshot below.
+    logo_url = (
+        school.logo.url
+        if school.logo
+        else school.organization.logo.url
+        if school.organization.logo
+        else ""
+    )
     return {
         "organization": {
             "name": school.organization.name,
@@ -181,7 +240,7 @@ def build_report_snapshot(report_type, term, enrollment=None, class_section=None
     }
 
 
-def build_analytical_snapshot(enrollment, term, *, page_size="digital_3x2"):
+def build_analytical_snapshot(enrollment, term, *, page_size=REPORT_PAGE_SIZE_KEY):
     """Frozen snapshot for the coloured student report and its in-app view."""
     snapshot = build_report_snapshot(
         ReportArchive.ReportType.STUDENT_REPORT_CARD, term, enrollment=enrollment
@@ -214,7 +273,7 @@ def build_analytical_snapshot(enrollment, term, *, page_size="digital_3x2"):
     ]
     snapshot["template"] = {
         "blocks": list(ALLOWED_REPORT_BLOCKS),
-        "presentation": {"page_size": page_size},
+        "presentation": {"page_size": normalize_report_page_size(page_size)},
     }
     return snapshot
 
@@ -307,25 +366,6 @@ def render_report_batch(batch_id):
     return batch
 
 
-def render_report_html(snapshot, *, preview=False):
-    template = snapshot.get("template", {})
-    rendered_snapshot = deepcopy(snapshot)
-    content_overrides = rendered_snapshot.get("content_overrides", {})
-    for report in rendered_snapshot.get("reports", []):
-        report["visuals"] = build_report_visuals(report, content_overrides=content_overrides)
-    return render_to_string(
-        "reports/report_card.html",
-        {
-            "reports": rendered_snapshot["reports"],
-            "preview": preview,
-            "blocks": template.get("blocks", ALLOWED_REPORT_BLOCKS),
-            "overrides": content_overrides,
-            "page_size": report_page_size(template.get("presentation")),
-            "generated_at": timezone.now(),
-        },
-    )
-
-
 def _local_media_file_url(url):
     if not url or not url.startswith(settings.MEDIA_URL):
         return url
@@ -333,6 +373,10 @@ def _local_media_file_url(url):
     media_root = Path(settings.MEDIA_ROOT).resolve()
     candidate = (media_root / relative).resolve()
     if not candidate.is_relative_to(media_root):
+        return ""
+    if not candidate.is_file():
+        # A stale model file must not become a broken image in an archived PDF.
+        # The React report entry renders its explicit missing-photo/logo state.
         return ""
     return candidate.as_uri()
 
@@ -348,16 +392,16 @@ def _pdf_snapshot(snapshot):
 
 
 def render_report_pdf(snapshot):
-    from weasyprint import HTML
+    """Render a frozen report snapshot through the Chromium boundary.
 
-    html = render_report_html(_pdf_snapshot(snapshot))
-    return HTML(
-        string=html,
-        # A trailing slash is essential: without it a relative ``static/...``
-        # URL is resolved next to the Backend directory instead of inside it.
-        # That silently replaces our Persian typefaces with fallbacks in PDFs.
-        base_url=f"{Path(settings.BASE_DIR).as_uri()}/",
-    ).write_pdf(presentational_hints=False)
+    Production always uses the explicitly provisioned Chromium renderer and
+    raises a clear error when Playwright or its browser bundle is unavailable;
+    callers cannot supply an alternate server-side renderer.
+    """
+
+    from .rendering import render_production_report_pdf
+
+    return render_production_report_pdf(snapshot)
 
 
 def render_report_docx(snapshot):
@@ -392,8 +436,9 @@ def _report_extended_context(enrollment):
     from hamamooz.apps.analytics.models import StudentRiskSignal
     from hamamooz.apps.attendance.models import AttendanceRecord, AttendanceSession
     from hamamooz.apps.behavior.models import BehaviorEvent
-    from hamamooz.apps.evaluations.catalog import METRIC_CATALOG
+    from hamamooz.apps.evaluations.catalog import METRIC_CATALOG, metric_catalog_for
     from hamamooz.apps.evaluations.models import MonthlyEvaluation
+    from hamamooz.apps.evaluations.services import EvaluationAnalyticsService
     from hamamooz.apps.recommendations.models import Recommendation
 
     attendance_records = AttendanceRecord.objects.filter(
@@ -419,12 +464,14 @@ def _report_extended_context(enrollment):
         else None,
     }
     evaluations = []
-    for item in (
+    evaluation_rows = list(
         MonthlyEvaluation.objects.filter(enrollment=enrollment)
         .prefetch_related("metric_scores")
         .order_by("month_no", "framework_version")
-    ):
+    )
+    for item in evaluation_rows:
         score_rows = list(item.metric_scores.all())
+        catalog = metric_catalog_for(item.framework_version) or METRIC_CATALOG
         evaluations.append(
             {
                 "month_no": item.month_no,
@@ -433,18 +480,46 @@ def _report_extended_context(enrollment):
                 "metrics": [
                     {
                         "code": score.metric_code,
-                        "title": METRIC_CATALOG.get(score.metric_code, {}).get(
-                            "title", score.metric_code
-                        ),
-                        "domain_title": METRIC_CATALOG.get(score.metric_code, {}).get(
-                            "domain_title", ""
-                        ),
+                        "title": catalog.get(score.metric_code, {}).get("title", score.metric_code),
+                        "domain_code": catalog.get(score.metric_code, {}).get("domain_code", ""),
+                        "domain_title": catalog.get(score.metric_code, {}).get("domain_title", ""),
                         "value": score.value,
                     }
                     for score in score_rows
                 ],
             }
         )
+
+    # EvaluationAnalyticsService is the canonical source for the nine-domain
+    # analysis.  Keep its result inside the frozen, report-safe snapshot rather
+    # than re-implementing the weighted calculation in presentation code.  The
+    # service only reads MonthlyEvaluation/MetricScore and never touches the
+    # counseling bounded context.
+    analysis = EvaluationAnalyticsService.student_summary(enrollment, rank_scope="class")
+    public_analysis = {
+        key: analysis[key]
+        for key in (
+            "completion_status",
+            "completion_percent",
+            "overall_score",
+            "performance_level",
+            "first_month",
+            "last_month",
+            "change",
+            "trend",
+            "trend_label",
+            "recommendation",
+            "completion_warning",
+            "rank_scope",
+            "rank",
+            "ranked_count",
+        )
+    }
+    public_analysis["domain_scores"] = _canonical_domain_scores(analysis.get("domain_scores"))
+    public_analysis["monthly_scores"] = analysis["monthly_scores"]
+    public_analysis["strongest_domain"] = analysis["strongest_domain"]
+    public_analysis["weakest_domain"] = analysis["weakest_domain"]
+    latest_evaluation = evaluations[-1] if evaluations else None
     behavior = [
         {
             "event_type": item.event_type.code,
@@ -502,10 +577,17 @@ def _report_extended_context(enrollment):
     return {
         "attendance": attendance,
         "evaluations": evaluations,
+        "evaluation_analysis": public_analysis,
+        "latest_evaluation": latest_evaluation,
         "behavior_events": behavior,
         "activities": activities,
         "analytics_signals": signals,
         "approved_recommendations": recommendations,
+        # This key is intentionally independent from recommendations.  A
+        # school may choose to record family-support guidance separately; an
+        # empty list means it was not supplied, not that a recommendation is
+        # suitable for the family-support panel.
+        "support_notes": [],
     }
 
 
@@ -532,11 +614,13 @@ def build_draft_snapshot(template, *, term, enrollment=None, class_section=None)
     )
     for report, subject in zip(snapshot["reports"], enrollments, strict=True):
         report["product_context"] = _report_extended_context(subject)
+    presentation = dict(template.presentation or {})
+    presentation["page_size"] = normalize_report_page_size(presentation.get("page_size"))
     snapshot["template"] = {
         "id": str(template.id),
         "code": template.code,
         "blocks": list(template.blocks),
-        "presentation": template.presentation,
+        "presentation": presentation,
         "output_format": template.output_format,
     }
     return snapshot

@@ -1,3 +1,4 @@
+import json
 from io import BytesIO
 from types import SimpleNamespace
 from urllib.parse import unquote
@@ -11,7 +12,7 @@ from hamamooz.apps.attendance.validators import attendance_evidence_upload_to
 from hamamooz.apps.imports.models import ImportJob
 from hamamooz.apps.organizations.models import School
 from hamamooz.apps.reports.models import ReportArchive
-from hamamooz.apps.reports.services import render_report_html
+from hamamooz.apps.reports.rendering import prepare_react_snapshot
 
 
 @pytest.mark.django_db
@@ -136,7 +137,7 @@ def test_report_archive_and_preview_expose_scope_names(api_client, base_data):
     assert item["school_name"] == base_data["school1"].name
 
 
-def test_report_preview_html_contains_collection_and_school_names_without_scope_ids():
+def test_react_report_snapshot_contains_collection_and_school_names_without_scope_ids():
     organization_id = "11111111-1111-4111-8111-111111111111"
     school_id = "22222222-2222-4222-8222-222222222222"
     snapshot = {
@@ -170,12 +171,12 @@ def test_report_preview_html_contains_collection_and_school_names_without_scope_
         ]
     }
 
-    html = render_report_html(snapshot, preview=True)
+    payload = json.dumps(prepare_react_snapshot(snapshot), ensure_ascii=False)
 
-    assert "مجموعه آفتاب" in html
-    assert "مدرسه بهار" in html
-    assert organization_id not in html
-    assert school_id not in html
+    assert "مجموعه آفتاب" in payload
+    assert "مدرسه بهار" in payload
+    assert organization_id not in payload
+    assert school_id not in payload
 
 
 @pytest.mark.django_db

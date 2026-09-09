@@ -13,7 +13,14 @@ class ImportJob(SoftDeleteModel):
         COMPREHENSIVE_SCHOOL = "comprehensive_school", "فایل جامع مدرسه"
 
     class Status(models.TextChoices):
+        # Legacy workbook workers use an explicit queue state.  Keep it as a
+        # compatibility choice while newly uploaded jobs still start at
+        # ``uploaded`` and pass through preview/confirmation.
         QUEUED = "queued", "در صف"
+        UPLOADED = "uploaded", "آپلود شده"
+        ANALYZING = "analyzing", "در حال تحلیل"
+        PREVIEW_READY = "preview_ready", "پیش‌نمایش آماده"
+        CONFIRMED = "confirmed", "تایید شده"
         PROCESSING = "processing", "در حال پردازش"
         COMPLETED = "completed", "تکمیل‌شده"
         FAILED = "failed", "ناموفق"
@@ -27,7 +34,7 @@ class ImportJob(SoftDeleteModel):
     )
     import_type = models.CharField(max_length=30, choices=ImportType.choices)
     status = models.CharField(
-        max_length=20, choices=Status.choices, default=Status.QUEUED, db_index=True
+        max_length=20, choices=Status.choices, default=Status.UPLOADED, db_index=True
     )
     source_file = models.FileField(upload_to="imports/%Y/%m/")
     checksum = models.CharField(max_length=64, db_index=True)
@@ -39,6 +46,7 @@ class ImportJob(SoftDeleteModel):
     error_count = models.PositiveIntegerField(default=0)
     errors = models.JSONField(default=list, blank=True)
     result_summary = models.JSONField(default=dict, blank=True)
+    preview_summary = models.JSONField(default=dict, blank=True)
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
 
@@ -49,7 +57,14 @@ class ImportJob(SoftDeleteModel):
                 fields=["organization", "school", "import_type", "checksum"],
                 condition=models.Q(
                     is_deleted=False,
-                    status__in=["queued", "processing", "completed"],
+                    status__in=[
+                        "uploaded",
+                        "analyzing",
+                        "preview_ready",
+                        "confirmed",
+                        "processing",
+                        "completed",
+                    ],
                 ),
                 name="uq_active_import_file_scope",
             )

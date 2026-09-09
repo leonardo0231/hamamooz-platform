@@ -7060,22 +7060,6 @@ paths:
     get:
       operationId: imports_list
       parameters:
-      - in: query
-        name: import_type
-        schema:
-          type: string
-          enum:
-          - comprehensive_school
-          - enrollments
-          - monthly_evaluations
-          - scores
-          - students
-        description: |-
-          * `students` - دانش‌آموزان
-          * `enrollments` - ثبت‌نام و کلاس‌بندی
-          * `scores` - نمرات اولیه
-          * `monthly_evaluations` - ارزیابی جامع ماهانه
-          * `comprehensive_school` - فایل جامع مدرسه
       - name: ordering
         required: false
         in: query
@@ -7094,33 +7078,12 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
-      - in: query
-        name: school
-        schema:
-          type: string
-          format: uuid
       - name: search
         required: false
         in: query
         description: A search term.
         schema:
           type: string
-      - in: query
-        name: status
-        schema:
-          type: string
-          enum:
-          - cancelled
-          - completed
-          - failed
-          - processing
-          - queued
-        description: |-
-          * `queued` - در صف
-          * `processing` - در حال پردازش
-          * `completed` - تکمیل‌شده
-          * `failed` - ناموفق
-          * `cancelled` - لغوشده
       tags:
       - imports
       security:
@@ -7138,12 +7101,6 @@ paths:
       - imports
       requestBody:
         content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ImportJobCreateRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ImportJobCreateRequest'
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/ImportJobCreateRequest'
@@ -7179,9 +7136,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ImportJob'
           description: ''
-  /api/v1/imports/{id}/cancel/:
-    post:
-      operationId: imports_cancel_create
+    put:
+      operationId: imports_update
       parameters:
       - in: path
         name: id
@@ -7194,12 +7150,6 @@ paths:
       - imports
       requestBody:
         content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ImportJobRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ImportJobRequest'
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/ImportJobRequest'
@@ -7213,9 +7163,34 @@ paths:
               schema:
                 $ref: '#/components/schemas/ImportJob'
           description: ''
-  /api/v1/imports/{id}/errors/:
-    get:
-      operationId: imports_errors_retrieve
+    patch:
+      operationId: imports_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this import job.
+        required: true
+      tags:
+      - imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedImportJobRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJob'
+          description: ''
+    delete:
+      operationId: imports_destroy
       parameters:
       - in: path
         name: id
@@ -7229,15 +7204,11 @@ paths:
       security:
       - jwtAuth: []
       responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ImportJob'
-          description: ''
-  /api/v1/imports/{id}/retry/:
+        '204':
+          description: No response body
+  /api/v1/imports/{id}/confirm/:
     post:
-      operationId: imports_retry_create
+      operationId: imports_confirm_create
       parameters:
       - in: path
         name: id
@@ -7250,12 +7221,6 @@ paths:
       - imports
       requestBody:
         content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ImportJobRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ImportJobRequest'
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/ImportJobRequest'
@@ -7269,44 +7234,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/ImportJob'
           description: ''
-  /api/v1/imports/templates/{template_type}/:
-    get:
-      operationId: imports_templates_retrieve
+  /api/v1/imports/{id}/preview/:
+    post:
+      operationId: imports_preview_create
       parameters:
-      - in: query
-        name: class_section
+      - in: path
+        name: id
         schema:
           type: string
           format: uuid
-      - in: query
-        name: layout
-        schema:
-          type: string
-          enum:
-          - long
-          - smart
-      - in: path
-        name: template_type
-        schema:
-          type: string
-          enum:
-          - comprehensive_school
-          - enrollments
-          - monthly_evaluations
-          - scores
-          - students
+        description: A UUID string identifying this import job.
         required: true
       tags:
       - imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportJobRequest'
+        required: true
       security:
       - jwtAuth: []
       responses:
         '200':
           content:
-            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            application/json:
               schema:
-                type: string
-                format: binary
+                $ref: '#/components/schemas/ImportJob'
           description: ''
   /api/v1/monthly-evaluations/:
     get:
@@ -10779,7 +10733,7 @@ paths:
         name: id
         schema:
           type: integer
-        description: A unique integer value identifying this کاربر.
+        description: A unique integer value identifying this user.
         required: true
       tags:
       - users
@@ -10799,7 +10753,7 @@ paths:
         name: id
         schema:
           type: integer
-        description: A unique integer value identifying this کاربر.
+        description: A unique integer value identifying this user.
         required: true
       tags:
       - users
@@ -10831,7 +10785,7 @@ paths:
         name: id
         schema:
           type: integer
-        description: A unique integer value identifying this کاربر.
+        description: A unique integer value identifying this user.
         required: true
       tags:
       - users
@@ -10863,7 +10817,7 @@ paths:
         name: id
         schema:
           type: integer
-        description: A unique integer value identifying this کاربر.
+        description: A unique integer value identifying this user.
         required: true
       tags:
       - users
@@ -10896,7 +10850,7 @@ paths:
         name: id
         schema:
           type: integer
-        description: A unique integer value identifying this کاربر.
+        description: A unique integer value identifying this user.
         required: true
       tags:
       - users
@@ -14801,6 +14755,7 @@ components:
         school:
           type: string
           format: uuid
+          nullable: true
         school_name:
           type: string
           readOnly: true
@@ -14838,6 +14793,8 @@ components:
           readOnly: true
         result_summary:
           readOnly: true
+        preview_summary:
+          readOnly: true
         started_at:
           type: string
           format: date-time
@@ -14866,10 +14823,10 @@ components:
       - import_type
       - organization
       - organization_name
+      - preview_summary
       - requested_by
       - requested_by_name
       - result_summary
-      - school
       - school_name
       - source_file
       - started_at
@@ -14895,6 +14852,7 @@ components:
         school:
           type: string
           format: uuid
+          nullable: true
         school_name:
           type: string
           readOnly: true
@@ -14932,6 +14890,8 @@ components:
           readOnly: true
         result_summary:
           readOnly: true
+        preview_summary:
+          readOnly: true
         started_at:
           type: string
           format: date-time
@@ -14960,10 +14920,10 @@ components:
       - import_type
       - organization
       - organization_name
+      - preview_summary
       - requested_by
       - requested_by_name
       - result_summary
-      - school
       - school_name
       - source_file
       - started_at
@@ -14983,6 +14943,7 @@ components:
         school:
           type: string
           format: uuid
+          nullable: true
         import_type:
           $ref: '#/components/schemas/ImportJobCreateImportTypeEnum'
         source_file:
@@ -14990,7 +14951,6 @@ components:
           format: binary
       required:
       - import_type
-      - school
       - source_file
     ImportJobImportTypeEnum:
       enum:
@@ -15012,6 +14972,7 @@ components:
         school:
           type: string
           format: uuid
+          nullable: true
         import_type:
           $ref: '#/components/schemas/ImportJobImportTypeEnum'
         source_file:
@@ -15019,11 +14980,14 @@ components:
           format: binary
       required:
       - import_type
-      - school
       - source_file
     ImportJobStatusEnum:
       enum:
       - queued
+      - uploaded
+      - analyzing
+      - preview_ready
+      - confirmed
       - processing
       - completed
       - failed
@@ -15031,6 +14995,10 @@ components:
       type: string
       description: |-
         * `queued` - در صف
+        * `uploaded` - آپلود شده
+        * `analyzing` - در حال تحلیل
+        * `preview_ready` - پیش‌نمایش آماده
+        * `confirmed` - تایید شده
         * `processing` - در حال پردازش
         * `completed` - تکمیل‌شده
         * `failed` - ناموفق
@@ -15136,51 +15104,27 @@ components:
       - EDU_06
       - EDU_07
       - EDU_08
-      - EDU_09
-      - EDU_10
       - DEV_01
       - DEV_02
       - DEV_03
       - DEV_04
       - DEV_05
-      - DEV_06
-      - DEV_07
-      - DEV_08
-      - DEV_09
-      - DEV_10
       - CHR_01
       - CHR_02
-      - CHR_03
-      - CHR_04
-      - CHR_05
-      - CHR_06
-      - CHR_07
-      - CHR_08
-      - CHR_09
-      - CHR_10
       - DIS_01
       - DIS_02
       - DIS_03
       - DIS_04
       - DIS_05
-      - DIS_06
-      - DIS_07
-      - DIS_08
       - CUL_01
       - CUL_02
       - CUL_03
-      - CUL_04
-      - CUL_05
-      - CUL_06
-      - CUL_07
       - RES_01
       - RES_02
       - RES_03
       - RES_04
       - RES_05
       - RES_06
-      - RES_07
-      - RES_08
       - SPT_01
       - SPT_02
       - SPT_03
@@ -15198,10 +15142,6 @@ components:
       - PER_01
       - PER_02
       - PER_03
-      - PER_04
-      - PER_05
-      - PER_06
-      - PER_07
       type: string
       description: |-
         * `EDU_01` - EDU_01
@@ -15212,51 +15152,27 @@ components:
         * `EDU_06` - EDU_06
         * `EDU_07` - EDU_07
         * `EDU_08` - EDU_08
-        * `EDU_09` - EDU_09
-        * `EDU_10` - EDU_10
         * `DEV_01` - DEV_01
         * `DEV_02` - DEV_02
         * `DEV_03` - DEV_03
         * `DEV_04` - DEV_04
         * `DEV_05` - DEV_05
-        * `DEV_06` - DEV_06
-        * `DEV_07` - DEV_07
-        * `DEV_08` - DEV_08
-        * `DEV_09` - DEV_09
-        * `DEV_10` - DEV_10
         * `CHR_01` - CHR_01
         * `CHR_02` - CHR_02
-        * `CHR_03` - CHR_03
-        * `CHR_04` - CHR_04
-        * `CHR_05` - CHR_05
-        * `CHR_06` - CHR_06
-        * `CHR_07` - CHR_07
-        * `CHR_08` - CHR_08
-        * `CHR_09` - CHR_09
-        * `CHR_10` - CHR_10
         * `DIS_01` - DIS_01
         * `DIS_02` - DIS_02
         * `DIS_03` - DIS_03
         * `DIS_04` - DIS_04
         * `DIS_05` - DIS_05
-        * `DIS_06` - DIS_06
-        * `DIS_07` - DIS_07
-        * `DIS_08` - DIS_08
         * `CUL_01` - CUL_01
         * `CUL_02` - CUL_02
         * `CUL_03` - CUL_03
-        * `CUL_04` - CUL_04
-        * `CUL_05` - CUL_05
-        * `CUL_06` - CUL_06
-        * `CUL_07` - CUL_07
         * `RES_01` - RES_01
         * `RES_02` - RES_02
         * `RES_03` - RES_03
         * `RES_04` - RES_04
         * `RES_05` - RES_05
         * `RES_06` - RES_06
-        * `RES_07` - RES_07
-        * `RES_08` - RES_08
         * `SPT_01` - SPT_01
         * `SPT_02` - SPT_02
         * `SPT_03` - SPT_03
@@ -15274,10 +15190,6 @@ components:
         * `PER_01` - PER_01
         * `PER_02` - PER_02
         * `PER_03` - PER_03
-        * `PER_04` - PER_04
-        * `PER_05` - PER_05
-        * `PER_06` - PER_06
-        * `PER_07` - PER_07
     MetricScore:
       type: object
       properties:
@@ -17493,6 +17405,18 @@ components:
           type: string
           format: date
           nullable: true
+    PatchedImportJobRequest:
+      type: object
+      properties:
+        school:
+          type: string
+          format: uuid
+          nullable: true
+        import_type:
+          $ref: '#/components/schemas/ImportJobImportTypeEnum'
+        source_file:
+          type: string
+          format: binary
     PatchedOrganizationRequest:
       type: object
       properties:
@@ -17698,9 +17622,8 @@ components:
         username:
           type: string
           minLength: 1
-          title: نام کاربری
-          description: الزامی. 150 کاراکتر یا کمتر. فقط شامل حروف، اعداد، و علامات
-            @/./+/-/_
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
           pattern: ^[\w.@+-]+$
           maxLength: 150
         email:
@@ -17714,11 +17637,9 @@ components:
           minLength: 1
         first_name:
           type: string
-          title: نام
           maxLength: 150
         last_name:
           type: string
-          title: نام خانوادگی
           maxLength: 150
         phone:
           type: string
@@ -17729,9 +17650,9 @@ components:
           maxLength: 10
         is_active:
           type: boolean
-          title: فعال
-          description: نشان می‌دهد که آیا این کاربر اجازهٔ فعالیت دارد یا خیر. به
-            جای حذف کاربر این تیک را بردارید.
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
     PolarityEnum:
       enum:
       - positive
@@ -20320,9 +20241,8 @@ components:
           readOnly: true
         username:
           type: string
-          title: نام کاربری
-          description: الزامی. 150 کاراکتر یا کمتر. فقط شامل حروف، اعداد، و علامات
-            @/./+/-/_
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
           pattern: ^[\w.@+-]+$
           maxLength: 150
         email:
@@ -20331,11 +20251,9 @@ components:
           maxLength: 254
         first_name:
           type: string
-          title: نام
           maxLength: 150
         last_name:
           type: string
-          title: نام خانوادگی
           maxLength: 150
         phone:
           type: string
@@ -20346,9 +20264,9 @@ components:
           maxLength: 10
         is_active:
           type: boolean
-          title: فعال
-          description: نشان می‌دهد که آیا این کاربر اجازهٔ فعالیت دارد یا خیر. به
-            جای حذف کاربر این تیک را بردارید.
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
         must_change_password:
           type: boolean
           readOnly: true
@@ -20362,12 +20280,10 @@ components:
           format: date-time
           readOnly: true
           nullable: true
-          title: آخرین ورود
         date_joined:
           type: string
           format: date-time
           readOnly: true
-          title: تاریخ پیوستن
       required:
       - date_joined
       - email
@@ -20382,9 +20298,8 @@ components:
         username:
           type: string
           minLength: 1
-          title: نام کاربری
-          description: الزامی. 150 کاراکتر یا کمتر. فقط شامل حروف، اعداد، و علامات
-            @/./+/-/_
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
           pattern: ^[\w.@+-]+$
           maxLength: 150
         email:
@@ -20398,11 +20313,9 @@ components:
           minLength: 1
         first_name:
           type: string
-          title: نام
           maxLength: 150
         last_name:
           type: string
-          title: نام خانوادگی
           maxLength: 150
         phone:
           type: string
@@ -20413,9 +20326,9 @@ components:
           maxLength: 10
         is_active:
           type: boolean
-          title: فعال
-          description: نشان می‌دهد که آیا این کاربر اجازهٔ فعالیت دارد یا خیر. به
-            جای حذف کاربر این تیک را بردارید.
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
       required:
       - email
       - username

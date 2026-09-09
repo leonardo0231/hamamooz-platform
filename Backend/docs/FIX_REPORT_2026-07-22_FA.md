@@ -1,5 +1,7 @@
 # گزارش اصلاحات یکپارچه ۱۴۰۵/۰۴/۳۱ (2026-07-22)
 
+> این سند تاریخی است. مسیر PDF توصیف‌شده در این گزارش superseded شده و مسیر فعال اکنون Chromium/Playwright با خطای صریحِ نبود browser bundle است؛ جزئیات جاری در `21-REPORTING_PLATFORM_FA.md` ثبت شده است.
+
 ## ساختار و بسته‌بندی
 
 - یکپارچه‌سازی appها زیر `hamamooz.apps` و حذف ساختار legacy `Backend/apps`.
@@ -9,9 +11,9 @@
 
 ## گزارش و PDF
 
-- بازگرداندن جدایی صحیح `render_report_html` و `render_report_pdf`.
-- lazy-load کردن WeasyPrint فقط هنگام تولید PDF.
-- confinement مسیر media برای جلوگیری از file traversal.
+- این بخش تاریخی است؛ مسیر server-side قبلی دیگر فعال نیست.
+- مسیر جاری `React report-sample.html` → `Playwright Chromium` است و PDF رسمی را با قرارداد A3 landscape تولید می‌کند.
+- confinement مسیر media برای جلوگیری از file traversal همچنان برقرار است.
 - claim/idempotency و timeout برای task گزارش و پاک‌سازی فایل orphan.
 - roster تاریخ‌مند و کاهش queryهای تکراری محاسبه دسته‌های نمره.
 
@@ -63,7 +65,7 @@
 
 این موارد bug سورس نیستند و باید در محیط مقصد فراهم شوند:
 
-- Pango/GObject برای WeasyPrint روی Windows، یا اجرای Docker لینوکسی.
+- Playwright و browser bundle Chromium؛ Image رسمی آن را provision می‌کند.
 - PostgreSQL برای تست‌های locking/concurrency.
 - credential واقعی SMTP/SMS/S3 در production.
 - مقصد backup رمزگذاری‌شده و off-host.

@@ -1,7 +1,7 @@
-from .student_writer import StudentWriter
+from .assessment_writer import AssessmentWriter
 from .enrollment_writer import EnrollmentWriter
 from .indicator_writer import IndicatorWriter
-from .assessment_writer import AssessmentWriter
+from .student_writer import StudentWriter
 
 __all__ = [
     "StudentWriter",

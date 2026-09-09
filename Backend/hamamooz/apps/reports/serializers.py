@@ -1,3 +1,5 @@
+from contextlib import suppress
+
 from rest_framework import serializers
 
 from hamamooz.apps.academics.models import Assessment, CourseOffering
@@ -5,7 +7,12 @@ from hamamooz.apps.academics.services import validate_score_completeness
 from hamamooz.apps.accounts.access import accessible_school_ids, allowed_class_ids
 
 from .models import ReportArchive, ReportBatch, ReportBatchItem, ReportDraft, ReportTemplate
-from .services import ALLOWED_REPORT_BLOCKS, build_draft_snapshot
+from .services import (
+    ALLOWED_REPORT_BLOCKS,
+    REPORT_PAGE_SIZE_KEY,
+    build_draft_snapshot,
+    normalize_report_page_size,
+)
 
 
 def validate_report_selection(attrs, request):
@@ -209,6 +216,13 @@ class ReportBatchSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Existing rows may predate the fixed print profile.  Never expose a
+        # selectable/ambiguous page size to a report-card consumer.
+        data["page_size"] = REPORT_PAGE_SIZE_KEY
+        return data
+
     def get_zip_download_url(self, obj) -> str | None:
         if not obj.zip_file or obj.status not in [
             ReportBatch.Status.COMPLETED,
@@ -236,14 +250,15 @@ class ReportBatchCreateSerializer(serializers.Serializer):
         required=False,
         allow_null=True,
     )
-    page_size = serializers.ChoiceField(
-        choices=[
-            ("digital_3x2", "Digital 3:2"),
-            ("a3_landscape", "A3 landscape"),
-            ("a4_portrait", "A4 portrait"),
-        ],
-        default="digital_3x2",
-    )
+    # Accept known legacy values for old clients, then normalize them in
+    # ``validate_page_size`` so every newly queued batch is A3 landscape.
+    page_size = serializers.CharField(required=False, default=REPORT_PAGE_SIZE_KEY)
+
+    def validate_page_size(self, value):
+        try:
+            return normalize_report_page_size(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
 
     def validate(self, attrs):
         request, school, year, term = (
@@ -367,6 +382,14 @@ class ReportTemplateSerializer(serializers.ModelSerializer):
                 {"school": "School is outside the selected access scope."}
             )
         instance = self.instance or ReportTemplate()
+        presentation = attrs.get("presentation", instance.presentation or {})
+        if isinstance(presentation, dict):
+            presentation = dict(presentation)
+            with suppress(ValueError):
+                presentation["page_size"] = normalize_report_page_size(
+                    presentation.get("page_size")
+                )
+            attrs["presentation"] = presentation
         for field, value in attrs.items():
             setattr(instance, field, value)
         instance.full_clean(exclude=["id"])

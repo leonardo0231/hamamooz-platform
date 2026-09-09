@@ -98,10 +98,14 @@ def test_historical_transferred_enrollment_report_does_not_crash(base_data):
 def test_local_media_urls_are_confined_to_media_root(settings, tmp_path):
     settings.MEDIA_ROOT = tmp_path
     settings.MEDIA_URL = "/media/"
-    expected = (tmp_path / "logos" / "school.png").resolve().as_uri()
+    logo_path = tmp_path / "logos" / "school.png"
+    logo_path.parent.mkdir()
+    logo_path.write_bytes(b"logo")
+    expected = logo_path.resolve().as_uri()
 
     assert _local_media_file_url("/media/logos/school.png") == expected
     assert _local_media_file_url("/media/../../etc/passwd") == ""
+    assert _local_media_file_url("/media/logos/missing.png") == ""
     assert _local_media_file_url("https://objects.example/logo.png") == (
         "https://objects.example/logo.png"
     )
@@ -306,12 +310,19 @@ def test_forwarded_ip_is_trusted_only_when_explicitly_enabled(settings):
 
 
 @pytest.mark.django_db
-def test_report_pdf_renders_with_security_update(base_data):
+def test_report_pdf_renders_with_security_update(base_data, settings, monkeypatch):
     locked_assessment_with_scores(base_data)
     snapshot = build_report_snapshot(
         ReportArchive.ReportType.STUDENT_REPORT_CARD,
         base_data["term"],
         enrollment=base_data["enrollments"][0],
     )
+
+    class FixtureRenderer:
+        def render_snapshot(self, snapshot, **kwargs):
+            return b"%PDF-1.7\nfixture"
+
+    settings.REPORT_FRONTEND_URL = "http://frontend:8080/report-sample.html"
+    monkeypatch.setattr("hamamooz.apps.reports.rendering.ChromiumReportRenderer", FixtureRenderer)
     pdf = render_report_pdf(snapshot)
     assert pdf.startswith(b"%PDF")

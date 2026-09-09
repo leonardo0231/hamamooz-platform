@@ -23,7 +23,7 @@
 | معدل درس/نوبت، ضریب، وزن، گردکردن و قبولی | کامل | `calculations.py` |
 | رتبه Dense کلاس | کامل | `recalculate_class_term` |
 | نسخه فرمول برای مجموعه/سال/پایه | کامل | `CalculationPolicy` و Resultها |
-| کارنامه فردی و گروهی A4 فارسی | کامل | `reports` + WeasyPrint |
+| کارنامه فردی و گروهی A3 فارسی | کامل | `reports` + Chromium/Playwright |
 | پیش‌نمایش و آرشیو Snapshot/PDF | کامل | `/reports/preview/`, `ReportArchive` |
 | Import ثابت دانش‌آموز، ثبت‌نام و نمره | کامل | `imports` + قالب‌های XLSX |
 | جلوگیری از ثبت ناقص Import و گزارش خطا | کامل | validate-all سپس transaction-all |

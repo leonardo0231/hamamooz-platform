@@ -6,6 +6,7 @@ RUN npm config set registry https://mirror-npm.runflare.com \
     && npm config set fetch-retry-mintimeout 20000 \
     && npm config set fetch-retry-maxtimeout 120000 \
     && npm ci
+COPY vite.config.mjs ./vite.config.mjs
 COPY scripts ./scripts
 COPY src ./src
 COPY public ./public

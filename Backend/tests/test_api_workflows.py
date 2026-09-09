@@ -300,8 +300,14 @@ def test_import_create_duplicate_and_retry_api_paths(api_client, base_data):
 
 
 @pytest.mark.django_db
-def test_report_preview_archive_and_download_api(api_client, base_data, settings, tmp_path):
+def test_report_preview_archive_and_download_api(
+    api_client, base_data, settings, tmp_path, monkeypatch
+):
     settings.MEDIA_ROOT = tmp_path
+    monkeypatch.setattr(
+        "hamamooz.apps.reports.services.render_report_pdf",
+        lambda snapshot: b"%PDF-1.7\nfixture",
+    )
     assessment = create_assessment_via_api(api_client, base_data, title="گزارش API")
     save_scores_via_api(api_client, base_data, assessment)
     assessment.status = Assessment.Status.LOCKED
@@ -320,6 +326,10 @@ def test_report_preview_archive_and_download_api(api_client, base_data, settings
     )
     assert preview.status_code == 200
     assert "کارنامه تحصیلی" in preview.data["html"]
+    assert preview.data["renderer"] == "react"
+    assert preview.data["layout"] == "a3_landscape"
+    assert "reports/report_card.html" not in preview.data["html"]
+    assert 'data-report-renderer="react"' in preview.data["html"]
     create = api_client.post(
         "/api/v1/reports/",
         payload,
