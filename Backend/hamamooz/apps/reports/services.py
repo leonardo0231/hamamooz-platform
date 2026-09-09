@@ -373,7 +373,7 @@ def _local_media_file_url(url):
         return ""
     if not candidate.is_file():
         # A stale model file must not become a broken image in an archived PDF.
-        # The template can render its explicit missing-photo/logo state instead.
+        # The React report entry renders its explicit missing-photo/logo state.
         return ""
     return candidate.as_uri()
 

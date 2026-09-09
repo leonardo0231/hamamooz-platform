@@ -15,7 +15,7 @@ Represent a report template as an ordered list of allowlisted blocks plus bounde
 
 - New blocks are code-reviewed capabilities.
 - Report configuration is validated schema data, not executable content.
-- The allowlisted template model remains valid; its historical WeasyPrint rendering consequence is superseded by the Chromium/Playwright production boundary.
+- The allowlisted configuration model remains valid for snapshot/data policy; the visible report and PDF are owned by the React/Chromium production boundary.
 
 ## References
 

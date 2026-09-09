@@ -13,10 +13,10 @@ Backend/
 │   ├── academics/                  # درس، ارزیابی، نمره و محاسبات
 │   ├── attendance/                 # حضور، عذر، هشدار و اعلان
 │   ├── imports/                    # Import اتمیک XLSX
-│   ├── reports/                    # HTML/PDF، Snapshot و آرشیو
+│   ├── reports/                    # قرارداد React/PDF، Snapshot و آرشیو
 │   └── dashboard/                  # شاخص‌های عملیاتی
 ├── tests/                          # تست Domain/API/Security/Operations
-├── templates/reports/              # قالب کارنامه فارسی
+├── templates/reports/              # قالب Word قابل ویرایش؛ PDF در React تولید می‌شود
 ├── docs/                           # مستندات و قالب Import
 ├── scripts/                        # Schema، Backup، Restore و entrypoint
 ├── nginx/                          # Gateway و نمونه TLS

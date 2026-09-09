@@ -29,7 +29,7 @@ flowchart TB
 | `academics` | درس، ارائه، ارزیابی، نمره، workflow و calculation | `students`, `organizations`, `accounts` | تولید فایل گزارش |
 | `attendance` | جلسه، roster، رکورد، عذر، هشدار و outbox اعلان | `students`, `academics`, `accounts` | ارسال مستقیم بدون outbox |
 | `imports` | XLSX ثابت، اعتبارسنجی و ثبت اتمیک | دامنه‌های مقصد | پذیرش فایل آزاد و نامنظم |
-| `reports` | Snapshot، HTML/PDF و آرشیو | `academics`, `students` | تغییر داده آموزشی |
+| `reports` | Snapshot، قرارداد React/PDF و آرشیو | `academics`, `students` | تغییر داده آموزشی |
 | `dashboard` | Read model و شاخص عملیاتی | دامنه‌های خواندنی | ثبت داده دامنه |
 
 ## مسیر درخواست امن
