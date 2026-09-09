@@ -90,12 +90,15 @@ test('report header and signatures are reference-aligned and data-driven', () =>
   assert.match(report, /کارنامه جامع رشد سه ساله دانش‌آموز/);
   assert.match(report, /historyGradeRange/);
   assert.match(report, /report\.academic\?\.grade_range \?\?/);
+  assert.match(report, /DEFAULT_REPORT_GRADE_RANGE = 'پایه هفتم تا نهم'/);
   assert.match(report, /normalizeSignatureLabels/);
   assert.match(report, /ولی دانش‌آموز/);
   assert.doesNotMatch(report, /Class Expert|Elementary Assistant|Educational Assistant|Executive Assistant|High School Principal/);
   assert.match(styles, /\.analytical-identity \.analytical-panel__body \{ display: grid; grid-template-columns: 88px/);
   assert.match(styles, /\.analytical-identity \.report-portrait \{ grid-row: 1; width: 88px; height: 106px/);
   assert.match(styles, /\.analytical-identity \.report-mini-kpis \{ display: none; \}/);
+  assert.match(styles, /\.analytical-identity \.report-avatar-fallback img \{ width: 64px; height: 64px; \}/);
+  assert.match(styles, /\.analytical-identity \.report-avatar-fallback small \{ font-size: 9px; line-height: 1; white-space: nowrap; \}/);
 });
 
 test('report output is browser-native and never exposes the legacy PDF/ZIP controls', () => {

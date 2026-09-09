@@ -119,6 +119,7 @@ const DEFAULT_SIGNATURE_LABELS = Object.freeze([
   'معاون آموزشی',
   'مدیر مدرسه',
 ]);
+const DEFAULT_REPORT_GRADE_RANGE = 'پایه هفتم تا نهم';
 
 const demo = {
   demo: true,
@@ -127,7 +128,7 @@ const demo = {
   school: 'دبیرستان پسرانه بعثت',
   schoolLogoUrl: '/assets/besat-logo.png',
   student: { name: 'آرین محمدی', nationalId: '۰۰۱۲۳۴۵۶۷۸', number: '۹۹-۲۰۲۴', initial: 'آ', photoUrl: '' },
-  academic: { year: '۱۴۰۴–۱۴۰۵', grade: 'پایه نهم', gradeRange: 'پایه هفتم تا نهم', className: 'نهم / الف', term: 'نوبت اول' },
+  academic: { year: '۱۴۰۴–۱۴۰۵', grade: 'پایه نهم', gradeRange: DEFAULT_REPORT_GRADE_RANGE, className: 'نهم / الف', term: 'نوبت اول' },
   average: 18.78,
   rank: 3,
   history: [
@@ -196,7 +197,7 @@ const emptyReport = {
   school: 'ثبت نشده',
   schoolLogoUrl: '',
   student: { name: 'ثبت نشده', nationalId: '—', number: '—', initial: 'د', photoUrl: '' },
-  academic: { year: '—', grade: '—', gradeRange: '—', className: '—', term: '—' },
+  academic: { year: '—', grade: '—', gradeRange: DEFAULT_REPORT_GRADE_RANGE, className: '—', term: '—' },
   average: null,
   rank: null,
   history: [],
@@ -367,7 +368,7 @@ export function mapSnapshot(snapshot) {
   const historyGradeRange = history.length > 1 ? `${history[0].label} تا ${history.at(-1).label}` : null;
   const reportTitle = [report.report_title, report.title, context.report_title].find(value => typeof value === 'string' && value.trim())
     ?? 'کارنامه جامع رشد سه ساله دانش‌آموز';
-  const gradeRange = report.academic?.grade_range ?? report.academic?.gradeRange ?? historyGradeRange ?? report.academic?.grade ?? '—';
+  const gradeRange = report.academic?.grade_range ?? report.academic?.gradeRange ?? historyGradeRange ?? DEFAULT_REPORT_GRADE_RANGE;
   const academic = metricRows.filter(item => /^EDU_/.test(item.code ?? ''));
   const visibleSubjects = bounded(subjectRows, 12);
   const strengthRows = [...subjectRows].filter(item => isNumber(item.current)).sort((a, b) => b.current - a.current).map(item => ({ title: item.title, value: clamp(item.current * 5) }));
