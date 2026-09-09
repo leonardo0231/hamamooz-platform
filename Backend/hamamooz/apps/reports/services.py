@@ -170,7 +170,10 @@ def build_student_snapshot(enrollment, term, *, recalculate=True):
                 "average": _decimal_string(
                     result.average if result else None, policy.decimal_places
                 ),
-                "passed": result.passed if result else False,
+                # A missing subject result is not the same as a failed subject.
+                # Keep the tri-state value so the React report can show
+                # «ثبت نشده» instead of inventing a follow-up status.
+                "passed": result.passed if result else None,
             }
         )
     school = enrollment.school

@@ -65,6 +65,14 @@ def test_missing_data_stays_explicitly_empty_instead_of_becoming_fake_values():
     assert visuals["attendance"]["has_data"] is False
 
 
+def test_missing_subject_result_is_not_reported_as_a_failure():
+    visuals = build_report_visuals(
+        {"summary": {}, "subjects": [{"title": "ریاضی"}], "product_context": {}}
+    )
+
+    assert visuals["subjects"][0]["passed"] is None
+
+
 def test_recommendation_override_does_not_fill_independent_family_support_area():
     visuals = build_report_visuals(
         {

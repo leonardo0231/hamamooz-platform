@@ -354,7 +354,9 @@ def build_report_visuals(
                 "final": row.get("final") or "—",
                 "average": average,
                 "average_display": _fa(average, 2),
-                "passed": bool(row.get("passed")),
+                # Preserve the unknown state for incomplete snapshots.  The
+                # report UI distinguishes missing data from a failed result.
+                "passed": row.get("passed"),
             }
         )
 
