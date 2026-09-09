@@ -87,7 +87,7 @@
 .report-photo { display: block; width: 100%; height: 100%; }
 .report-photo > img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .report-avatar-fallback { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; width: 100%; height: 100%; border-radius: 0; color: #0b5060; background: #edf7f4; font: 900 .84rem/1.3 var(--font-display); text-align: center; }
-.report-avatar-fallback .icon { color: #5d8e87; }
+.report-avatar-fallback img { width: min(78%, 92px); height: min(78%, 108px); object-fit: contain; }
 .report-avatar-fallback small { color: #55716e; font: 700 .73rem/1.35 var(--font-body); }
 .report-logo-frame { display: block; width: 100%; height: 100%; }
 .report-logo-frame > img { display: block; width: 100%; height: 100%; object-fit: contain; border-radius: 9px; }

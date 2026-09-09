@@ -19,6 +19,7 @@ const bounded = (items, limit) => {
   const source = Array.isArray(items) ? items : [];
   return { items: source.slice(0, limit), omitted: Math.max(0, source.length - limit) };
 };
+const DEFAULT_STUDENT_PHOTO_URL = '/assets/report-default-student.svg';
 const assetUrl = value => {
   if (!value) return '';
   const text = String(value).trim();
@@ -115,7 +116,7 @@ const demo = {
   demo: true,
   organization: 'سامانه هوشمند هم‌آموز',
   school: 'دبیرستان پسرانه بعثت',
-  schoolLogoUrl: '',
+  schoolLogoUrl: '/assets/besat-logo.png',
   student: { name: 'آرین محمدی', nationalId: '۰۰۱۲۳۴۵۶۷۸', number: '۹۹-۲۰۲۴', initial: 'آ', photoUrl: '' },
   academic: { year: '۱۴۰۴–۱۴۰۵', grade: 'پایه نهم', className: 'نهم / الف', term: 'نوبت اول' },
   average: 18.78,
@@ -465,14 +466,14 @@ function SubjectStatus({ subject }) {
   return html`<span class="report-rating-missing" role="status">ثبت نشده</span>`;
 }
 function MissingPhoto() {
-  return html`<span class="report-avatar-fallback" role="img" aria-label="عکس دانش‌آموز ثبت نشده"><${Icon} name="user" size=${40}/><small>عکس ثبت نشده</small></span>`;
+  return html`<span class="report-avatar-fallback" role="img" aria-label="تصویر پیش‌فرض دانش‌آموز"><img src=${DEFAULT_STUDENT_PHOTO_URL} alt="تصویر پیش‌فرض دانش‌آموز"/><small>تصویر پیش‌فرض</small></span>`;
 }
 function StudentPhoto({ report }) {
   if (!report.student.photoUrl) return html`<${MissingPhoto}/>`;
   return html`<span class="report-photo"><img src=${report.student.photoUrl} alt=${`عکس ${report.student.name}`} onError=${event => {
     event.currentTarget.hidden = true;
     event.currentTarget.parentElement?.querySelector('[data-photo-fallback]')?.removeAttribute('hidden');
-  }}/><span class="report-avatar-fallback" data-photo-fallback hidden role="img" aria-label="عکس دانش‌آموز در دسترس نیست"><${Icon} name="user" size=${40}/><small>عکس در دسترس نیست</small></span></span>`;
+  }}/><span class="report-avatar-fallback" data-photo-fallback hidden role="img" aria-label="تصویر پیش‌فرض دانش‌آموز"><img src=${DEFAULT_STUDENT_PHOTO_URL} alt="تصویر پیش‌فرض دانش‌آموز"/><small>تصویر پیش‌فرض</small></span></span>`;
 }
 function MissingLogo() {
   return html`<span class="report-logo-fallback" role="img" aria-label="لوگوی مدرسه ثبت نشده"><${Icon} name="school" size=${29}/><small>لوگو ثبت نشده</small></span>`;

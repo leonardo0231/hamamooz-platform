@@ -14,6 +14,7 @@ const chart = await readFile(new URL('../src/components/echart.js', import.meta.
 const icons = await readFile(new URL('../src/components/icons.js', import.meta.url), 'utf8');
 const page = await readFile(new URL('../src/pages/reports.js', import.meta.url), 'utf8');
 const styles = await readFile(new URL('../src/styles/reports.css', import.meta.url), 'utf8');
+const defaultPhoto = await readFile(new URL('../public/assets/report-default-student.svg', import.meta.url), 'utf8');
 const sample = await readFile(new URL('../src/report-sample.html', import.meta.url), 'utf8');
 const sampleScript = await readFile(new URL('../src/report-sample.js', import.meta.url), 'utf8');
 const build = await readFile(new URL('../scripts/build.mjs', import.meta.url), 'utf8');
@@ -140,6 +141,9 @@ test('standalone report entry exposes a readiness marker for browser print autom
 test('photo, logo and family-support fallbacks are explicit', () => {
   assert.match(report, /MissingPhoto/);
   assert.match(report, /MissingLogo/);
+  assert.match(report, /DEFAULT_STUDENT_PHOTO_URL = '\/assets\/report-default-student\.svg'/);
+  assert.match(report, /schoolLogoUrl: '\/assets\/besat-logo\.png'/);
+  assert.match(defaultPhoto, /تصویر پیش‌فرض دانش‌آموز/);
   assert.match(report, /schoolLogoUrl: assetUrl\(report\.school\?\.logo_url \|\| organization\.logo_url/);
   assert.match(report, /support: supportNotes/);
   assert.match(report, /report-recommendation-group--empty/);
