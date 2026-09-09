@@ -157,6 +157,9 @@ test('report output contains no QR or access-code panel', () => {
 test('long subject names have a wrapping presentation path', () => {
   assert.match(report, /report-score-table__subject/);
   assert.match(styles, /\.report-score-table__subject \{ display: block; overflow-wrap: anywhere;/);
+  assert.match(styles, /\.report-rating-list > div > span:first-child \{ min-width: 0;[^}]*overflow-wrap: anywhere; white-space: normal/);
+  assert.match(styles, /\.report-metric-bar__head span \{ min-width: 0; overflow-wrap: anywhere; white-space: normal/);
+  assert.match(styles, /\.report-activities strong, \.report-activities small \{ display: -webkit-box;[^}]*-webkit-line-clamp: 2/);
 });
 
 test('one-page caps stay explicit instead of silently dropping report data', () => {
