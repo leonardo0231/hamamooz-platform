@@ -20,3 +20,12 @@ def test_active_pdf_runtime_is_chromium_only():
     assert "render_report_html" not in rendering
     assert "render_to_string" not in services
     assert not (BACKEND_ROOT / "templates" / "reports" / "report_card.html").exists()
+    assert not (
+        BACKEND_ROOT
+        / "hamamooz"
+        / "apps"
+        / "reports"
+        / "templates"
+        / "reports"
+        / "report_card_chromium.html"
+    ).exists()
