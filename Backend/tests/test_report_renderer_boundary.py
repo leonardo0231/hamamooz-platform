@@ -13,7 +13,7 @@ from hamamooz.apps.reports.chromium_renderer import (
 )
 
 
-def test_production_boundary_uses_injected_react_snapshot_renderer(monkeypatch, settings):
+def test_production_boundary_always_uses_react_snapshot_renderer(monkeypatch, settings):
     monkeypatch.setattr(services, "_pdf_snapshot", lambda snapshot: snapshot)
     settings.REPORT_FRONTEND_URL = "http://frontend:8080/report-sample.html"
     settings.REPORT_RENDER_TIMEOUT_MS = 1234
@@ -25,7 +25,8 @@ def test_production_boundary_uses_injected_react_snapshot_renderer(monkeypatch, 
             calls.update(kwargs)
             return b"%PDF-1.7\nfixture"
 
-    pdf = rendering.render_production_report_pdf({"reports": []}, renderer=FakeRenderer())
+    monkeypatch.setattr(rendering, "ChromiumReportRenderer", FakeRenderer)
+    pdf = rendering.render_production_report_pdf({"reports": []})
 
     assert pdf.startswith(b"%PDF")
     assert calls["snapshot"] == {"reports": []}
@@ -36,17 +37,15 @@ def test_production_boundary_uses_injected_react_snapshot_renderer(monkeypatch, 
 def test_public_pdf_service_delegates_to_production_boundary(monkeypatch):
     calls = {}
 
-    def fake_production_renderer(snapshot, *, renderer=None):
+    def fake_production_renderer(snapshot):
         calls["snapshot"] = snapshot
-        calls["renderer"] = renderer
         return b"%PDF-1.7\nfixture"
 
     monkeypatch.setattr(rendering, "render_production_report_pdf", fake_production_renderer)
-    injected = object()
     snapshot = {"reports": []}
 
-    assert services.render_report_pdf(snapshot, renderer=injected).startswith(b"%PDF")
-    assert calls == {"snapshot": snapshot, "renderer": injected}
+    assert services.render_report_pdf(snapshot).startswith(b"%PDF")
+    assert calls == {"snapshot": snapshot}
 
 
 def test_missing_playwright_is_reported_without_a_legacy_fallback(monkeypatch):

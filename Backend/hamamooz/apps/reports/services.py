@@ -388,18 +388,17 @@ def _pdf_snapshot(snapshot):
     return rendered
 
 
-def render_report_pdf(snapshot, *, renderer=None):
+def render_report_pdf(snapshot):
     """Render a frozen report snapshot through the Chromium boundary.
 
-    The optional renderer seam is intended for unit tests and controlled
-    integrations.  Production calls use the explicitly provisioned Chromium
-    renderer and raise a clear error when Playwright or its browser bundle is
-    unavailable; no alternate server-side renderer fallback is attempted.
+    Production always uses the explicitly provisioned Chromium renderer and
+    raises a clear error when Playwright or its browser bundle is unavailable;
+    callers cannot supply an alternate server-side renderer.
     """
 
     from .rendering import render_production_report_pdf
 
-    return render_production_report_pdf(snapshot, renderer=renderer)
+    return render_production_report_pdf(snapshot)
 
 
 def render_report_docx(snapshot):

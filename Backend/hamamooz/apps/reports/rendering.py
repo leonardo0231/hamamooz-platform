@@ -57,13 +57,12 @@ def prepare_react_snapshot(snapshot: dict) -> dict:
     return prepared
 
 
-def render_production_report_pdf(snapshot, *, renderer=None) -> bytes:
+def render_production_report_pdf(snapshot) -> bytes:
     """Render an approved snapshot through the Chromium production boundary.
 
-    ``renderer`` is an explicit dependency-injection seam for deterministic
-    unit tests and controlled service integrations. Both the production
-    renderer and the injected renderer receive the frozen snapshot and the
-    React report entry URL; no server-side HTML template is rendered here.
+    The production path always instantiates ``ChromiumReportRenderer``. There
+    is no public renderer injection point that could bypass the React report
+    entry; tests patch the Chromium class at the module boundary instead.
     """
 
     frontend_url = str(getattr(settings, "REPORT_FRONTEND_URL", "") or "").strip()
@@ -72,7 +71,7 @@ def render_production_report_pdf(snapshot, *, renderer=None) -> bytes:
             "React report rendering requires REPORT_FRONTEND_URL to point to the "
             "built report-sample.html entry."
         )
-    active_renderer = renderer or ChromiumReportRenderer()
+    active_renderer = ChromiumReportRenderer()
     render_snapshot = getattr(active_renderer, "render_snapshot", None)
     if not callable(render_snapshot):
         raise TypeError("The report renderer must implement render_snapshot().")

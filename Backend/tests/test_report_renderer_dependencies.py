@@ -19,6 +19,8 @@ def test_active_pdf_runtime_is_chromium_only():
     assert "playwright install --with-deps chromium" in dockerfile
     assert "render_report_html" not in rendering
     assert "render_to_string" not in services
+    assert "renderer=None" not in rendering
+    assert "renderer=None" not in services
     assert not (BACKEND_ROOT / "templates" / "reports" / "report_card.html").exists()
     assert not (
         BACKEND_ROOT

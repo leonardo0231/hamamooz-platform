@@ -72,7 +72,9 @@ def test_report_template_rejects_executable_or_unknown_blocks(base_data):
 
 
 @pytest.mark.django_db
-def test_report_template_allows_only_safe_a3_landscape_page_configuration(base_data, settings):
+def test_report_template_allows_only_safe_a3_landscape_page_configuration(
+    base_data, settings, monkeypatch
+):
     template = ReportTemplate(
         organization=base_data["organization"],
         school=base_data["school1"],
@@ -94,7 +96,8 @@ def test_report_template_allows_only_safe_a3_landscape_page_configuration(base_d
         def render_snapshot(self, snapshot, **kwargs):
             return b"%PDF-1.7\nfixture"
 
-    assert render_report_pdf(snapshot, renderer=FixtureRenderer()).startswith(b"%PDF")
+    monkeypatch.setattr("hamamooz.apps.reports.rendering.ChromiumReportRenderer", FixtureRenderer)
+    assert render_report_pdf(snapshot).startswith(b"%PDF")
 
     template.presentation = {"page_size": "A3 landscape; @import url(https://invalid.example)"}
     with pytest.raises(ValidationError):
