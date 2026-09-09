@@ -33,7 +33,7 @@
 .report-download-error { margin: 0 0 12px; padding: 9px 11px; border: 1px solid #f0c1c9; border-radius: 9px; color: #9e1d43; background: #fff4f6; font-size: .76rem; }
 
 /* Screen and print intentionally share one A3-landscape composition. */
-.analytical-sheet { direction: rtl; width: 100%; max-width: 1587px; margin: 0 auto; padding: 14px; color: #16323d; background: #fbfcf8; font-family: var(--font-body); font-size: 14px; line-height: 1.55; }
+.analytical-sheet { direction: rtl; width: 100%; max-width: 1587px; margin: 0 auto; padding: 14px; color: #16323d; background: #fbfcf8; font-family: var(--font-body); font-size: 14px; line-height: 1.55; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 .analytical-sheet__header { display: grid; grid-template-columns: 150px 1fr 300px; align-items: center; min-height: 112px; padding: 16px 22px; border: 1px solid #dec87d; border-bottom: 0; border-radius: 15px 15px 0 0; background: radial-gradient(circle at 88% 0, rgba(212, 161, 30, .2), transparent 31%), linear-gradient(135deg, #07334f, #073d4e 50%, #0d746f); }
 .analytical-sheet__mark { display: grid; place-items: center; align-content: center; justify-self: start; width: 102px; height: 86px; overflow: hidden; border: 1px solid rgba(255, 255, 255, .65); border-radius: 10px; color: #fff; background: rgba(255, 255, 255, .08); }
 .analytical-sheet__mark img { display: block; width: 100%; height: 100%; object-fit: contain; border-radius: 9px; }
@@ -124,6 +124,7 @@ ul.report-bullet-list { list-style-type: disc; }
 ol.report-bullet-list { list-style-type: decimal; }
 .report-score-table { width: 100%; border-collapse: collapse; font-size: .86rem; }
 .report-score-table th, .report-score-table td { padding: 5px 6px; border-bottom: 1px solid #e1e9e7; text-align: center; white-space: nowrap; }
+.report-score-table caption { caption-side: top; }
 .report-score-table__subject { display: block; overflow-wrap: anywhere; text-align: right; white-space: normal; }
 .report-score-table thead th { color: #0d605d; background: #eef8f6; font-weight: 900; }
 .report-score-table tbody th { color: #365453; font-weight: 700; text-align: right; }

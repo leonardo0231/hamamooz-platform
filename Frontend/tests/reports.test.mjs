@@ -154,3 +154,19 @@ test('long subject names have a wrapping presentation path', () => {
   assert.match(report, /report-score-table__subject/);
   assert.match(styles, /\.report-score-table__subject \{ display: block; overflow-wrap: anywhere;/);
 });
+
+test('unknown pass status stays explicit and trend charts cover the full score range', () => {
+  assert.match(report, /if \(subject\.passed === true\) return/);
+  assert.match(report, /if \(subject\.passed === false\) return/);
+  assert.match(report, /const min = Math\.max\(0, Math\.floor\(minValue - 1\)\)/);
+  assert.match(report, /const max = Math\.min\(20, Math\.max\(min \+ 4, Math\.ceil\(maxValue \+ 1\)\)\)/);
+  assert.doesNotMatch(report, /yAxis: \{ type: 'value', min: 10, max: 20/);
+});
+
+test('printed report preserves color hierarchy and table semantics', () => {
+  assert.match(styles, /print-color-adjust: exact/);
+  assert.match(styles, /-webkit-print-color-adjust: exact/);
+  assert.match(report, /<caption class="sr-only">نمرات و وضعیت آموزشی دانش‌آموز<\/caption>/);
+  assert.match(report, /<th scope="col">درس \/ شاخص<\/th>/);
+  assert.match(report, /<th scope="row"><span class="report-score-table__subject">/);
+});

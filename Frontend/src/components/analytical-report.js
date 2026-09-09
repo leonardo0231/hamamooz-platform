@@ -356,9 +356,14 @@ function mapSnapshot(snapshot) {
 
 function trendOption(points) {
   if (!points?.length) return null;
+  const values = points.map(item => Number(item.average)).filter(value => Number.isFinite(value));
+  const minValue = values.length ? Math.min(...values) : 0;
+  const maxValue = values.length ? Math.max(...values) : 20;
+  const min = Math.max(0, Math.floor(minValue - 1));
+  const max = Math.min(20, Math.max(min + 4, Math.ceil(maxValue + 1)));
   return { color: ['#0f766e'], textStyle: { fontFamily: 'Vazirmatn' }, tooltip: { trigger: 'axis', confine: true, valueFormatter: value => `${fa(value)} از ۲۰` }, grid: { top: 24, right: 12, bottom: 38, left: 32 },
     xAxis: { type: 'category', data: points.map(item => shortTrendLabel(item.label)), axisTick: { show: false }, axisLine: { lineStyle: { color: '#cbd5e1' } }, axisLabel: { color: '#475569', fontSize: 11, fontFamily: 'Vazirmatn', interval: 0, margin: 12, hideOverlap: true } },
-    yAxis: { type: 'value', min: 10, max: 20, splitNumber: 4, axisLabel: { color: '#64748b', fontSize: 10, fontFamily: 'Vazirmatn' }, splitLine: { lineStyle: { color: '#e2e8f0', type: 'dashed' } } },
+    yAxis: { type: 'value', min, max, splitNumber: 4, axisLabel: { color: '#64748b', fontSize: 10, fontFamily: 'Vazirmatn' }, splitLine: { lineStyle: { color: '#e2e8f0', type: 'dashed' } } },
     series: [{ name: 'میانگین', type: 'line', smooth: true, data: points.map(item => item.average), symbolSize: 9, lineStyle: { width: 4 }, areaStyle: { color: 'rgba(15,118,110,.16)' }, itemStyle: { borderColor: '#fff', borderWidth: 2 } }],
   };
 }
@@ -398,10 +403,9 @@ function MetricPercent({ value }) {
     : html`<span class="report-rating-missing" role="status">ثبت نشده</span>`;
 }
 function SubjectStatus({ subject }) {
-  if (!isNumber(subject.current)) return html`<span class="report-rating-missing" role="status">ثبت نشده</span>`;
-  return subject.passed === false
-    ? html`<b class="is-alert">پیگیری</b>`
-    : html`<b class="is-ok">قبول</b>`;
+  if (subject.passed === true) return html`<b class="is-ok">قبول</b>`;
+  if (subject.passed === false) return html`<b class="is-alert">پیگیری</b>`;
+  return html`<span class="report-rating-missing" role="status">ثبت نشده</span>`;
 }
 function MissingPhoto() {
   return html`<span class="report-avatar-fallback" role="img" aria-label="عکس دانش‌آموز ثبت نشده"><${Icon} name="user" size=${40}/><small>عکس ثبت نشده</small></span>`;
@@ -468,7 +472,7 @@ export function AnalyticalReport({ snapshot, loading = false }) {
       <${Panel} title="مشخصات دانش‌آموز" className="analytical-identity" tone="navy"><div class="report-portrait"><${StudentPhoto} report=${report}/></div><dl class="report-identity-list"><div><dt>نام و نام خانوادگی</dt><dd>${report.student.name}</dd></div><div><dt>کد ملی</dt><dd><bdi dir="ltr">${report.student.nationalId}</bdi></dd></div><div><dt>شماره دانش‌آموزی</dt><dd><bdi dir="ltr">${report.student.number}</bdi></dd></div><div><dt>پایه و کلاس</dt><dd>${report.academic.grade} · ${report.academic.className}</dd></div></dl><div class="report-mini-kpis"><span><small>معدل کل</small><strong>${isNumber(report.average) ? reportNumber(report.average) : '—'}</strong></span><span><small>رتبه کلاس</small><strong>${report.rank ? reportNumber(report.rank) : '—'}</strong></span></div></${Panel}>
       <${Panel} title="نمودار روند رشد سه‌ساله" className="analytical-trend" action="میانگین و رتبه"><div class="trend-caption">مقایسهٔ میانگین نهایی سه سال اخیر</div>${loading ? html`<${Empty}/>` : html`<${EChart} option=${trend} label="نمودار روند تحصیلی سه‌ساله" className="echart--trend"/>`}${report.history?.length ? html`<div class="report-trend-foot">${report.history.map(item => html`<span><b>${item.label}</b><i>${reportNumber(item.average)}</i>${item.rank ? html`<small>رتبه ${reportNumber(item.rank)}</small>` : null}</span>`)}</div>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="گزارش مشاور و پیگیری هوشمند" className="analytical-insights" tone="gold"><div class="report-insight-group"><h4>گزارش مشاور</h4>${report.counselor?.length ? html`<ul class="report-bullet-list">${report.counselor.map(item => html`<li>${item}</li>`)}</ul>` : html`<${Empty}/>`}</div><div class="report-insight-group"><h4>موارد پیگیری</h4>${report.followUps?.length ? html`<ul class="report-bullet-list">${report.followUps.map(item => html`<li>${item}</li>`)}</ul>` : html`<${Empty}/>`}</div></${Panel}>
-      <${Panel} title="وضعیت آموزشی و نمرات نهایی" className="analytical-table" tone="teal"><table class="report-score-table"><thead><tr><th>درس / شاخص</th><th>مستمر</th><th>میان‌ترم</th><th>پایانی</th><th>میانگین</th><th>وضعیت</th></tr></thead><tbody>${report.subjects.slice(0, 12).map(subject => html`<tr><th><span class="report-score-table__subject">${subject.title}</span></th><td>${reportNumber(subject.continuous)}</td><td>${reportNumber(subject.midterm)}</td><td>${reportNumber(subject.final)}</td><td class=${isNumber(subject.current) && subject.current < 12 ? 'is-alert' : 'is-current'}>${reportNumber(subject.current)}</td><td><${SubjectStatus} subject=${subject}/></td></tr>`)}</tbody></table>${!report.subjects?.length && html`<${Empty}/>`}</${Panel}>
+      <${Panel} title="وضعیت آموزشی و نمرات نهایی" className="analytical-table" tone="teal"><table class="report-score-table"><caption class="sr-only">نمرات و وضعیت آموزشی دانش‌آموز</caption><thead><tr><th scope="col">درس / شاخص</th><th scope="col">مستمر</th><th scope="col">میان‌ترم</th><th scope="col">پایانی</th><th scope="col">میانگین</th><th scope="col">وضعیت</th></tr></thead><tbody>${report.subjects.slice(0, 12).map(subject => html`<tr><th scope="row"><span class="report-score-table__subject">${subject.title}</span></th><td>${reportNumber(subject.continuous)}</td><td>${reportNumber(subject.midterm)}</td><td>${reportNumber(subject.final)}</td><td class=${isNumber(subject.current) && subject.current < 12 ? 'is-alert' : 'is-current'}>${reportNumber(subject.current)}</td><td><${SubjectStatus} subject=${subject}/></td></tr>`)}</tbody></table>${!report.subjects?.length && html`<${Empty}/>`}</${Panel}>
       <${Panel} title="نمودار ارزیابی مهارت‌ها" className="analytical-radar" tone="teal">${radar ? html`<${EChart} option=${radar} label="نمودار راداری مهارت‌های تحصیلی" className="echart--radar"/>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="گزارش تربیتی و رفتاری" className="analytical-behavior" tone="gold">${report.skills?.length ? html`<div class="report-rating-list">${report.skills.map(item => html`<div><span>${item.title}</span><${Stars} value=${item.value}/><${MetricPercent} value=${item.value}/></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="نقاط قوت علمی" className="analytical-strengths" tone="green">${strengths ? html`<${EChart} option=${strengths} label="نقاط قوت علمی" className="echart--bars"/>` : html`<${Empty}/>`}</${Panel}>
