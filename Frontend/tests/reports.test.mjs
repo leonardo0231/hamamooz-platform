@@ -113,7 +113,7 @@ test('standalone report entry exposes a readiness marker for browser print autom
   assert.match(sampleScript, /window\.__REPORT_READY__\s*=\s*false/);
   assert.match(sampleScript, /window\.__REPORT_READY__\s*=\s*true/);
   assert.match(sampleScript, /globalThis\.__REPORT_SNAPSHOT__/);
-  assert.match(sampleScript, /snapshot=\$\{snapshot\}/);
+  assert.match(sampleScript, /snapshot=\$\{pageSnapshot\}/);
   assert.match(sampleScript, /printAnalyticalReport/);
   assert.match(styles, /body\.report-printing \.sidebar/);
   assert.match(styles, /height:\s*calc\(297mm - 12mm\)/);
@@ -134,6 +134,10 @@ test('standalone report entry exposes a readiness marker for browser print autom
   assert.match(styles, /\.analytical-sheet__header[^\{]*\{[^}]*direction: ltr/);
   assert.match(styles, /\.analytical-sheet__grid[^\{]*\{[^}]*direction: ltr/);
   assert.match(styles, /\.analytical-panel[^\{]*\{[^}]*direction: rtl/);
+  assert.match(sampleScript, /pageSnapshots = Array\.isArray\(snapshot\?\.reports\)/);
+  assert.match(sampleScript, /reports: \[report\]/);
+  assert.match(styles, /\.report-sample__pages > \.analytical-sheet \{ break-after: page; page-break-after: always; \}/);
+  assert.match(styles, /\.report-sample__pages > \.analytical-sheet:last-child \{ break-after: auto; page-break-after: auto; \}/);
   assert.match(sample, /\.report-sample--print \.report-sample\{display:flex;flex-direction:column;[\s\S]*overflow:visible/);
   assert.doesNotMatch(page, /React\/Preact/);
 });

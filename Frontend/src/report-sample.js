@@ -13,7 +13,14 @@ window.__REPORT_ERROR__ = '';
 if (printMode) {
   document.documentElement.classList.add('report-sample--print');
 }
-render(html`<${AnalyticalReport} snapshot=${snapshot}/>`, root);
+// A class report can contain one authorized snapshot per student.  React owns
+// every page; the print stylesheet only inserts a page break between those
+// independently sized A3 sheets.  A single report keeps the original DOM
+// shape for the interactive preview.
+const pageSnapshots = Array.isArray(snapshot?.reports) && snapshot.reports.length > 1
+  ? snapshot.reports.map(report => ({ ...snapshot, reports: [report] }))
+  : [snapshot];
+render(html`<div class="report-sample__pages">${pageSnapshots.map((pageSnapshot, index) => html`<${AnalyticalReport} key=${`report-page-${index}`} snapshot=${pageSnapshot}/>` )}</div>`, root);
 
 const assets = [];
 if (document.fonts?.ready) {

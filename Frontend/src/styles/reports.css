@@ -31,6 +31,7 @@
 .report-preview-zone__legend i { width: 10px; height: 10px; border-radius: 50%; background: #d6a52a; box-shadow: 0 0 0 4px rgba(214, 165, 42, .15); }
 .report-preview-zone__actions { display: grid; justify-items: end; gap: 9px; }
 .report-download-error { margin: 0 0 12px; padding: 9px 11px; border: 1px solid #f0c1c9; border-radius: 9px; color: #9e1d43; background: #fff4f6; font-size: .76rem; }
+.report-sample__pages { display: grid; gap: 18px; }
 
 /* Screen and print intentionally share one A3-landscape composition. */
 .analytical-sheet { direction: rtl; width: 100%; max-width: 1587px; margin: 0 auto; padding: 14px; color: #16323d; background: #fbfcf8; font-family: var(--font-body); font-size: 14px; line-height: 1.55; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
@@ -240,6 +241,9 @@ ol.report-bullet-list { list-style-type: decimal; }
   @page { size: A3 landscape; margin: 6mm; }
   html, body, #report-sample { width: 100%; height: 100%; min-height: 100%; background: #fff !important; }
   .report-preview-zone { overflow: visible; border: 0; border-radius: 0; box-shadow: none; background: #fff; }
+  .report-sample__pages { display: block; }
+  .report-sample__pages > .analytical-sheet { break-after: page; page-break-after: always; }
+  .report-sample__pages > .analytical-sheet:last-child { break-after: auto; page-break-after: auto; }
   .report-preview-zone__header, .report-preview-zone__actions, .report-download-error { display: none !important; }
   .analytical-sheet { width: 100%; height: calc(297mm - 12mm); min-height: calc(297mm - 12mm); max-height: calc(297mm - 12mm); max-width: none; margin: 0; padding: 0; overflow: visible; box-shadow: none; font-size: 15px; display: flex; flex-direction: column; break-inside: avoid; page-break-inside: avoid; }
   .analytical-sheet__header { flex: 0 0 90px; min-height: 90px; padding: 8px 14px; }
