@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
+  mapSnapshot,
   normalizeReportDomainPercent,
   normalizeReportDomainScores,
   normalizeReportMetricValue,
@@ -141,13 +142,9 @@ test('photo, logo and family-support fallbacks are explicit', () => {
   assert.match(report, /report-recommendation-group--empty/);
 });
 
-test('report access never presents a fixed QR as a real student link', () => {
-  assert.match(report, /accessQrUrl: assetUrl\(report\.access\?\.qr_data_url/);
-  assert.match(report, /نماد QR نمایشی؛ قابل اسکن نیست/);
-  assert.match(report, /QR امن ثبت نشده/);
-  assert.match(report, /report-qr-image/);
-  assert.match(report, /data-qr-fallback/);
-  assert.match(styles, /\.report-qr-placeholder/);
+test('report output contains no QR or access-code panel', () => {
+  assert.doesNotMatch(report, /QR|QrCode|accessQr|access_qr|report-qr|دسترسی سریع/);
+  assert.doesNotMatch(styles, /QR|report-qr|report-access|analytical-access/);
 });
 
 test('long subject names have a wrapping presentation path', () => {
@@ -169,4 +166,22 @@ test('printed report preserves color hierarchy and table semantics', () => {
   assert.match(report, /<caption class="sr-only">نمرات و وضعیت آموزشی دانش‌آموز<\/caption>/);
   assert.match(report, /<th scope="col">درس \/ شاخص<\/th>/);
   assert.match(report, /<th scope="row"><span class="report-score-table__subject">/);
+});
+
+test('real empty snapshots render explicit missing data instead of fictional demo data', () => {
+  assert.equal(mapSnapshot(undefined).demo, true);
+  const empty = mapSnapshot({ reports: [] });
+  assert.equal(empty.demo, false);
+  assert.equal(empty.student.name, 'ثبت نشده');
+  assert.equal(empty.average, null);
+  assert.equal(empty.domainScores.length, 9);
+  assert.equal(empty.activities.length, 0);
+});
+
+test('standalone print entry rejects unavailable required fonts', () => {
+  assert.match(sampleScript, /window\.__REPORT_ERROR__\s*=\s*['"]['"]/);
+  assert.match(sampleScript, /Vazirmatn/);
+  assert.match(sampleScript, /Estedad/);
+  assert.match(sampleScript, /document\.fonts\.check/);
+  assert.match(sampleScript, /data-report-error/);
 });

@@ -195,9 +195,14 @@ class ChromiumReportRenderer:
                     # development server that keeps an HMR connection open.
                     page.goto(target_url, wait_until="domcontentloaded", timeout=timeout_ms)
                     page.wait_for_function(
-                        "globalThis.__REPORT_READY__ === true",
+                        "globalThis.__REPORT_READY__ === true || typeof globalThis.__REPORT_ERROR__ === 'string' && globalThis.__REPORT_ERROR__",
                         timeout=timeout_ms,
                     )
+                    report_error = page.evaluate("globalThis.__REPORT_ERROR__ || ''")
+                    if report_error:
+                        raise ReportRendererUnavailable(
+                            f"Chromium React report assets are unavailable: {report_error}"
+                        )
                     page.evaluate("document.fonts ? document.fonts.ready : Promise.resolve()")
                     pdf = page.pdf(
                         format="A3",

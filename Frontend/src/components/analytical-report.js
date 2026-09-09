@@ -169,9 +169,36 @@ const demo = {
   followUps: ['پیگیری منظم تکالیف و پروژه‌ها', 'تقویت مهارت ارائه در فعالیت‌های کلاسی', 'مشارکت بیشتر در گروه‌های پژوهشی'],
   support: ['همراهی خانواده در مرور برنامه هفتگی', 'گفت‌وگوی کوتاه ماهانه با مشاور مدرسه'],
   attendance: { rate: 96, sessions: 42, unexcused: 1, late: 2 },
-  accessCode: 'BAH-1405-99',
-  accessQrUrl: '',
-  accessHref: '/reports',
+};
+
+// A real but empty snapshot must never be replaced with fictional demo data.
+// This state keeps the report shell printable while making every unavailable
+// field explicit for the school operator.
+const emptyReport = {
+  demo: false,
+  organization: 'ثبت نشده',
+  school: 'ثبت نشده',
+  schoolLogoUrl: '',
+  student: { name: 'ثبت نشده', nationalId: '—', number: '—', initial: 'د', photoUrl: '' },
+  academic: { year: '—', grade: '—', className: '—', term: '—' },
+  average: null,
+  rank: null,
+  history: [],
+  subjects: [],
+  skills: [],
+  skills21: [],
+  readiness: [],
+  domainScores: ANALYSIS_DOMAINS.map(domain => ({ ...domain, value: null, percent: null, completedMetrics: 0, totalMetrics: 0, hasData: false })),
+  strengths: [],
+  improvements: [],
+  activities: [],
+  awards: [],
+  counselor: [],
+  recommendations: [],
+  teacherRecommendations: [],
+  followUps: [],
+  support: [],
+  attendance: { rate: null, sessions: null, unexcused: null, late: null },
 };
 
 function titleForMetric(code) { return metricTitles[code] ?? String(code || '').replace('_', ' '); }
@@ -279,9 +306,9 @@ function normalizeDomainScores(rows, metricRows = []) {
   });
 }
 
-function mapSnapshot(snapshot) {
+export function mapSnapshot(snapshot) {
   const report = snapshot?.reports?.[0];
-  if (!report) return demo;
+  if (!report) return snapshot === undefined || snapshot === null ? demo : { ...emptyReport };
   const context = report.product_context ?? {};
   const latest = context.evaluations?.at?.(-1);
   // Some older snapshots emitted both fields but left `metrics` empty.  Use
@@ -348,9 +375,6 @@ function mapSnapshot(snapshot) {
     // instead of presenting a duplicated recommendation as a fact.
     support: supportNotes,
     attendance: { rate: attendanceRate, sessions: attendance.finalized_session_count ?? null, unexcused: attendance.unexcused_absence_count ?? null, late: attendance.late_count ?? null },
-    accessCode: report.id ?? 'REPORT',
-    accessQrUrl: assetUrl(report.access?.qr_data_url || report.access?.qr_url || report.access_qr_url || context.access_qr_url || context.access_qr_data_url),
-    accessHref: report.id ? `/reports?report=${encodeURIComponent(report.id)}` : '/reports',
   };
 }
 
@@ -386,10 +410,9 @@ function barsOption(items, color) {
   };
 }
 
-function Panel({ title, tone = 'teal', className = '', children, action, href }) {
+function Panel({ title, tone = 'teal', className = '', children, action }) {
   const displayTitle = title === 'مهارت‌های قرن بیست‌ویکم' ? 'مهارت‌های زندگی و شایستگی‌های قرن ۲۱' : title;
-  const body = href ? html`<a class="report-access-link" href=${href} aria-label="مشاهدهٔ همین کارنامه در سامانه">${children}</a>` : children;
-  return html`<section class=${`analytical-panel analytical-panel--${tone} ${className}`}><header class="analytical-panel__header"><h3>${displayTitle}</h3>${action && html`<span>${action}</span>`}</header><div class="analytical-panel__body">${body}</div></section>`;
+  return html`<section class=${`analytical-panel analytical-panel--${tone} ${className}`}><header class="analytical-panel__header"><h3>${displayTitle}</h3>${action && html`<span>${action}</span>`}</header><div class="analytical-panel__body">${children}</div></section>`;
 }
 function Empty({ message = 'داده کافی نیست' }) { return html`<p class="analytical-empty">${message}</p>`; }
 function Stars({ value }) {
@@ -431,19 +454,6 @@ function Sticker({ kind = 'activity', title }) {
   const icon = REPORT_STICKER_ICONS[kind] ? REPORT_STICKER_ICONS[kind] : REPORT_STICKER_ICONS.activity;
   return html`<span class=${`report-sticker report-sticker--${kind}`} role="img" aria-label=${`نشان ${title}`}><${Icon} name=${icon} size=${27}/></span>`;
 }
-const qrRows = ['111111100101011111111', '100000101110010000001', '101110100011010111101', '101110101101010111101', '101110100010010111101', '100000101011010000001', '111111101010011111111', '000000001101000000000', '110111101001111010101', '001010010111000110010', '111001111010111001111', '010111000110101010100', '101000111001010111001', '000000001011101000111', '111111101110010010110', '100000100101111001001', '101110101011001111100', '101110100110100101010', '101110101001111010001', '100000101110001100111', '111111101001101010101'];
-function QrCode({ report }) {
-  if (report.accessQrUrl) {
-    return html`<span class="report-qr-frame"><img class="report-qr-image" src=${report.accessQrUrl} alt="کد QR دسترسی به کارنامه" onError=${event => {
-      event.currentTarget.hidden = true;
-      event.currentTarget.parentElement?.querySelector('[data-qr-fallback]')?.removeAttribute('hidden');
-    }}/><span class="report-qr-placeholder" data-qr-fallback hidden role="status" aria-label="کد QR در دسترس نیست"><${Icon} name="link" size=${25}/><small>QR در دسترس نیست</small></span></span>`;
-  }
-  if (!report.demo) {
-    return html`<div class="report-qr-placeholder" role="status" aria-label="QR امن برای این کارنامه ثبت نشده"><${Icon} name="link" size=${25}/><small>QR امن ثبت نشده</small></div>`;
-  }
-  return html`<div class="report-qr" aria-label="نماد QR نمایشی؛ قابل اسکن نیست">${qrRows.flatMap((row, y) => [...row].map((cell, x) => html`<i class=${cell === '1' ? 'is-dark' : ''} style=${`--x:${x};--y:${y}`}></i>`))}</div>`;
-}
 function MetricAvailability({ report }) {
   const items = report.domainScores?.length ? report.domainScores : ANALYSIS_DOMAINS.map(domain => ({ ...domain, value: null, hasData: false, completedMetrics: 0 }));
   return html`<div class="analytical-analysis-strip" aria-label="وضعیت داده‌های تحلیلی">${items.map(item => {
@@ -483,7 +493,6 @@ export function AnalyticalReport({ snapshot, loading = false }) {
       <${Panel} title="مشارکت‌ها و فعالیت‌های مدرسه" className="analytical-activities" tone="teal">${report.activities?.length ? html`<div class="report-activities">${report.activities.map(item => html`<div><${Sticker} kind=${item.icon} title=${item.title}/><strong>${item.title}</strong><small>${item.text}</small></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="آمادگی برای دوره متوسطه" className="analytical-readiness" tone="navy">${readiness ? html`<${EChart} option=${readiness} label="آمادگی تحصیلی برای دوره متوسطه" className="echart--readiness"/>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="افتخارات و عناوین کسب‌شده" className="analytical-awards" tone="gold">${report.awards?.length ? html`<div class="report-awards">${report.awards.map(item => html`<div><${Sticker} kind=${item.icon} title=${item.title}/><span><b>${item.title}</b><small>${item.text}</small></span></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
-      <${Panel} title="دسترسی سریع والدین" className="analytical-access" tone="navy" href=${report.accessHref}><div class="report-access"><${QrCode} report=${report}/><strong>مشاهدهٔ نسخهٔ کامل</strong><small>${report.accessCode}</small></div></${Panel}>
     </div>
     <footer class="analytical-sheet__footer"><div class="report-signature-heading"><strong>امضا و تأیید مسئولان مدرسه</strong><span>این نسخه پس از بررسی اطلاعات تحصیلی و تربیتی صادر می‌شود.</span></div><div class="report-signatures"><span dir="ltr">Class Expert</span><span dir="ltr">Elementary Assistant</span><span dir="ltr">Educational Assistant</span><span dir="ltr">Executive Assistant</span><span dir="ltr">High School Principal</span></div></footer>
   </article>`;

@@ -151,6 +151,8 @@ def test_render_snapshot_waits_for_react_readiness_before_printing(monkeypatch):
 
         def evaluate(self, expression):
             calls.append(("fonts", expression))
+            if expression == "globalThis.__REPORT_ERROR__ || ''":
+                return ""
 
         def pdf(self, **kwargs):
             calls.append(("pdf", kwargs))
@@ -198,7 +200,8 @@ def test_render_snapshot_waits_for_react_readiness_before_printing(monkeypatch):
         {"wait_until": "domcontentloaded", "timeout": 1234},
     )
     assert calls[4][0] == "ready"
-    assert calls[4][1] == "globalThis.__REPORT_READY__ === true"
-    assert calls[5][0] == "fonts"
-    assert calls[6][0] == "pdf"
+    assert calls[4][1] == "globalThis.__REPORT_READY__ === true || typeof globalThis.__REPORT_ERROR__ === 'string' && globalThis.__REPORT_ERROR__"
+    assert calls[5] == ("fonts", "globalThis.__REPORT_ERROR__ || ''")
+    assert calls[6][0] == "fonts"
+    assert calls[7][0] == "pdf"
     assert calls[-1] == ("close",)
