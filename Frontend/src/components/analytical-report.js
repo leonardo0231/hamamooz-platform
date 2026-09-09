@@ -15,6 +15,10 @@ const isNumber = value => {
   return Number.isFinite(Number(value));
 };
 const reportNumber = value => html`<bdi class="report-number" dir="ltr">${fa(value)}</bdi>`;
+const bounded = (items, limit) => {
+  const source = Array.isArray(items) ? items : [];
+  return { items: source.slice(0, limit), omitted: Math.max(0, source.length - limit) };
+};
 const assetUrl = value => {
   if (!value) return '';
   const text = String(value).trim();
@@ -199,6 +203,10 @@ const emptyReport = {
   followUps: [],
   support: [],
   attendance: { rate: null, sessions: null, unexcused: null, late: null },
+  subjectsOmitted: 0, strengthsOmitted: 0, improvementsOmitted: 0,
+  skillsOmitted: 0, skills21Omitted: 0, activitiesOmitted: 0, awardsOmitted: 0,
+  counselorOmitted: 0, followUpsOmitted: 0, recommendationsOmitted: 0,
+  teacherRecommendationsOmitted: 0, supportOmitted: 0,
 };
 
 function titleForMetric(code) { return metricTitles[code] ?? String(code || '').replace('_', ' '); }
@@ -340,41 +348,63 @@ export function mapSnapshot(snapshot) {
     return average === null ? null : { label: item.label, average, rank: item.rank ?? null };
   }).filter(Boolean);
   const academic = metricRows.filter(item => /^EDU_/.test(item.code ?? ''));
-  const strengths = [...subjectRows].filter(item => isNumber(item.current)).sort((a, b) => b.current - a.current).slice(0, 6).map(item => ({ title: item.title, value: clamp(item.current * 5) }));
-  const improvements = [...subjectRows].filter(item => isNumber(item.current)).sort((a, b) => a.current - b.current).slice(0, 6).map(item => ({ title: item.title, value: clamp(item.current * 5) }));
+  const visibleSubjects = bounded(subjectRows, 12);
+  const strengthRows = [...subjectRows].filter(item => isNumber(item.current)).sort((a, b) => b.current - a.current).map(item => ({ title: item.title, value: clamp(item.current * 5) }));
+  const improvementRows = [...subjectRows].filter(item => isNumber(item.current)).sort((a, b) => a.current - b.current).map(item => ({ title: item.title, value: clamp(item.current * 5) }));
+  const strengths = bounded(strengthRows, 6);
+  const improvements = bounded(improvementRows, 6);
   const attendance = context.attendance ?? {};
   const attendanceRate = isNumber(attendance.attendance_rate) ? Number(attendance.attendance_rate) : isNumber(attendance.present_rate) ? Number(attendance.present_rate) : null;
   const recommendations = context.approved_recommendations ?? [];
   const domainScores = normalizeDomainScores(context.evaluation_analysis?.domain_scores, metricRows);
-  const activities = (context.activities ?? []).slice(0, 8).map(item => ({
+  const allActivities = (context.activities ?? []).map(item => ({
     icon: REPORT_STICKER_ICONS[item.kind] ? item.kind : 'activity',
     title: item.title, text: item.result || (item.placement ? `رتبه ${fa(item.placement)}` : 'ثبت‌شده'),
   }));
-  const awards = activities.filter(item => item.text !== 'ثبت‌شده').slice(0, 4);
+  const activities = bounded(allActivities, 8);
+  const awards = bounded(allActivities.filter(item => item.text !== 'ثبت‌شده'), 4);
   const organization = typeof report.organization === 'object' ? report.organization : {};
   const recommendationText = item => typeof item === 'string' ? item : item?.approved_text;
-  const parentRecommendations = recommendations
+  const allParentRecommendations = recommendations
     .filter(item => typeof item === 'string' || !item.audience || ['parent', 'student'].includes(item.audience))
-    .map(recommendationText).filter(Boolean).slice(0, 6);
-  const supportNotes = (context.support_notes ?? [])
-    .map(item => typeof item === 'string' ? item : item?.text).filter(Boolean).slice(0, 3);
+    .map(recommendationText).filter(Boolean);
+  const parentRecommendations = bounded(allParentRecommendations, 6);
+  const allSupportNotes = (context.support_notes ?? [])
+    .map(item => typeof item === 'string' ? item : item?.text).filter(Boolean);
+  const supportNotes = bounded(allSupportNotes, 3);
+  const allCounselor = (context.counselor_report?.items ?? context.analytics_signals ?? [])
+    .map(item => typeof item === 'string' ? item : item.explanation).filter(Boolean);
+  const allTeacherRecommendations = recommendations
+    .filter(item => item?.audience && ['teacher', 'guide_teacher', 'educational_deputy'].includes(item.audience))
+    .map(recommendationText).filter(Boolean);
+  const allFollowUps = (context.analytics_signals ?? [])
+    .map(item => item.explanation).filter(Boolean);
+  const counselor = bounded(allCounselor, 4);
+  const teacherRecommendations = bounded(allTeacherRecommendations, 6);
+  const followUps = bounded(allFollowUps, 4);
   return {
     demo: false, organization: organization.name ?? (typeof report.organization === 'string' ? report.organization : 'سامانه هم‌آموز'), school: report.school?.name ?? 'مدرسه',
     schoolLogoUrl: assetUrl(report.school?.logo_url || organization.logo_url || context.school_logo_url),
     student: { name: report.student?.full_name ?? 'دانش‌آموز', nationalId: report.student?.national_id ?? '—', number: report.student?.student_number ?? '—', initial: (report.student?.full_name ?? 'د').slice(0, 1), photoUrl: assetUrl(report.student?.photo_url || report.student?.photo) },
     academic: { year: report.academic?.year ?? '—', grade: report.academic?.grade ?? '—', className: report.academic?.class ?? '—', term: report.academic?.term ?? '—' },
     average: numericSubject(report.summary?.average), rank: report.summary?.class_rank ?? null, history,
-    subjects: subjectRows, skills: behavior, skills21, readiness: academic, domainScores,
-    strengths, improvements, activities, awards,
-    counselor: (context.counselor_report?.items ?? context.analytics_signals ?? []).map(item => typeof item === 'string' ? item : item.explanation).filter(Boolean).slice(0, 4),
-    recommendations: parentRecommendations,
-    teacherRecommendations: recommendations.filter(item => item?.audience && ['teacher', 'guide_teacher', 'educational_deputy'].includes(item.audience)).map(recommendationText).filter(Boolean).slice(0, 6),
-    followUps: (context.analytics_signals ?? []).map(item => item.explanation).filter(Boolean).slice(0, 4),
+    subjects: visibleSubjects.items, skills: behavior, skills21, readiness: academic, domainScores,
+    strengths: strengths.items, improvements: improvements.items, activities: activities.items, awards: awards.items,
+    counselor: counselor.items,
+    recommendations: parentRecommendations.items,
+    teacherRecommendations: teacherRecommendations.items,
+    followUps: followUps.items,
     // Keep family-support evidence separate from parent/student advice.  If
     // the backend has no support note, the report must say so explicitly
     // instead of presenting a duplicated recommendation as a fact.
-    support: supportNotes,
+    support: supportNotes.items,
     attendance: { rate: attendanceRate, sessions: attendance.finalized_session_count ?? null, unexcused: attendance.unexcused_absence_count ?? null, late: attendance.late_count ?? null },
+    subjectsOmitted: visibleSubjects.omitted, strengthsOmitted: Math.max(0, strengthRows.length - strengths.items.length),
+    improvementsOmitted: Math.max(0, improvementRows.length - improvements.items.length), skillsOmitted: 0,
+    skills21Omitted: 0, activitiesOmitted: activities.omitted, awardsOmitted: awards.omitted,
+    counselorOmitted: counselor.omitted, followUpsOmitted: followUps.omitted,
+    recommendationsOmitted: parentRecommendations.omitted, teacherRecommendationsOmitted: teacherRecommendations.omitted,
+    supportOmitted: supportNotes.omitted,
   };
 }
 
@@ -415,6 +445,10 @@ function Panel({ title, tone = 'teal', className = '', children, action }) {
   return html`<section class=${`analytical-panel analytical-panel--${tone} ${className}`}><header class="analytical-panel__header"><h3>${displayTitle}</h3>${action && html`<span>${action}</span>`}</header><div class="analytical-panel__body">${children}</div></section>`;
 }
 function Empty({ message = 'داده کافی نیست' }) { return html`<p class="analytical-empty">${message}</p>`; }
+function OverflowNote({ count }) {
+  if (!count) return null;
+  return html`<p class="report-overflow-note" role="note">${fa(count)} مورد دیگر در پروندهٔ کامل باقی مانده است.</p>`;
+}
 function Stars({ value }) {
   if (!isNumber(value)) return html`<span class="report-rating-missing" role="status" aria-label="امتیاز ثبت نشده">ثبت نشده</span>`;
   const rounded = Math.round(Number(value) / 20);
@@ -464,10 +498,10 @@ function MetricAvailability({ report }) {
   })}</div>`;
 }
 
-function RecommendationGroup({ title, items, ordered = false, tone = 'teal' }) {
+function RecommendationGroup({ title, items, omitted = 0, ordered = false, tone = 'teal' }) {
   if (!items?.length) return html`<div class="report-recommendation-group report-recommendation-group--empty"><h4>${title}</h4><${Empty} message="توصیه‌ای ثبت نشده است"/></div>`;
   const List = ordered ? 'ol' : 'ul';
-  return html`<div class=${`report-recommendation-group report-recommendation-group--${tone}`}><h4>${title}</h4><${List} class="report-bullet-list">${items.map(item => html`<li>${item}</li>`)}</${List}></div>`;
+  return html`<div class=${`report-recommendation-group report-recommendation-group--${tone}`}><h4>${title}</h4><${List} class="report-bullet-list">${items.map(item => html`<li>${item}</li>`)}</${List}><${OverflowNote} count=${omitted}/></div>`;
 }
 
 export function AnalyticalReport({ snapshot, loading = false }) {
@@ -481,18 +515,18 @@ export function AnalyticalReport({ snapshot, loading = false }) {
     <div class="analytical-sheet__grid">
       <${Panel} title="مشخصات دانش‌آموز" className="analytical-identity" tone="navy"><div class="report-portrait"><${StudentPhoto} report=${report}/></div><dl class="report-identity-list"><div><dt>نام و نام خانوادگی</dt><dd>${report.student.name}</dd></div><div><dt>کد ملی</dt><dd><bdi dir="ltr">${report.student.nationalId}</bdi></dd></div><div><dt>شماره دانش‌آموزی</dt><dd><bdi dir="ltr">${report.student.number}</bdi></dd></div><div><dt>پایه و کلاس</dt><dd>${report.academic.grade} · ${report.academic.className}</dd></div></dl><div class="report-mini-kpis"><span><small>معدل کل</small><strong>${isNumber(report.average) ? reportNumber(report.average) : '—'}</strong></span><span><small>رتبه کلاس</small><strong>${report.rank ? reportNumber(report.rank) : '—'}</strong></span></div></${Panel}>
       <${Panel} title="نمودار روند رشد سه‌ساله" className="analytical-trend" action="میانگین و رتبه"><div class="trend-caption">مقایسهٔ میانگین نهایی سه سال اخیر</div>${loading ? html`<${Empty}/>` : html`<${EChart} option=${trend} label="نمودار روند تحصیلی سه‌ساله" className="echart--trend"/>`}${report.history?.length ? html`<div class="report-trend-foot">${report.history.map(item => html`<span><b>${item.label}</b><i>${reportNumber(item.average)}</i>${item.rank ? html`<small>رتبه ${reportNumber(item.rank)}</small>` : null}</span>`)}</div>` : html`<${Empty}/>`}</${Panel}>
-      <${Panel} title="گزارش مشاور و پیگیری هوشمند" className="analytical-insights" tone="gold"><div class="report-insight-group"><h4>گزارش مشاور</h4>${report.counselor?.length ? html`<ul class="report-bullet-list">${report.counselor.map(item => html`<li>${item}</li>`)}</ul>` : html`<${Empty}/>`}</div><div class="report-insight-group"><h4>موارد پیگیری</h4>${report.followUps?.length ? html`<ul class="report-bullet-list">${report.followUps.map(item => html`<li>${item}</li>`)}</ul>` : html`<${Empty}/>`}</div></${Panel}>
-      <${Panel} title="وضعیت آموزشی و نمرات نهایی" className="analytical-table" tone="teal"><table class="report-score-table"><caption class="sr-only">نمرات و وضعیت آموزشی دانش‌آموز</caption><thead><tr><th scope="col">درس / شاخص</th><th scope="col">مستمر</th><th scope="col">میان‌ترم</th><th scope="col">پایانی</th><th scope="col">میانگین</th><th scope="col">وضعیت</th></tr></thead><tbody>${report.subjects.slice(0, 12).map(subject => html`<tr><th scope="row"><span class="report-score-table__subject">${subject.title}</span></th><td>${reportNumber(subject.continuous)}</td><td>${reportNumber(subject.midterm)}</td><td>${reportNumber(subject.final)}</td><td class=${isNumber(subject.current) && subject.current < 12 ? 'is-alert' : 'is-current'}>${reportNumber(subject.current)}</td><td><${SubjectStatus} subject=${subject}/></td></tr>`)}</tbody></table>${!report.subjects?.length && html`<${Empty}/>`}</${Panel}>
+      <${Panel} title="گزارش مشاور و پیگیری هوشمند" className="analytical-insights" tone="gold"><div class="report-insight-group"><h4>گزارش مشاور</h4>${report.counselor?.length ? html`<ul class="report-bullet-list">${report.counselor.map(item => html`<li>${item}</li>`)}</ul><${OverflowNote} count=${report.counselorOmitted}/>` : html`<${Empty}/>`}</div><div class="report-insight-group"><h4>موارد پیگیری</h4>${report.followUps?.length ? html`<ul class="report-bullet-list">${report.followUps.map(item => html`<li>${item}</li>`)}</ul><${OverflowNote} count=${report.followUpsOmitted}/>` : html`<${Empty}/>`}</div></${Panel}>
+      <${Panel} title="وضعیت آموزشی و نمرات نهایی" className="analytical-table" tone="teal"><table class="report-score-table"><caption class="sr-only">نمرات و وضعیت آموزشی دانش‌آموز</caption><thead><tr><th scope="col">درس / شاخص</th><th scope="col">مستمر</th><th scope="col">میان‌ترم</th><th scope="col">پایانی</th><th scope="col">میانگین</th><th scope="col">وضعیت</th></tr></thead><tbody>${report.subjects.map(subject => html`<tr><th scope="row"><span class="report-score-table__subject">${subject.title}</span></th><td>${reportNumber(subject.continuous)}</td><td>${reportNumber(subject.midterm)}</td><td>${reportNumber(subject.final)}</td><td class=${isNumber(subject.current) && subject.current < 12 ? 'is-alert' : 'is-current'}>${reportNumber(subject.current)}</td><td><${SubjectStatus} subject=${subject}/></td></tr>`)}${report.subjectsOmitted ? html`<tr class="report-overflow-row"><td colspan="6"><${OverflowNote} count=${report.subjectsOmitted}/></td></tr>` : null}</tbody></table>${!report.subjects?.length && html`<${Empty}/>`}</${Panel}>
       <${Panel} title="نمودار ارزیابی مهارت‌ها" className="analytical-radar" tone="teal">${radar ? html`<${EChart} option=${radar} label="نمودار راداری مهارت‌های تحصیلی" className="echart--radar"/>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="گزارش تربیتی و رفتاری" className="analytical-behavior" tone="gold">${report.skills?.length ? html`<div class="report-rating-list">${report.skills.map(item => html`<div><span>${item.title}</span><${Stars} value=${item.value}/><${MetricPercent} value=${item.value}/></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
-      <${Panel} title="نقاط قوت علمی" className="analytical-strengths" tone="green">${strengths ? html`<${EChart} option=${strengths} label="نقاط قوت علمی" className="echart--bars"/>` : html`<${Empty}/>`}</${Panel}>
-      <${Panel} title="نقاط قابل بهبود" className="analytical-improvements" tone="rose">${improvements ? html`<${EChart} option=${improvements} label="نقاط قابل بهبود" className="echart--bars"/>` : html`<${Empty}/>`}</${Panel}>
-      <${Panel} title="توصیه‌ها و برنامهٔ حمایت" className="analytical-recommendations" tone="gold"><div class="report-recommendation-grid"><${RecommendationGroup} title="والدین و دانش‌آموز" items=${report.recommendations} ordered tone="gold"/><${RecommendationGroup} title="معلمان و کادر آموزشی" items=${report.teacherRecommendations} tone="navy"/><${RecommendationGroup} title="حمایت خانواده" items=${report.support} tone="teal"/></div></${Panel}>
+      <${Panel} title="نقاط قوت علمی" className="analytical-strengths" tone="green">${strengths ? html`<${EChart} option=${strengths} label="نقاط قوت علمی" className="echart--bars"/><${OverflowNote} count=${report.strengthsOmitted}/>` : html`<${Empty}/>`}</${Panel}>
+      <${Panel} title="نقاط قابل بهبود" className="analytical-improvements" tone="rose">${improvements ? html`<${EChart} option=${improvements} label="نقاط قابل بهبود" className="echart--bars"/><${OverflowNote} count=${report.improvementsOmitted}/>` : html`<${Empty}/>`}</${Panel}>
+      <${Panel} title="توصیه‌ها و برنامهٔ حمایت" className="analytical-recommendations" tone="gold"><div class="report-recommendation-grid"><${RecommendationGroup} title="والدین و دانش‌آموز" items=${report.recommendations} omitted=${report.recommendationsOmitted} ordered tone="gold"/><${RecommendationGroup} title="معلمان و کادر آموزشی" items=${report.teacherRecommendations} omitted=${report.teacherRecommendationsOmitted} tone="navy"/><${RecommendationGroup} title="حمایت خانواده" items=${report.support} omitted=${report.supportOmitted} tone="teal"/></div></${Panel}>
       <${Panel} title="حضور و غیاب" className="analytical-attendance" tone="navy"><div class="attendance-score"><strong>${attendanceRate === null ? '—' : html`${reportNumber(attendanceRate)}٪`}</strong><span>درصد حضور ثبت‌شده</span></div><div class="attendance-meta"><span>جلسات نهایی <b>${reportNumber(report.attendance.sessions)}</b></span><span>غیبت غیرموجه <b>${reportNumber(report.attendance.unexcused)}</b></span><span>تأخیر <b>${reportNumber(report.attendance.late)}</b></span></div></${Panel}>
       <${Panel} title="مهارت‌های قرن بیست‌ویکم" className="analytical-skills21" tone="teal">${report.skills21?.length ? html`<div class="report-rating-list">${report.skills21.map(item => html`<div><span>${item.title}</span><${Stars} value=${item.value}/><${MetricPercent} value=${item.value}/></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
-      <${Panel} title="مشارکت‌ها و فعالیت‌های مدرسه" className="analytical-activities" tone="teal">${report.activities?.length ? html`<div class="report-activities">${report.activities.map(item => html`<div><${Sticker} kind=${item.icon} title=${item.title}/><strong>${item.title}</strong><small>${item.text}</small></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
+      <${Panel} title="مشارکت‌ها و فعالیت‌های مدرسه" className="analytical-activities" tone="teal">${report.activities?.length ? html`<div class="report-activities">${report.activities.map(item => html`<div><${Sticker} kind=${item.icon} title=${item.title}/><strong>${item.title}</strong><small>${item.text}</small></div>`)}</div><${OverflowNote} count=${report.activitiesOmitted}/>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="آمادگی برای دوره متوسطه" className="analytical-readiness" tone="navy">${readiness ? html`<${EChart} option=${readiness} label="آمادگی تحصیلی برای دوره متوسطه" className="echart--readiness"/>` : html`<${Empty}/>`}</${Panel}>
-      <${Panel} title="افتخارات و عناوین کسب‌شده" className="analytical-awards" tone="gold">${report.awards?.length ? html`<div class="report-awards">${report.awards.map(item => html`<div><${Sticker} kind=${item.icon} title=${item.title}/><span><b>${item.title}</b><small>${item.text}</small></span></div>`)}</div>` : html`<${Empty}/>`}</${Panel}>
+      <${Panel} title="افتخارات و عناوین کسب‌شده" className="analytical-awards" tone="gold">${report.awards?.length ? html`<div class="report-awards">${report.awards.map(item => html`<div><${Sticker} kind=${item.icon} title=${item.title}/><span><b>${item.title}</b><small>${item.text}</small></span></div>`)}</div><${OverflowNote} count=${report.awardsOmitted}/>` : html`<${Empty}/>`}</${Panel}>
     </div>
     <footer class="analytical-sheet__footer"><div class="report-signature-heading"><strong>امضا و تأیید مسئولان مدرسه</strong><span>این نسخه پس از بررسی اطلاعات تحصیلی و تربیتی صادر می‌شود.</span></div><div class="report-signatures"><span dir="ltr">Class Expert</span><span dir="ltr">Elementary Assistant</span><span dir="ltr">Educational Assistant</span><span dir="ltr">Executive Assistant</span><span dir="ltr">High School Principal</span></div></footer>
   </article>`;

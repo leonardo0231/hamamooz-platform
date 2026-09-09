@@ -155,6 +155,17 @@ test('long subject names have a wrapping presentation path', () => {
   assert.match(styles, /\.report-score-table__subject \{ display: block; overflow-wrap: anywhere;/);
 });
 
+test('one-page caps stay explicit instead of silently dropping report data', () => {
+  assert.match(report, /const bounded = \(items, limit\)/);
+  assert.match(report, /subjectsOmitted: visibleSubjects\.omitted/);
+  assert.match(report, /activitiesOmitted: activities\.omitted/);
+  assert.match(report, /recommendationsOmitted: parentRecommendations\.omitted/);
+  assert.match(report, /class="report-overflow-row"/);
+  assert.match(report, /class="report-overflow-note"/);
+  assert.match(styles, /\.report-overflow-note/);
+  assert.match(styles, /\.report-overflow-row td/);
+});
+
 test('unknown pass status stays explicit and trend charts cover the full score range', () => {
   assert.match(report, /if \(subject\.passed === true\) return/);
   assert.match(report, /if \(subject\.passed === false\) return/);
