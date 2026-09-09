@@ -94,7 +94,8 @@ test('report header and signatures are reference-aligned and data-driven', () =>
   assert.match(report, /ولی دانش‌آموز/);
   assert.doesNotMatch(report, /Class Expert|Elementary Assistant|Educational Assistant|Executive Assistant|High School Principal/);
   assert.match(styles, /\.analytical-identity \.analytical-panel__body \{ display: grid; grid-template-columns: 88px/);
-  assert.match(styles, /\.analytical-identity \.report-portrait \{ grid-row: 1 \/ span 2; width: 88px; height: 106px/);
+  assert.match(styles, /\.analytical-identity \.report-portrait \{ grid-row: 1; width: 88px; height: 106px/);
+  assert.match(styles, /\.analytical-identity \.report-mini-kpis \{ display: none; \}/);
 });
 
 test('report output is browser-native and never exposes the legacy PDF/ZIP controls', () => {
