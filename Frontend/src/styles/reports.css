@@ -279,7 +279,7 @@ ol.report-bullet-list { list-style-type: decimal; }
   .report-identity-list { gap: 3px; }
   .report-identity-list div { gap: 5px; padding-bottom: 3px; }
   .report-identity-list dt { font-size: .82rem; }
-  .report-identity-list dd { font-size: .9rem; }
+  .report-identity-list dd { min-width: 0; overflow-wrap: anywhere; font-size: .9rem; }
   .report-mini-kpis { gap: 4px; margin-top: 5px; }
   .report-mini-kpis span { padding: 4px; }
   .report-mini-kpis small { font-size: .78rem; }
@@ -347,6 +347,14 @@ ol.report-bullet-list { list-style-type: decimal; }
   .report-awards > div { gap: 2px; padding: 0 2px; }
   .report-awards b { font-size: 13px; line-height: 1.05; }
   .report-awards small { font-size: 12px; line-height: 1.05; }
+
+  /* The identity panel contains four metadata rows in addition to the photo.
+     Keeping the photo beside the rows gives long Persian names a real wrap
+     path inside the fixed first grid row instead of clipping below its edge. */
+  .analytical-identity .analytical-panel__body { display: grid; grid-template-columns: 88px minmax(0, 1fr); grid-template-rows: auto auto; align-items: start; gap: 4px 7px; }
+  .analytical-identity .report-portrait { grid-row: 1 / span 2; width: 88px; height: 106px; margin: 0; }
+  .analytical-identity .report-identity-list { grid-column: 2; grid-row: 1; min-width: 0; gap: 2px; }
+  .analytical-identity .report-mini-kpis { grid-column: 2; grid-row: 2; margin-top: 0; }
 
   /* The application shell and creation controls are not part of the printed
      report.  This selector is intentionally class-scoped so a browser print

@@ -86,6 +86,17 @@ test('report preview and PDF request use one fixed A3 landscape format', () => {
   assert.doesNotMatch(sample, /zoom\s*:/);
 });
 
+test('report header and signatures are reference-aligned and data-driven', () => {
+  assert.match(report, /کارنامه جامع رشد سه ساله دانش‌آموز/);
+  assert.match(report, /historyGradeRange/);
+  assert.match(report, /report\.academic\?\.grade_range \?\?/);
+  assert.match(report, /normalizeSignatureLabels/);
+  assert.match(report, /ولی دانش‌آموز/);
+  assert.doesNotMatch(report, /Class Expert|Elementary Assistant|Educational Assistant|Executive Assistant|High School Principal/);
+  assert.match(styles, /\.analytical-identity \.analytical-panel__body \{ display: grid; grid-template-columns: 88px/);
+  assert.match(styles, /\.analytical-identity \.report-portrait \{ grid-row: 1 \/ span 2; width: 88px; height: 106px/);
+});
+
 test('report output is browser-native and never exposes the legacy PDF/ZIP controls', () => {
   assert.match(report, /printAnalyticalReport/);
   assert.match(report, /report-printing/);

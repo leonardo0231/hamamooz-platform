@@ -112,13 +112,22 @@ const metricTitles = {
   PER_04: 'کار تیمی', PER_05: 'تفکر انتقادی',
 };
 
+const DEFAULT_SIGNATURE_LABELS = Object.freeze([
+  'ولی دانش‌آموز',
+  'مشاور',
+  'دبیر راهنما',
+  'معاون آموزشی',
+  'مدیر مدرسه',
+]);
+
 const demo = {
   demo: true,
+  reportTitle: 'کارنامه جامع رشد سه ساله دانش‌آموز',
   organization: 'سامانه هوشمند هم‌آموز',
   school: 'دبیرستان پسرانه بعثت',
   schoolLogoUrl: '/assets/besat-logo.png',
   student: { name: 'آرین محمدی', nationalId: '۰۰۱۲۳۴۵۶۷۸', number: '۹۹-۲۰۲۴', initial: 'آ', photoUrl: '' },
-  academic: { year: '۱۴۰۴–۱۴۰۵', grade: 'پایه نهم', className: 'نهم / الف', term: 'نوبت اول' },
+  academic: { year: '۱۴۰۴–۱۴۰۵', grade: 'پایه نهم', gradeRange: 'پایه هفتم تا نهم', className: 'نهم / الف', term: 'نوبت اول' },
   average: 18.78,
   rank: 3,
   history: [
@@ -173,6 +182,7 @@ const demo = {
   teacherRecommendations: ['تمرین‌های چالشی ریاضی به‌صورت هفتگی پیگیری شود.', 'بازخورد کوتاه و مشخص پس از ارائه‌های کلاسی ارائه شود.'],
   followUps: ['پیگیری منظم تکالیف و پروژه‌ها', 'تقویت مهارت ارائه در فعالیت‌های کلاسی', 'مشارکت بیشتر در گروه‌های پژوهشی'],
   support: ['همراهی خانواده در مرور برنامه هفتگی', 'گفت‌وگوی کوتاه ماهانه با مشاور مدرسه'],
+  signatures: DEFAULT_SIGNATURE_LABELS,
   attendance: { rate: 96, sessions: 42, unexcused: 1, late: 2 },
 };
 
@@ -181,11 +191,12 @@ const demo = {
 // field explicit for the school operator.
 const emptyReport = {
   demo: false,
+  reportTitle: 'کارنامه جامع رشد سه ساله دانش‌آموز',
   organization: 'ثبت نشده',
   school: 'ثبت نشده',
   schoolLogoUrl: '',
   student: { name: 'ثبت نشده', nationalId: '—', number: '—', initial: 'د', photoUrl: '' },
-  academic: { year: '—', grade: '—', className: '—', term: '—' },
+  academic: { year: '—', grade: '—', gradeRange: '—', className: '—', term: '—' },
   average: null,
   rank: null,
   history: [],
@@ -203,6 +214,7 @@ const emptyReport = {
   teacherRecommendations: [],
   followUps: [],
   support: [],
+  signatures: DEFAULT_SIGNATURE_LABELS,
   attendance: { rate: null, sessions: null, unexcused: null, late: null },
   subjectsOmitted: 0, strengthsOmitted: 0, improvementsOmitted: 0,
   skillsOmitted: 0, skills21Omitted: 0, activitiesOmitted: 0, awardsOmitted: 0,
@@ -211,6 +223,10 @@ const emptyReport = {
 };
 
 function titleForMetric(code) { return metricTitles[code] ?? String(code || '').replace('_', ' '); }
+function normalizeSignatureLabels(value) {
+  const source = Array.isArray(value) && value.length ? value : DEFAULT_SIGNATURE_LABELS;
+  return source.map(item => typeof item === 'string' ? item : item?.title ?? item?.label ?? item?.role).filter(Boolean).slice(0, 5);
+}
 function metricValue(value) {
   // MonthlyEvaluation/MetricScore is an explicit 0–5 integer rubric.  Do not
   // infer a unit from the magnitude: EDU_01 in the source workbooks is a
@@ -348,6 +364,10 @@ export function mapSnapshot(snapshot) {
     const average = numericSubject(item?.average);
     return average === null ? null : { label: item.label, average, rank: item.rank ?? null };
   }).filter(Boolean);
+  const historyGradeRange = history.length > 1 ? `${history[0].label} تا ${history.at(-1).label}` : null;
+  const reportTitle = [report.report_title, report.title, context.report_title].find(value => typeof value === 'string' && value.trim())
+    ?? 'کارنامه جامع رشد سه ساله دانش‌آموز';
+  const gradeRange = report.academic?.grade_range ?? report.academic?.gradeRange ?? historyGradeRange ?? report.academic?.grade ?? '—';
   const academic = metricRows.filter(item => /^EDU_/.test(item.code ?? ''));
   const visibleSubjects = bounded(subjectRows, 12);
   const strengthRows = [...subjectRows].filter(item => isNumber(item.current)).sort((a, b) => b.current - a.current).map(item => ({ title: item.title, value: clamp(item.current * 5) }));
@@ -383,11 +403,12 @@ export function mapSnapshot(snapshot) {
   const counselor = bounded(allCounselor, 4);
   const teacherRecommendations = bounded(allTeacherRecommendations, 6);
   const followUps = bounded(allFollowUps, 4);
+  const signatures = normalizeSignatureLabels(report.signatures ?? context.signatures);
   return {
-    demo: false, organization: organization.name ?? (typeof report.organization === 'string' ? report.organization : 'سامانه هم‌آموز'), school: report.school?.name ?? 'مدرسه',
+    demo: false, reportTitle, organization: organization.name ?? (typeof report.organization === 'string' ? report.organization : 'سامانه هم‌آموز'), school: report.school?.name ?? 'مدرسه',
     schoolLogoUrl: assetUrl(report.school?.logo_url || organization.logo_url || context.school_logo_url),
     student: { name: report.student?.full_name ?? 'دانش‌آموز', nationalId: report.student?.national_id ?? '—', number: report.student?.student_number ?? '—', initial: (report.student?.full_name ?? 'د').slice(0, 1), photoUrl: assetUrl(report.student?.photo_url || report.student?.photo) },
-    academic: { year: report.academic?.year ?? '—', grade: report.academic?.grade ?? '—', className: report.academic?.class ?? '—', term: report.academic?.term ?? '—' },
+    academic: { year: report.academic?.year ?? '—', grade: report.academic?.grade ?? '—', gradeRange, className: report.academic?.class ?? '—', term: report.academic?.term ?? '—' },
     average: numericSubject(report.summary?.average), rank: report.summary?.class_rank ?? null, history,
     subjects: visibleSubjects.items, skills: behavior, skills21, readiness: academic, domainScores,
     strengths: strengths.items, improvements: improvements.items, activities: activities.items, awards: awards.items,
@@ -399,6 +420,7 @@ export function mapSnapshot(snapshot) {
     // the backend has no support note, the report must say so explicitly
     // instead of presenting a duplicated recommendation as a fact.
     support: supportNotes.items,
+    signatures,
     attendance: { rate: attendanceRate, sessions: attendance.finalized_session_count ?? null, unexcused: attendance.unexcused_absence_count ?? null, late: attendance.late_count ?? null },
     subjectsOmitted: visibleSubjects.omitted, strengthsOmitted: Math.max(0, strengthRows.length - strengths.items.length),
     improvementsOmitted: Math.max(0, improvementRows.length - improvements.items.length), skillsOmitted: 0,
@@ -510,7 +532,7 @@ export function AnalyticalReport({ snapshot, loading = false }) {
   const trend = trendOption(report.history); const radar = radarOption(report.domainScores?.length >= 3 ? report.domainScores : report.skills); const strengths = barsOption(report.strengths, '#0f766e'); const improvements = barsOption(report.improvements, '#a61d4d'); const readiness = barsOption(report.readiness, '#08766f');
   const attendanceRate = isNumber(report.attendance.rate) ? report.attendance.rate : null;
   return html`<article class="analytical-sheet" aria-label=${`کارنامه تحلیلی ${report.student.name}`}>
-    <header class="analytical-sheet__header"><div class="analytical-sheet__mark"><${SchoolMark} report=${report}/></div><div class="analytical-sheet__heading"><p>کارنامه جامع رشد و تحلیل دانش‌آموز</p><h2>${report.academic.grade}</h2><strong>${report.school}</strong></div><blockquote>« هیچ تلاشی بی‌نتیجه نیست؛<br/>هر قدم کوچک امروز، آینده‌ای بزرگ می‌سازد. »</blockquote></header>
+    <header class="analytical-sheet__header"><div class="analytical-sheet__mark"><${SchoolMark} report=${report}/></div><div class="analytical-sheet__heading"><p>${report.reportTitle}</p><h2>${report.academic.gradeRange}</h2><strong>${report.school}</strong></div><blockquote>« هیچ تلاشی بی‌نتیجه نیست؛<br/>هر قدم کوچک امروز، آینده‌ای بزرگ می‌سازد. »</blockquote></header>
     <div class="analytical-sheet__subhead"><span>${report.organization}</span><span>${report.academic.year} · ${report.academic.term} · کلاس ${report.academic.className}</span>${report.demo && html`<em>نمونهٔ نمایشی</em>`}</div>
     <${MetricAvailability} report=${report}/>
     <div class="analytical-sheet__grid">
@@ -529,6 +551,6 @@ export function AnalyticalReport({ snapshot, loading = false }) {
       <${Panel} title="آمادگی برای دوره متوسطه" className="analytical-readiness" tone="navy">${readiness ? html`<${EChart} option=${readiness} label="آمادگی تحصیلی برای دوره متوسطه" className="echart--readiness"/>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="افتخارات و عناوین کسب‌شده" className="analytical-awards" tone="gold">${report.awards?.length ? html`<div class="report-awards">${report.awards.map(item => html`<div><${Sticker} kind=${item.icon} title=${item.title}/><span><b>${item.title}</b><small>${item.text}</small></span></div>`)}</div><${OverflowNote} count=${report.awardsOmitted}/>` : html`<${Empty}/>`}</${Panel}>
     </div>
-    <footer class="analytical-sheet__footer"><div class="report-signature-heading"><strong>امضا و تأیید مسئولان مدرسه</strong><span>این نسخه پس از بررسی اطلاعات تحصیلی و تربیتی صادر می‌شود.</span></div><div class="report-signatures"><span dir="ltr">Class Expert</span><span dir="ltr">Elementary Assistant</span><span dir="ltr">Educational Assistant</span><span dir="ltr">Executive Assistant</span><span dir="ltr">High School Principal</span></div></footer>
+    <footer class="analytical-sheet__footer"><div class="report-signature-heading"><strong>امضا و تأیید مسئولان مدرسه</strong><span>این نسخه پس از بررسی اطلاعات تحصیلی و تربیتی صادر می‌شود.</span></div><div class="report-signatures">${report.signatures.map(label => html`<span>${label}</span>`)}</div></footer>
   </article>`;
 }
