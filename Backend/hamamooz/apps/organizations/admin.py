@@ -1,9 +1,8 @@
 from django.contrib import admin
 
-from .models import AcademicYear, ClassSection, GradeLevel, Organization, School, Term
+from .models import AcademicYear, ClassSection, GradeLevel, Organization, Term
 
 admin.site.register(Organization)
-admin.site.register(School)
 admin.site.register(AcademicYear)
 admin.site.register(Term)
 admin.site.register(GradeLevel)

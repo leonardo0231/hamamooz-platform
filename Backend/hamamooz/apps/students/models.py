@@ -159,7 +159,7 @@ class Enrollment(SoftDeleteModel):
 
     student = models.ForeignKey(Student, on_delete=models.PROTECT, related_name="enrollments")
     school = models.ForeignKey(
-        "organizations.School", on_delete=models.PROTECT, related_name="enrollments"
+        "organizations.Organization", on_delete=models.PROTECT, related_name="school_enrollments"
     )
     academic_year = models.ForeignKey(
         "organizations.AcademicYear", on_delete=models.PROTECT, related_name="enrollments"

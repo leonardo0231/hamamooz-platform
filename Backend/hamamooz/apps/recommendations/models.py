@@ -33,7 +33,9 @@ class Recommendation(TimeStampedUUIDModel):
         "organizations.Organization", on_delete=models.PROTECT, related_name="recommendations"
     )
     school = models.ForeignKey(
-        "organizations.School", on_delete=models.PROTECT, related_name="recommendations"
+        "organizations.Organization",
+        on_delete=models.PROTECT,
+        related_name="school_recommendations",
     )
     enrollment = models.ForeignKey(
         "students.Enrollment", on_delete=models.PROTECT, related_name="recommendations"

@@ -22,16 +22,20 @@ class StudentWriter:
             national_id = row.get("national_id")
             if not national_id:
                 national_id = f"TEMP-IMPORT-{row.get('row_number', created)}"
-                warnings.append({
-                    "row": row.get("row_number"),
-                    "message": "Missing national id, temporary identifier generated.",
-                })
+                warnings.append(
+                    {
+                        "row": row.get("row_number"),
+                        "message": "Missing national id, temporary identifier generated.",
+                    }
+                )
 
-            results.append({
-                "identity": national_id,
-                "first_name": row.get("first_name", ""),
-                "last_name": row.get("last_name", ""),
-            })
+            results.append(
+                {
+                    "identity": national_id,
+                    "first_name": row.get("first_name", ""),
+                    "last_name": row.get("last_name", ""),
+                }
+            )
             created += 1
 
         return {

@@ -48,6 +48,7 @@ ALLOWED_REPORT_BLOCKS = {
 class MonthlyReportSourceSelectionRequired(ValueError):
     """Raised when a Data-folder row belongs to an unresolved file conflict."""
 
+
 # The layout is data, but not executable template source.  Keeping the CSS
 # values here prevents a manager-provided presentation JSON object from
 # influencing @page with arbitrary text.  Legacy keys remain accepted while

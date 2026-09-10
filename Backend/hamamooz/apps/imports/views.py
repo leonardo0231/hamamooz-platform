@@ -1,5 +1,9 @@
+from io import BytesIO
+
 from django.db import transaction
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
+from openpyxl import Workbook
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -7,10 +11,10 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-from hamamooz.apps.accounts.access import selected_school_ids, user_has_role
+from hamamooz.apps.accounts.access import accessible_school_ids, user_has_role
 from hamamooz.apps.accounts.models import Role
 from hamamooz.apps.core.viewsets import AuditedModelViewSet
-from hamamooz.apps.organizations.models import School
+from hamamooz.apps.organizations.models import Organization
 
 from .data_directory import DataDirectoryScanner
 from .dynamic_engine import inspect_uploaded_workbook
@@ -39,7 +43,7 @@ def managed_source_school_ids(request):
 
     return [
         school_id
-        for school_id in selected_school_ids(request)
+        for school_id in accessible_school_ids(request.user)
         if user_has_role(request.user, SOURCE_MANAGERS, school_id=school_id)
     ]
 
@@ -47,6 +51,11 @@ def managed_source_school_ids(request):
 class ImportJobViewSet(ModelViewSet):
     queryset = ImportJob.objects.all()
     parser_classes = [MultiPartParser]
+
+    def get_queryset(self):
+        return ImportJob.objects.filter(
+            school_id__in=accessible_school_ids(self.request.user)
+        ).select_related("organization", "school", "requested_by")
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -61,7 +70,7 @@ class ImportJobViewSet(ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def preview(self, request, pk=None):
-        job = get_object_or_404(ImportJob, pk=pk)
+        job = get_object_or_404(self.get_queryset(), pk=pk)
 
         if job.status not in [ImportJob.Status.UPLOADED, ImportJob.Status.FAILED]:
             return Response({"detail": "Only uploaded imports can be analyzed."}, status=400)
@@ -90,7 +99,7 @@ class ImportJobViewSet(ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def confirm(self, request, pk=None):
-        job = get_object_or_404(ImportJob, pk=pk)
+        job = get_object_or_404(self.get_queryset(), pk=pk)
 
         if job.status != ImportJob.Status.PREVIEW_READY:
             return Response({"detail": "Only preview-ready imports can be confirmed."}, status=400)
@@ -106,6 +115,60 @@ class ImportJobViewSet(ModelViewSet):
             job.errors = [{"message": str(exc)}]
             job.save(update_fields=["status", "errors", "updated_at"])
             return Response({"errors": job.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["post"])
+    def retry(self, request, pk=None):
+        job = self.get_object()
+        if job.status not in {ImportJob.Status.FAILED, ImportJob.Status.CANCELLED}:
+            return Response(
+                {"detail": "Only failed or cancelled imports can be retried."}, status=400
+            )
+        job.status = ImportJob.Status.QUEUED
+        job.errors = []
+        job.error_count = 0
+        job.save(update_fields=["status", "errors", "error_count", "updated_at"])
+        transaction.on_commit(lambda: process_import_job_task.delay(str(job.id)))
+        return Response(ImportJobSerializer(job, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        job = self.get_object()
+        if job.status not in {
+            ImportJob.Status.QUEUED,
+            ImportJob.Status.UPLOADED,
+            ImportJob.Status.ANALYZING,
+            ImportJob.Status.PREVIEW_READY,
+            ImportJob.Status.CONFIRMED,
+            ImportJob.Status.PROCESSING,
+        }:
+            return Response({"detail": "This import cannot be cancelled."}, status=400)
+        job.status = ImportJob.Status.CANCELLED
+        job.save(update_fields=["status", "updated_at"])
+        return Response(ImportJobSerializer(job, context={"request": request}).data)
+
+    @action(detail=True, methods=["get"])
+    def errors(self, request, pk=None):
+        job = self.get_object()
+        workbook = Workbook()
+        scope_sheet = workbook.active
+        scope_sheet.title = "scope"
+        scope_sheet.append(["مجموعه", job.organization.name])
+        scope_sheet.append(["مدرسه", job.school.name])
+
+        errors_sheet = workbook.create_sheet("errors")
+        errors_sheet.append(["ردیف", "پیام"])
+        for issue in job.errors or []:
+            errors_sheet.append([issue.get("row"), issue.get("message", "")])
+
+        stream = BytesIO()
+        workbook.save(stream)
+        stream.seek(0)
+        return FileResponse(
+            stream,
+            as_attachment=True,
+            filename="import-errors.xlsx",
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
 
 
 class DataSourceManifestViewSet(AuditedModelViewSet):
@@ -128,12 +191,10 @@ class DataSourceManifestViewSet(AuditedModelViewSet):
         # Deliberately only scan the configured Data/Excel location.  Accepting a
         # client-controlled filesystem path here would turn an admin API into a
         # server file-disclosure primitive.
-        school_header = request.headers.get("X-School-ID")
-        if not school_header:
-            raise ValidationError({"X-School-ID": "برای اسکن پوشه داده الزامی است."})
-        school = get_object_or_404(School, id=school_header)
-        if school.id not in set(managed_source_school_ids(request)):
-            raise ValidationError({"school": "به مدرسه انتخاب‌شده دسترسی ندارید."})
+        school_id = next(iter(managed_source_school_ids(request)), None)
+        if school_id is None:
+            raise ValidationError({"detail": "مدرسه بعثت برای اسکن داده در دسترس نیست."})
+        school = get_object_or_404(Organization, id=school_id, organization__isnull=False)
         result = DataDirectoryScanner(school).scan()
         return Response(result, status=status.HTTP_200_OK)
 

@@ -5,9 +5,9 @@ from django.db import IntegrityError, transaction
 from rest_framework import serializers
 
 from hamamooz.apps.accounts.access import accessible_school_ids
-from hamamooz.apps.organizations.models import School
+from hamamooz.apps.organizations.models import Organization
 
-from .defaults import get_default_school
+from .defaults import get_besat_organization
 from .models import ClassSourceSelection, DataSourceConflict, DataSourceManifest, ImportJob
 
 
@@ -20,9 +20,10 @@ def uploaded_file_checksum(uploaded_file):
 
 
 class ImportJobSerializer(serializers.ModelSerializer):
-    school = serializers.PrimaryKeyRelatedField(
-        queryset=School.objects.all(), required=False, allow_null=True
-    )
+    # The database keeps this relation for historical provenance, but the API
+    # never accepts a client-selected school.  Every import is assigned to the
+    # configured Besat organization in ``validate``.
+    school = serializers.PrimaryKeyRelatedField(read_only=True)
     requested_by_name = serializers.CharField(source="requested_by.get_full_name", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     organization_name = serializers.CharField(source="organization.name", read_only=True)
@@ -78,21 +79,16 @@ class ImportJobSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         request = self.context["request"]
-        school = attrs.get("school")
-        if school is None:
-            try:
-                school = get_default_school(school_ids=accessible_school_ids(request.user))
-            except School.DoesNotExist as exc:
-                raise serializers.ValidationError(
-                    {"school": "هیچ شعبهٔ فعالی برای ثبت فایل در دسترس نیست."}
-                ) from exc
-            attrs["school"] = school
+        try:
+            school = get_besat_organization(organization_ids=accessible_school_ids(request.user))
+        except Organization.DoesNotExist as exc:
+            raise serializers.ValidationError(
+                {"school": "مدرسه بعثت برای ثبت فایل پیکربندی نشده است."}
+            ) from exc
+        attrs["_school"] = school
 
         source = attrs.get("source_file")
         import_type = attrs.get("import_type")
-
-        if school.id not in set(accessible_school_ids(request.user)):
-            raise serializers.ValidationError({"school": "به این شعبه دسترسی ندارید."})
 
         if import_type != ImportJob.ImportType.COMPREHENSIVE_SCHOOL:
             raise serializers.ValidationError({"import_type": "فقط فایل جامع مدرسه مجاز است."})
@@ -128,12 +124,13 @@ class ImportJobSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         checksum = validated_data.pop("_checksum")
-        school = validated_data["school"]
+        school = validated_data.pop("_school")
 
         try:
             with transaction.atomic():
                 return ImportJob.objects.create(
                     organization=school.organization,
+                    school=school,
                     requested_by=self.context["request"].user,
                     checksum=checksum,
                     **validated_data,
@@ -175,7 +172,9 @@ class DataSourceManifestSerializer(serializers.ModelSerializer):
 
 
 class DataSourceConflictSerializer(serializers.ModelSerializer):
-    conflict_type_display = serializers.CharField(source="get_conflict_type_display", read_only=True)
+    conflict_type_display = serializers.CharField(
+        source="get_conflict_type_display", read_only=True
+    )
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     manifests = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
 
@@ -200,6 +199,7 @@ class DataSourceConflictSerializer(serializers.ModelSerializer):
 
 
 class ClassSourceSelectionSerializer(serializers.ModelSerializer):
+    school = serializers.PrimaryKeyRelatedField(read_only=True)
     selected_by_name = serializers.CharField(source="selected_by.get_full_name", read_only=True)
 
     class Meta:
@@ -218,22 +218,38 @@ class ClassSourceSelectionSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "selected_by", "selected_by_name", "created_at", "updated_at"]
 
     def validate(self, attrs):
-        school = attrs.get("school") or getattr(self.instance, "school", None)
         manifest = attrs.get("manifest")
         if manifest is None and self.instance is not None:
             manifest = self.instance.manifest
-        class_code = str(attrs.get("class_code") or getattr(self.instance, "class_code", "")).strip()
+        school = manifest.school if manifest is not None else getattr(self.instance, "school", None)
+        class_code = str(
+            attrs.get("class_code") or getattr(self.instance, "class_code", "")
+        ).strip()
         if not school or not manifest:
             raise serializers.ValidationError("مدرسه و فایل منبع اصلی الزامی هستند.")
         if manifest.school_id != school.id:
-            raise serializers.ValidationError({"manifest": "فایل منبع متعلق به مدرسه انتخابی نیست."})
+            raise serializers.ValidationError(
+                {"manifest": "فایل منبع متعلق به مدرسه انتخابی نیست."}
+            )
         if manifest.status in {
             DataSourceManifest.Status.INVALID,
             DataSourceManifest.Status.INCOMPLETE,
         }:
-            raise serializers.ValidationError({"manifest": "فایل ناقص یا نامعتبر قابل انتخاب نیست."})
+            raise serializers.ValidationError(
+                {"manifest": "فایل ناقص یا نامعتبر قابل انتخاب نیست."}
+            )
         if class_code not in manifest.detected_classes:
             raise serializers.ValidationError(
                 {"class_code": "این کلاس در فایل منبع انتخابی پیدا نشد."}
             )
+        if self.instance is None:
+            attrs["_school"] = school
         return attrs
+
+    def create(self, validated_data):
+        school = validated_data.pop("_school")
+        return ClassSourceSelection.objects.create(school=school, **validated_data)
+
+    def update(self, instance, validated_data):
+        validated_data.pop("_school", None)
+        return super().update(instance, validated_data)

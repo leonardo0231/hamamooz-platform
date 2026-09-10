@@ -68,14 +68,18 @@ def test_file_without_classification_is_incomplete_and_not_an_official_source(ba
     assert selected_manifest_for_class(base_data["school1"], "902") is None
 
 
-def test_overlapping_class_and_student_create_conflicts_without_implicit_selection(base_data, tmp_path):
+def test_overlapping_class_and_student_create_conflicts_without_implicit_selection(
+    base_data, tmp_path
+):
     _save_workbook(tmp_path / "first.xlsx")
     _save_workbook(tmp_path / "second.xlsx")
 
     DataDirectoryScanner(base_data["school1"], tmp_path).scan()
 
     conflicts = DataSourceConflict.objects.filter(school=base_data["school1"], status="open")
-    assert conflicts.filter(conflict_type=DataSourceConflict.ConflictType.CLASS_OVERLAP, class_code="701").exists()
+    assert conflicts.filter(
+        conflict_type=DataSourceConflict.ConflictType.CLASS_OVERLAP, class_code="701"
+    ).exists()
     assert conflicts.filter(
         conflict_type=DataSourceConflict.ConflictType.STUDENT_OVERLAP,
         class_code="701",

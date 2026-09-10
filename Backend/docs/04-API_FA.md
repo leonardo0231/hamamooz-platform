@@ -10,14 +10,14 @@ Base URL: `/api/v1/`
 
 ```http
 Authorization: Bearer <access-token>
-X-School-ID: <school-uuid>
 X-Organization-ID: <organization-uuid>
 X-Request-ID: <optional-client-request-id>
 ```
 
-- برای Read، Scope header اختیاری است و نبود آن به معنی همه حوزه‌های مجاز کاربر است.
-- برای Write، کاربر غیر `system_admin` باید School یا Organization صریح بفرستد.
-- ارسال هم‌زمان دو Scope فقط وقتی مجاز است که شعبه متعلق به همان مجموعه باشد.
+- مدرسه مقصد همه روابط، مدرسه ثابت بعثت است و از Client انتخاب نمی‌شود.
+- برای Read، Scope header اختیاری است و نبود آن به معنی حوزه مجاز مدرسه بعثت است.
+- برای Write، کاربر غیر `system_admin` باید `X-Organization-ID` صریح بفرستد.
+- `X-School-ID` فقط برای سازگاری با Clientهای قدیمی بررسی می‌شود و Scope را تغییر نمی‌دهد.
 - `X-Request-ID` ورودی تا ۶۴ نویسه حفظ می‌شود؛ اگر ارسال نشود سامانه UUID جدید می‌سازد و در پاسخ برمی‌گرداند.
 
 ### صفحه‌بندی و Query
@@ -67,7 +67,7 @@ Listها پاسخ صفحه‌بندی‌شده دارند:
 | Resource | Endpoint | عملیات |
 |---|---|---|
 | مجموعه | `organizations/` | CRUD با محدودیت نقش |
-| شعبه | `schools/` | CRUD |
+| مدرسه ثابت بعثت | در روابط منابع | بدون Endpoint انتخاب/CRUD مستقل |
 | سال تحصیلی | `academic-years/` | CRUD |
 | نوبت | `terms/` | CRUD |
 | پایه | `grade-levels/` | CRUD |
@@ -82,7 +82,6 @@ Listها پاسخ صفحه‌بندی‌شده دارند:
 | CRUD | `guardians/` | مدیریت ولی |
 | GET/POST | `enrollments/` | فهرست/ایجاد ثبت‌نام |
 | POST | `enrollments/{id}/change-class/` | تغییر کلاس تاریخ‌مند |
-| POST | `enrollments/{id}/transfer/` | انتقال شعبه |
 | POST | `enrollments/{id}/change-status/` | ترک‌تحصیل/فارغ‌التحصیلی و سایر وضعیت‌ها |
 
 نمونه تغییر کلاس:
@@ -93,21 +92,6 @@ Content-Type: application/json
 
 {"class_section":"<uuid>","reason":"اصلاح کلاس‌بندی"}
 ```
-
-نمونه انتقال:
-
-```json
-{
-  "school": "<target-school-uuid>",
-  "grade_level": "<grade-uuid>",
-  "class_section": "<target-class-uuid>",
-  "student_number": "2001",
-  "transfer_date": "2026-11-01",
-  "reason": "جابجایی محل سکونت"
-}
-```
-
-کاربر باید در مقصد نیز نقش نوشتن داشته باشد.
 
 ## آموزش و نمره
 
@@ -171,12 +155,11 @@ Actionهای اصلی:
 POST /api/v1/imports/
 Content-Type: multipart/form-data
 
-school=<uuid>
-import_type=comprehensive_school|students|enrollments|scores|monthly_evaluations
+import_type=comprehensive_school
 source_file=<xlsx>
 ```
 
-گزینه پیشنهادی `comprehensive_school` است و شیت‌های `کلاس‌بندی`، `دانش‌آموزان` و `ثبت اطلاعات` را از یک فایل XLSX می‌خواند. سال تحصیلی و پایه باید از قبل در سازمان وجود داشته باشند؛ کلاس، دانش‌آموز، ثبت‌نام، ارزیابی ماهانه و `MetricScore` به‌صورت upsert ثبت می‌شوند. کل فایل پیش از Write اعتبارسنجی و تمام Writeها در یک تراکنش انجام می‌شوند. در صورت خطا، `errors` شامل `sheet`، `row`، `column`، `code` و `message` است و هیچ داده دامنه‌ای Commit نمی‌شود. نتیجه موفق در `result_summary` شمارنده ایجاد/به‌روزرسانی هر بخش را برمی‌گرداند.
+فایل به‌صورت خودکار برای مدرسه بعثت ثبت می‌شود. شیت‌های `کلاس‌بندی`، `دانش‌آموزان` و `ثبت اطلاعات` از یک فایل XLSX خوانده می‌شوند. سال تحصیلی و پایه باید از قبل در سازمان وجود داشته باشند؛ کلاس، دانش‌آموز، ثبت‌نام، ارزیابی ماهانه و `MetricScore` به‌صورت upsert ثبت می‌شوند. کل فایل پیش از Write اعتبارسنجی و تمام Writeها در یک تراکنش انجام می‌شوند. در صورت خطا، `errors` شامل `sheet`، `row`، `column`، `code` و `message` است و هیچ داده دامنه‌ای Commit نمی‌شود. نتیجه موفق در `result_summary` شمارنده ایجاد/به‌روزرسانی هر بخش را برمی‌گرداند.
 
 قالب رسمی یکپارچه:
 

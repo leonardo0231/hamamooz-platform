@@ -3,7 +3,7 @@ from uuid import UUID
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
 from hamamooz.apps.core.tenancy import object_organization_id, object_school_id
-from hamamooz.apps.organizations.models import School
+from hamamooz.apps.organizations.models import Organization
 
 from .access import (
     accessible_organization_ids,
@@ -33,7 +33,7 @@ class RolePermission(BasePermission):
             return False
         if selected_school:
             school_organization = (
-                School.objects.filter(id=selected_school)
+                Organization.objects.filter(id=selected_school, organization__isnull=False)
                 .values_list("organization_id", flat=True)
                 .first()
             )
@@ -73,7 +73,7 @@ class RolePermission(BasePermission):
             if school_id and str(school_id) != str(selected_school):
                 return False
             selected_school_organization = (
-                School.objects.filter(id=selected_school)
+                Organization.objects.filter(id=selected_school, organization__isnull=False)
                 .values_list("organization_id", flat=True)
                 .first()
             )

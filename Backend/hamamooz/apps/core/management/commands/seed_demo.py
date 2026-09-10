@@ -18,13 +18,13 @@ from hamamooz.apps.organizations.models import (
     ClassSection,
     GradeLevel,
     Organization,
-    School,
     Term,
 )
+from hamamooz.apps.organizations.services import BESAT_CODE, BESAT_NAME, BESAT_OFFICIAL_NAME
 
 
 class Command(BaseCommand):
-    help = "Create an idempotent 13-branch HamAmoz MVP demo structure."
+    help = "Create an idempotent HamAmoz demo structure for the fixed Besat school."
 
     def add_arguments(self, parser):
         parser.add_argument("--admin-username", default="admin")
@@ -41,17 +41,18 @@ class Command(BaseCommand):
             code="hamamooz",
             defaults={"name": "مجموعه آموزشی هم‌آموز"},
         )
-        schools = []
-        for index in range(1, 14):
-            school, _ = School.objects.get_or_create(
-                organization=organization,
-                code=f"branch-{index:02d}",
-                defaults={
-                    "name": f"شعبه {index}",
-                    "official_name": f"مدرسه هم‌آموز - شعبه {index}",
-                },
-            )
-            schools.append(school)
+        school, _ = Organization.objects.get_or_create(
+            organization=organization,
+            code=BESAT_CODE,
+            defaults={
+                "name": BESAT_NAME,
+                "official_name": BESAT_OFFICIAL_NAME,
+            },
+        )
+        if school.name != BESAT_NAME or school.official_name != BESAT_OFFICIAL_NAME:
+            school.name = BESAT_NAME
+            school.official_name = BESAT_OFFICIAL_NAME
+            school.save(update_fields=["name", "official_name", "updated_at"])
 
         year, _ = AcademicYear.objects.get_or_create(
             organization=organization,
@@ -91,14 +92,13 @@ class Command(BaseCommand):
                 defaults={"title": f"پایه {order}", "order": order},
             )
             grades[order] = grade
-        for school in schools:
-            ClassSection.objects.get_or_create(
-                school=school,
-                academic_year=year,
-                grade_level=grades[7],
-                code="7-a",
-                defaults={"title": "هفتم الف", "capacity": 35},
-            )
+        ClassSection.objects.get_or_create(
+            school=school,
+            academic_year=year,
+            grade_level=grades[7],
+            code="7-a",
+            defaults={"title": "هفتم الف", "capacity": 35},
+        )
 
         for code, title, coefficient in [
             ("math", "ریاضی", "3"),
@@ -157,7 +157,7 @@ class Command(BaseCommand):
         call_command("generate_import_templates")
         self.stdout.write(
             self.style.SUCCESS(
-                f"Seed complete: {organization.name}, {len(schools)} schools, "
+                f"Seed complete: {organization.name}, fixed school {school.name}, "
                 f"year {year}, term {term1}."
             )
         )

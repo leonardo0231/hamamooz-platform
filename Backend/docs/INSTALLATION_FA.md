@@ -44,7 +44,7 @@ python manage.py seed_demo \
   --admin-password 'A-Strong-Temporary-Password'
 ```
 
-رمز باید از آرگومان یا `SEED_ADMIN_PASSWORD` بیاید. command idempotent است و ۱۳ شعبه می‌سازد.
+رمز باید از آرگومان یا `SEED_ADMIN_PASSWORD` بیاید. command idempotent است و فقط مدرسه بعثت را می‌سازد.
 
 ## مستندات مرتبط
 

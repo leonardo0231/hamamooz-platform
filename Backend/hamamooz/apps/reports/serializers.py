@@ -5,6 +5,8 @@ from rest_framework import serializers
 from hamamooz.apps.academics.models import Assessment, CourseOffering
 from hamamooz.apps.academics.services import validate_score_completeness
 from hamamooz.apps.accounts.access import accessible_school_ids, allowed_class_ids
+from hamamooz.apps.organizations.models import Organization
+from hamamooz.apps.organizations.services import get_besat_organization
 
 from .models import ReportArchive, ReportBatch, ReportBatchItem, ReportDraft, ReportTemplate
 from .services import (
@@ -44,13 +46,13 @@ def validate_report_selection(attrs, request):
                 {"report_type": "گزارش ماهانه فقط برای یک دانش‌آموز صادر می‌شود."}
             )
         if not enrollment or class_section:
-            raise serializers.ValidationError(
-                "برای گزارش ماهانه فقط enrollment باید ارسال شود."
-            )
+            raise serializers.ValidationError("برای گزارش ماهانه فقط enrollment باید ارسال شود.")
         if term is not None:
             raise serializers.ValidationError({"term": "گزارش ماهانه نوبت رسمی ندارد."})
         if not attrs.get("month_no"):
-            raise serializers.ValidationError({"month_no": "شماره ماه برای گزارش ماهانه الزامی است."})
+            raise serializers.ValidationError(
+                {"month_no": "شماره ماه برای گزارش ماهانه الزامی است."}
+            )
         school = enrollment.school
         class_section = enrollment.class_section
         academic_year = enrollment.academic_year
@@ -300,9 +302,6 @@ class ReportBatchSerializer(serializers.ModelSerializer):
 
 
 class ReportBatchCreateSerializer(serializers.Serializer):
-    school = serializers.PrimaryKeyRelatedField(
-        queryset=ReportArchive._meta.get_field("school").remote_field.model.objects.all()
-    )
     academic_year = serializers.PrimaryKeyRelatedField(
         queryset=ReportArchive._meta.get_field("academic_year").remote_field.model.objects.all()
     )
@@ -326,14 +325,20 @@ class ReportBatchCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError(str(exc)) from exc
 
     def validate(self, attrs):
-        request, school, year, term = (
+        request, year, term = (
             self.context["request"],
-            attrs["school"],
             attrs["academic_year"],
             attrs["term"],
         )
-        if school.id not in set(accessible_school_ids(request.user)):
-            raise serializers.ValidationError({"school": "School is outside your access scope."})
+        try:
+            school = get_besat_organization(
+                organization_ids=accessible_school_ids(request.user),
+            )
+        except Organization.DoesNotExist as exc:
+            raise serializers.ValidationError(
+                {"detail": "مدرسه بعثت برای تولید گزارش پیکربندی نشده است."}
+            ) from exc
+        attrs["school"] = school
         if year.organization_id != school.organization_id or term.academic_year_id != year.id:
             raise serializers.ValidationError(
                 {"term": "Term must belong to the selected academic year."}
@@ -351,7 +356,7 @@ class ReportBatchCreateSerializer(serializers.Serializer):
                     {"class_section": "School scope does not accept a class."}
                 )
             target_classes = list(
-                school.classes.filter(academic_year=year).values_list("id", flat=True)
+                school.school_classes.filter(academic_year=year).values_list("id", flat=True)
             )
         allowed = set(allowed_class_ids(request.user, [school.id]))
         if not set(target_classes).issubset(allowed):
@@ -473,9 +478,7 @@ class MonthlyReportContractSerializer(serializers.Serializer):
     overall_score = serializers.FloatField(allow_null=True)
     completion_percent = serializers.FloatField()
     completion_status = serializers.ChoiceField(choices=["provisional", "final"])
-    monthly_scores = serializers.ListField(
-        child=serializers.DictField(), required=False
-    )
+    monthly_scores = serializers.ListField(child=serializers.DictField(), required=False)
     monthly_change = serializers.FloatField(allow_null=True)
     monthly_changes = serializers.ListField(child=serializers.DictField())
     strengths = serializers.ListField(child=serializers.DictField())

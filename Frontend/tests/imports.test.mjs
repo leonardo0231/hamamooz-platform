@@ -33,7 +33,8 @@ test('imports page uses multipart upload, authenticated blob downloads and a ded
   const page = await readFile(new URL('../src/pages/imports.js', import.meta.url), 'utf8');
   const main = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
   assert.match(page, /new FormData\(\)/);
-  assert.match(page, /body\.set\('school', selectedSchool\)/);
+  assert.doesNotMatch(page, /selectedSchool|body\.set\('school'/);
+  assert.match(page, /مدرسه بعثت/);
   assert.match(page, /body\.set\('import_type', COMPREHENSIVE_IMPORT_TYPE\)/);
   assert.match(page, /body\.set\('source_file', file, file\.name\)/);
   assert.match(page, /imports\/\$\{job\.id\}\/retry\//);

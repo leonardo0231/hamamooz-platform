@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from hamamooz.apps.accounts.access import allowed_class_ids, selected_school_ids
 from hamamooz.apps.accounts.permissions import RolePermission
 from hamamooz.apps.core.viewsets import AuditedModelViewSet
-from hamamooz.apps.organizations.models import AcademicYear, ClassSection, School
+from hamamooz.apps.organizations.models import AcademicYear, ClassSection, Organization
 from hamamooz.apps.students.models import Enrollment
 
 from .models import (
@@ -580,7 +580,7 @@ class AttendanceReportViewSet(viewsets.GenericViewSet):
         serializer = SchoolAttendanceReportQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         school = (
-            School.objects.filter(
+            Organization.objects.filter(
                 pk=serializer.validated_data["school"], id__in=selected_school_ids(request)
             )
             .select_related("organization")

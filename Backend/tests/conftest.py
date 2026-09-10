@@ -17,7 +17,6 @@ from hamamooz.apps.organizations.models import (
     ClassSection,
     GradeLevel,
     Organization,
-    School,
     Term,
 )
 from hamamooz.apps.students.models import Enrollment, Student
@@ -31,8 +30,8 @@ def api_client():
 @pytest.fixture
 def base_data(db):
     organization = Organization.objects.create(name="هم‌آموز", code="hamamooz")
-    school1 = School.objects.create(organization=organization, code="s1", name="شعبه یک")
-    school2 = School.objects.create(organization=organization, code="s2", name="شعبه دو")
+    school1 = Organization.objects.create(organization=organization, code="s1", name="شعبه یک")
+    school2 = Organization.objects.create(organization=organization, code="s2", name="شعبه دو")
     year = AcademicYear.objects.create(
         organization=organization,
         code="1405-1406",

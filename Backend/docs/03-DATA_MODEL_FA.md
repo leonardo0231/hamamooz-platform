@@ -12,23 +12,23 @@
 
 ```mermaid
 erDiagram
-    ORGANIZATION ||--o{ SCHOOL : owns
+    ORGANIZATION ||--|| BESAT_SCHOOL : contains
     ORGANIZATION ||--o{ ACADEMIC_YEAR : defines
     ACADEMIC_YEAR ||--o{ TERM : contains
     ORGANIZATION ||--o{ GRADE_LEVEL : defines
-    SCHOOL ||--o{ CLASS_SECTION : contains
+    BESAT_SCHOOL ||--o{ CLASS_SECTION : contains
     USER ||--o{ ROLE_ASSIGNMENT : receives
     ORGANIZATION ||--o{ ROLE_ASSIGNMENT : scopes
-    SCHOOL ||--o{ ROLE_ASSIGNMENT : scopes
+    BESAT_SCHOOL ||--o{ ROLE_ASSIGNMENT : scopes
 ```
 
 قواعد مهم:
 
 - کد مجموعه یکتا است.
-- کد شعبه در مجموعه یکتا است.
+- در هر مجموعه فقط رکورد ثابت مدرسه بعثت وجود دارد.
 - فقط یک سال جاری فعال در هر مجموعه وجود دارد.
 - کد و ترتیب پایه در مجموعه یکتا است.
-- کد کلاس در شعبه/سال یکتا است.
+- کد کلاس در مدرسه/سال یکتا است.
 - Scope نقش باید با نوع نقش سازگار باشد؛ نقش سیستمی، مجموعه‌ای و شعبه‌ای constraint جدا دارند.
 
 ## دانش‌آموز و ثبت‌نام
@@ -37,7 +37,7 @@ erDiagram
 erDiagram
     ORGANIZATION ||--o{ STUDENT : owns
     STUDENT ||--o{ ENROLLMENT : has
-    SCHOOL ||--o{ ENROLLMENT : receives
+    BESAT_SCHOOL ||--o{ ENROLLMENT : receives
     ACADEMIC_YEAR ||--o{ ENROLLMENT : scopes
     GRADE_LEVEL ||--o{ ENROLLMENT : assigns
     CLASS_SECTION ||--o{ ENROLLMENT : groups
@@ -46,14 +46,14 @@ erDiagram
     ENROLLMENT ||--o{ ENROLLMENT_EVENT : records
 ```
 
-دانش‌آموز FK دائمی به کلاس ندارد. عضویت کلاس فقط در Enrollment و بازه زمانی آن ثبت می‌شود. تغییر کلاس، Enrollment قبلی را می‌بندد و Enrollment جدید می‌سازد؛ انتقال شعبه نیز مبدأ و مقصد را نگه می‌دارد.
+دانش‌آموز FK دائمی به کلاس ندارد. عضویت کلاس فقط در Enrollment و بازه زمانی آن ثبت می‌شود. تغییر کلاس، Enrollment قبلی را می‌بندد و Enrollment جدید می‌سازد. مدرسه تمام Enrollmentها مدرسه بعثت ثابت است.
 
 قیود:
 
 - کد ملی دانش‌آموز در هر مجموعه یکتا است.
 - در هر سال فقط یک Enrollment فعال برای دانش‌آموز وجود دارد.
-- شماره دانش‌آموزی فعال در شعبه/سال یکتا است.
-- شعبه، سال، پایه و کلاس Enrollment باید متعلق به یک مجموعه و بازه سازگار باشند.
+- شماره دانش‌آموزی فعال در مدرسه/سال یکتا است.
+- مدرسه بعثت، سال، پایه و کلاس Enrollment باید متعلق به یک مجموعه و بازه سازگار باشند.
 - کاهش ظرفیت کلاس پایین‌تر از تعداد Enrollment فعال رد می‌شود.
 - تاریخ خروج/تغییر نمی‌تواند قبل از تاریخ ورود باشد.
 

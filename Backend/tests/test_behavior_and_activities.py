@@ -161,7 +161,7 @@ def test_student_360_activities_returns_scoped_participation_facts(api_client, b
         organization=base_data["organization"],
         school=base_data["school1"],
         academic_year=base_data["year"],
-        title="School chess competition",
+        title="Organization chess competition",
         kind=Activity.Kind.COMPETITION,
         starts_at=timezone.now(),
         status=Activity.Status.COMPLETED,
@@ -185,7 +185,7 @@ def test_student_360_activities_returns_scoped_participation_facts(api_client, b
     assert response.data["participations"] == [
         {
             "id": str(participation.id),
-            "activity": "School chess competition",
+            "activity": "Organization chess competition",
             "kind": "competition",
             "status": "participated",
             "participation_role": "team member",

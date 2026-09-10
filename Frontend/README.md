@@ -7,7 +7,7 @@
 - React 19 با ReactDOM و Component/Hookهای رسمی
 - HTM برای templateهای امن و خوانا در کنار React
 - Vite برای dev server و build چندصفحه‌ای production
-- API Client مرکزی با JWT refresh، timeout، error normalization و scope headers
+- API Client مرکزی با JWT refresh، timeout، error normalization و scope header مجموعه
 - Design system اختصاصی فارسی با Vazirmatn/Estedad، RTL و responsive layout
 - Node Test Runner برای route، امنیت، fixture، design contract و build
 
@@ -73,6 +73,6 @@ window.__HAMAMOOZ_CONFIG__ = {
 };
 ```
 
-API Client به‌صورت مرکزی Headerهای `Authorization`، `X-School-ID`، `X-Organization-ID` و `X-Request-ID` را مدیریت می‌کند. Access token فقط در حافظه است؛ refresh token مطابق انتخاب «مرا به خاطر بسپار» در sessionStorage یا localStorage نگهداری می‌شود.
+API Client به‌صورت مرکزی Headerهای `Authorization`، `X-Organization-ID` و `X-Request-ID` را مدیریت می‌کند. مدرسه مقصد در رابط کاربری ثابت «مدرسه بعثت» است و Header یا انتخاب جداگانه‌ای برای مدرسه ارسال نمی‌شود. Access token فقط در حافظه است؛ refresh token مطابق انتخاب «مرا به خاطر بسپار» در sessionStorage یا localStorage نگهداری می‌شود.
 
 منبع حقیقت قرارداد همچنان `contracts/openapi.yaml` است. تغییر Endpoint باید ابتدا در قرارداد و Backend اعمال و سپس adapter متناظر در `src/core/api.js` به‌روزرسانی شود.

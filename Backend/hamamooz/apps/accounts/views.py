@@ -15,7 +15,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from hamamooz.apps.core.services import record_audit
 from hamamooz.apps.core.viewsets import AuditedModelViewSet
-from hamamooz.apps.organizations.models import School
+from hamamooz.apps.organizations.models import Organization
 
 from .access import (
     administered_organization_ids,
@@ -45,13 +45,16 @@ def membership_scope(request):
         selected_organization = UUID(selected_organization)
         administered_org_ids.intersection_update({selected_organization})
         school_ids = list(
-            School.objects.filter(
+            Organization.objects.filter(
                 id__in=school_ids,
+                organization__isnull=False,
                 organization_id=selected_organization,
             ).values_list("id", flat=True)
         )
     school_org_ids = set(
-        School.objects.filter(id__in=school_ids).values_list("organization_id", flat=True)
+        Organization.objects.filter(id__in=school_ids, organization__isnull=False).values_list(
+            "organization_id", flat=True
+        )
     )
     return school_ids, administered_org_ids, school_org_ids
 

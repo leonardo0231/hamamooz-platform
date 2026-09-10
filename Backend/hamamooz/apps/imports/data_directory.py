@@ -117,7 +117,9 @@ def _national_id(value: Any) -> str:
 
 
 def _header_map(values: Iterable[Any]) -> dict[str, int]:
-    aliases = {key: {_canonical(alias) for alias in options} for key, options in HEADER_ALIASES.items()}
+    aliases = {
+        key: {_canonical(alias) for alias in options} for key, options in HEADER_ALIASES.items()
+    }
     result: dict[str, int] = {}
     for index, value in enumerate(values):
         label = _canonical(value)
@@ -127,7 +129,9 @@ def _header_map(values: Iterable[Any]) -> dict[str, int]:
     return result
 
 
-def _normalise_row(headers: list[Any], values: list[Any], header_map: dict[str, int]) -> dict[str, Any]:
+def _normalise_row(
+    headers: list[Any], values: list[Any], header_map: dict[str, int]
+) -> dict[str, Any]:
     normalized: dict[str, Any] = {}
     for field, index in header_map.items():
         if index < len(values):
@@ -243,13 +247,16 @@ class DataDirectoryScanner:
             workbook = load_workbook(path, read_only=True, data_only=True)
             try:
                 for sheet in workbook.worksheets:
-                    sheet_records, sheet_info, classes, definitions = self._read_sheet(manifest, sheet)
+                    sheet_records, sheet_info, classes, definitions = self._read_sheet(
+                        manifest, sheet
+                    )
                     records.extend(sheet_records)
                     sheet_manifest.append(sheet_info)
                     detected_classes.update(classes)
                     class_definitions.update(definitions)
                     student_count += sum(
-                        row.row_kind in {DataSourceRow.RowKind.STUDENT, DataSourceRow.RowKind.EVALUATION}
+                        row.row_kind
+                        in {DataSourceRow.RowKind.STUDENT, DataSourceRow.RowKind.EVALUATION}
                         for row in sheet_records
                     )
             finally:
@@ -385,7 +392,12 @@ class DataDirectoryScanner:
         for checksum, candidates in by_checksum.items():
             create(DataSourceConflict.ConflictType.DUPLICATE_FILE, checksum, candidates)
         for class_code, candidates in by_class.items():
-            create(DataSourceConflict.ConflictType.CLASS_OVERLAP, class_code, candidates, class_code=class_code)
+            create(
+                DataSourceConflict.ConflictType.CLASS_OVERLAP,
+                class_code,
+                candidates,
+                class_code=class_code,
+            )
         for (class_code, national_id), candidates in by_student.items():
             create(
                 DataSourceConflict.ConflictType.STUDENT_OVERLAP,

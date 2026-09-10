@@ -68,8 +68,7 @@ export async function apiRequest(path, options = {}) {
   headers.set('X-Request-ID', crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
   const auth = options.auth !== false;
   if (auth && store.state.accessToken) headers.set('Authorization', `Bearer ${store.state.accessToken}`);
-  if (store.state.scope.schoolId) headers.set('X-School-ID', store.state.scope.schoolId);
-  else if (store.state.scope.organizationId) headers.set('X-Organization-ID', store.state.scope.organizationId);
+  if (store.state.scope.organizationId) headers.set('X-Organization-ID', store.state.scope.organizationId);
   const form = options.body instanceof FormData;
   if (options.body !== undefined && !form) headers.set('Content-Type', 'application/json');
   try {

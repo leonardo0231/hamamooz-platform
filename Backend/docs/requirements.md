@@ -6,8 +6,8 @@ The backend owns data modeling, business workflows, API security, imports, calcu
 
 ## MVP scope summary
 
-1. Multi-branch organization and 13 schools.
-2. Custom users, school memberships and branch-scoped roles.
+1. One organization and the fixed Besat school.
+2. Custom users and roles scoped to the organization and Besat school.
 3. Students, guardians and annual enrollments.
 4. Academic years, terms, grades, classes, subjects, offerings and teachers.
 5. Assessments, bulk score entry, approval and locking workflow.

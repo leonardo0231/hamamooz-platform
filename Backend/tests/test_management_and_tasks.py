@@ -17,7 +17,7 @@ from hamamooz.apps.attendance.tasks import (
     dispatch_parent_notification,
     evaluate_attendance_alerts,
 )
-from hamamooz.apps.organizations.models import ClassSection, Organization, School
+from hamamooz.apps.organizations.models import ClassSection, Organization
 from hamamooz.apps.reports.models import ReportArchive
 from hamamooz.apps.reports.tasks import generate_report_task
 from hamamooz.apps.students.models import Guardian
@@ -44,8 +44,8 @@ def test_seed_demo_is_idempotent_and_generates_all_import_templates(settings, tm
 
     organization = Organization.objects.get(code="hamamooz")
     admin = User.objects.get(username="seed-admin")
-    assert School.objects.filter(organization=organization).count() == 13
-    assert ClassSection.objects.filter(school__organization=organization).count() == 13
+    assert Organization.objects.filter(organization=organization).count() == 1
+    assert ClassSection.objects.filter(school__organization=organization).count() == 1
     assert RoleAssignment.objects.filter(user=admin, role=Role.SYSTEM_ADMIN).count() == 1
     assert len(list((tmp_path / "docs" / "import_templates").glob("*_template.xlsx"))) == 4
 

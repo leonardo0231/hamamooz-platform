@@ -35,7 +35,9 @@ class CounselingCase(SoftDeleteModel):
         "organizations.Organization", on_delete=models.PROTECT, related_name="counseling_cases"
     )
     school = models.ForeignKey(
-        "organizations.School", on_delete=models.PROTECT, related_name="counseling_cases"
+        "organizations.Organization",
+        on_delete=models.PROTECT,
+        related_name="school_counseling_cases",
     )
     enrollment = models.ForeignKey(
         "students.Enrollment", on_delete=models.PROTECT, related_name="counseling_cases"

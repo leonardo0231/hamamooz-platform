@@ -1,6 +1,6 @@
 # HamAmoz Platform
 
-HamAmoz is a multi-branch school-management platform. It provides a Django REST API for academic operations, attendance, reporting, imports, and scoped access control, plus a responsive Preact dashboard connected to the committed API contract.
+HamAmoz is a single-school management platform for Besat School. It provides a Django REST API for academic operations, attendance, reporting, imports, and scoped access control, plus a responsive Preact dashboard connected to the committed API contract.
 
 ## Architecture
 

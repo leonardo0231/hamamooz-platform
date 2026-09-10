@@ -19,7 +19,7 @@ Artifact قابل تحویل باید از همان Commit تولید شود:
 فهرست کلی Resourceهای جاری:
 
 ```text
-organizations, schools, academic-years, terms, grade-levels, classes
+organizations, academic-years, terms, grade-levels, classes (fixed Besat school)
 users, role-assignments
 students, guardians, enrollments
 subjects, grade-subjects, course-offerings

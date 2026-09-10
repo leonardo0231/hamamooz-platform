@@ -74,7 +74,9 @@ class BehaviorEvent(SoftDeleteModel):
         "organizations.Organization", on_delete=models.PROTECT, related_name="behavior_events"
     )
     school = models.ForeignKey(
-        "organizations.School", on_delete=models.PROTECT, related_name="behavior_events"
+        "organizations.Organization",
+        on_delete=models.PROTECT,
+        related_name="school_behavior_events",
     )
     academic_year = models.ForeignKey(
         "organizations.AcademicYear", on_delete=models.PROTECT, related_name="behavior_events"

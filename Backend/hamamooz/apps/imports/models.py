@@ -30,7 +30,7 @@ class ImportJob(SoftDeleteModel):
         "organizations.Organization", on_delete=models.PROTECT, related_name="import_jobs"
     )
     school = models.ForeignKey(
-        "organizations.School", on_delete=models.PROTECT, related_name="import_jobs"
+        "organizations.Organization", on_delete=models.PROTECT, related_name="school_import_jobs"
     )
     import_type = models.CharField(max_length=30, choices=ImportType.choices)
     status = models.CharField(
@@ -97,14 +97,18 @@ class DataSourceManifest(SoftDeleteModel):
         "organizations.Organization", on_delete=models.PROTECT, related_name="data_source_manifests"
     )
     school = models.ForeignKey(
-        "organizations.School", on_delete=models.PROTECT, related_name="data_source_manifests"
+        "organizations.Organization",
+        on_delete=models.PROTECT,
+        related_name="school_data_source_manifests",
     )
     # This is a relative, POSIX path below Data/Excel.  Do not use an absolute
     # filesystem path, so the same manifest remains portable between deployments.
     source_file = models.CharField(max_length=500)
     checksum = models.CharField(max_length=64, db_index=True)
     file_size = models.PositiveBigIntegerField(default=0)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.VALID, db_index=True)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.VALID, db_index=True
+    )
     detected_classes = models.JSONField(default=list, blank=True)
     sheet_manifest = models.JSONField(default=list, blank=True)
     errors = models.JSONField(default=list, blank=True)
@@ -144,9 +148,7 @@ class DataSourceRow(SoftDeleteModel):
         CLASS = "class", "کلاس"
         OTHER = "other", "سایر"
 
-    manifest = models.ForeignKey(
-        DataSourceManifest, on_delete=models.CASCADE, related_name="rows"
-    )
+    manifest = models.ForeignKey(DataSourceManifest, on_delete=models.CASCADE, related_name="rows")
     source_file = models.CharField(max_length=500, db_index=True)
     sheet_name = models.CharField(max_length=200)
     source_row = models.PositiveIntegerField()
@@ -192,7 +194,9 @@ class ClassSourceSelection(SoftDeleteModel):
     """
 
     school = models.ForeignKey(
-        "organizations.School", on_delete=models.PROTECT, related_name="class_source_selections"
+        "organizations.Organization",
+        on_delete=models.PROTECT,
+        related_name="school_class_source_selections",
     )
     class_code = models.CharField(max_length=50)
     manifest = models.ForeignKey(
@@ -244,10 +248,14 @@ class DataSourceConflict(SoftDeleteModel):
         RESOLVED = "resolved", "رفع‌شده"
 
     school = models.ForeignKey(
-        "organizations.School", on_delete=models.PROTECT, related_name="data_source_conflicts"
+        "organizations.Organization",
+        on_delete=models.PROTECT,
+        related_name="school_data_source_conflicts",
     )
     conflict_type = models.CharField(max_length=30, choices=ConflictType.choices, db_index=True)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN, db_index=True)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.OPEN, db_index=True
+    )
     class_code = models.CharField(max_length=50, blank=True, db_index=True)
     national_id = models.CharField(max_length=20, blank=True, db_index=True)
     manifests = models.ManyToManyField(DataSourceManifest, related_name="conflicts", blank=True)

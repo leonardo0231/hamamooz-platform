@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: HamAmoz School Platform API
+  title: HamAmoz Besat School Platform API
   version: 1.0.0 (v1)
-  description: API نسخه MVP سامانه چندشعبه‌ای هم‌آموز
+  description: API نسخه MVP سامانه تک‌مدرسه‌ای هم‌آموز برای مدرسه بعثت
 paths:
   /api/v1/academic-years/:
     get:
@@ -4155,6 +4155,188 @@ paths:
               schema:
                 $ref: '#/components/schemas/CalculationPolicy'
           description: ''
+  /api/v1/class-source-selections/:
+    get:
+      operationId: class_source_selections_list
+      parameters:
+      - in: query
+        name: class_code
+        schema:
+          type: string
+      - in: query
+        name: manifest
+        schema:
+          type: string
+          format: uuid
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: school
+        schema:
+          type: string
+          format: uuid
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - class-source-selections
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedClassSourceSelectionList'
+          description: ''
+    post:
+      operationId: class_source_selections_create
+      tags:
+      - class-source-selections
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClassSourceSelectionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ClassSourceSelectionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ClassSourceSelectionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassSourceSelection'
+          description: ''
+  /api/v1/class-source-selections/{id}/:
+    get:
+      operationId: class_source_selections_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this class source selection.
+        required: true
+      tags:
+      - class-source-selections
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassSourceSelection'
+          description: ''
+    put:
+      operationId: class_source_selections_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this class source selection.
+        required: true
+      tags:
+      - class-source-selections
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClassSourceSelectionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ClassSourceSelectionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ClassSourceSelectionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassSourceSelection'
+          description: ''
+    patch:
+      operationId: class_source_selections_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this class source selection.
+        required: true
+      tags:
+      - class-source-selections
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedClassSourceSelectionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedClassSourceSelectionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedClassSourceSelectionRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassSourceSelection'
+          description: ''
+    delete:
+      operationId: class_source_selections_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this class source selection.
+        required: true
+      tags:
+      - class-source-selections
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/classes/:
     get:
       operationId: classes_list
@@ -5720,6 +5902,217 @@ paths:
               schema:
                 $ref: '#/components/schemas/RoleDashboard'
           description: ''
+  /api/v1/data-source-conflicts/:
+    get:
+      operationId: data_source_conflicts_list
+      parameters:
+      - in: query
+        name: class_code
+        schema:
+          type: string
+      - in: query
+        name: conflict_type
+        schema:
+          type: string
+          enum:
+          - class_overlap
+          - duplicate_file
+          - student_overlap
+        description: |-
+          * `duplicate_file` - فایل تکراری
+          * `class_overlap` - کلاس مشترک
+          * `student_overlap` - دانش‌آموز مشترک
+      - in: query
+        name: national_id
+        schema:
+          type: string
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: school
+        schema:
+          type: string
+          format: uuid
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - open
+          - resolved
+        description: |-
+          * `open` - باز
+          * `resolved` - رفع‌شده
+      tags:
+      - data-source-conflicts
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDataSourceConflictList'
+          description: ''
+  /api/v1/data-source-conflicts/{id}/:
+    get:
+      operationId: data_source_conflicts_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this data source conflict.
+        required: true
+      tags:
+      - data-source-conflicts
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSourceConflict'
+          description: ''
+  /api/v1/data-sources/:
+    get:
+      operationId: data_sources_list
+      description: Protected inspection and rescan endpoint for repository Data/Excel
+        files.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: school
+        schema:
+          type: string
+          format: uuid
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - conflict
+          - incomplete
+          - invalid
+          - valid
+        description: |-
+          * `valid` - معتبر
+          * `incomplete` - ناقص
+          * `invalid` - نامعتبر
+          * `conflict` - نیازمند تعیین منبع
+      tags:
+      - data-sources
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDataSourceManifestList'
+          description: ''
+    post:
+      operationId: data_sources_create
+      description: Protected inspection and rescan endpoint for repository Data/Excel
+        files.
+      tags:
+      - data-sources
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSourceManifest'
+          description: ''
+  /api/v1/data-sources/{id}/:
+    get:
+      operationId: data_sources_retrieve
+      description: Protected inspection and rescan endpoint for repository Data/Excel
+        files.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this data source manifest.
+        required: true
+      tags:
+      - data-sources
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSourceManifest'
+          description: ''
+  /api/v1/data-sources/scan/:
+    post:
+      operationId: data_sources_scan_create
+      description: Protected inspection and rescan endpoint for repository Data/Excel
+        files.
+      tags:
+      - data-sources
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSourceManifest'
+          description: ''
   /api/v1/enrollments/:
     get:
       operationId: enrollments_list
@@ -7206,6 +7599,34 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/imports/{id}/cancel/:
+    post:
+      operationId: imports_cancel_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this import job.
+        required: true
+      tags:
+      - imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportJobRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJob'
+          description: ''
   /api/v1/imports/{id}/confirm/:
     post:
       operationId: imports_confirm_create
@@ -7234,9 +7655,59 @@ paths:
               schema:
                 $ref: '#/components/schemas/ImportJob'
           description: ''
+  /api/v1/imports/{id}/errors/:
+    get:
+      operationId: imports_errors_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this import job.
+        required: true
+      tags:
+      - imports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJob'
+          description: ''
   /api/v1/imports/{id}/preview/:
     post:
       operationId: imports_preview_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this import job.
+        required: true
+      tags:
+      - imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportJobRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJob'
+          description: ''
+  /api/v1/imports/{id}/retry/:
+    post:
+      operationId: imports_retry_create
       parameters:
       - in: path
         name: id
@@ -8547,6 +9018,10 @@ paths:
         schema:
           type: string
           format: uuid
+      - in: query
+        name: month_no
+        schema:
+          type: integer
       - name: ordering
         required: false
         in: query
@@ -8565,6 +9040,16 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - in: query
+        name: report_mode
+        schema:
+          type: string
+          enum:
+          - data_monthly
+          - official_term
+        description: |-
+          * `official_term` - کارنامه رسمی نوبت
+          * `data_monthly` - کارنامه داده‌محور ماهانه
       - in: query
         name: report_type
         schema:
@@ -9132,6 +9617,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/ReportDraft'
           description: ''
+  /api/v1/reports/monthly-preview/:
+    post:
+      operationId: reports_monthly_preview_create
+      description: Return one React-ready data-monthly report, without a formal term.
+      tags:
+      - reports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportArchiveRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReportArchiveRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReportArchiveRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportArchive'
+          description: ''
   /api/v1/reports/preview/:
     post:
       operationId: reports_preview_create
@@ -9565,183 +10077,6 @@ paths:
         required: true
       tags:
       - role-assignments
-      security:
-      - jwtAuth: []
-      responses:
-        '204':
-          description: No response body
-  /api/v1/schools/:
-    get:
-      operationId: schools_list
-      parameters:
-      - in: query
-        name: is_active
-        schema:
-          type: boolean
-      - name: ordering
-        required: false
-        in: query
-        description: Which field to use when ordering the results.
-        schema:
-          type: string
-      - in: query
-        name: organization
-        schema:
-          type: string
-          format: uuid
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      - name: page_size
-        required: false
-        in: query
-        description: Number of results to return per page.
-        schema:
-          type: integer
-      - name: search
-        required: false
-        in: query
-        description: A search term.
-        schema:
-          type: string
-      tags:
-      - schools
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedSchoolList'
-          description: ''
-    post:
-      operationId: schools_create
-      tags:
-      - schools
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SchoolRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/SchoolRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/SchoolRequest'
-        required: true
-      security:
-      - jwtAuth: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/School'
-          description: ''
-  /api/v1/schools/{id}/:
-    get:
-      operationId: schools_retrieve
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this school.
-        required: true
-      tags:
-      - schools
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/School'
-          description: ''
-    put:
-      operationId: schools_update
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this school.
-        required: true
-      tags:
-      - schools
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SchoolRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/SchoolRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/SchoolRequest'
-        required: true
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/School'
-          description: ''
-    patch:
-      operationId: schools_partial_update
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this school.
-        required: true
-      tags:
-      - schools
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedSchoolRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedSchoolRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedSchoolRequest'
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/School'
-          description: ''
-    delete:
-      operationId: schools_destroy
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this school.
-        required: true
-      tags:
-      - schools
       security:
       - jwtAuth: []
       responses:
@@ -13253,6 +13588,64 @@ components:
       - grade_level
       - school
       - title
+    ClassSourceSelection:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        school:
+          type: string
+          format: uuid
+          readOnly: true
+        class_code:
+          type: string
+          maxLength: 50
+        manifest:
+          type: string
+          format: uuid
+          nullable: true
+        selected_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        selected_by_name:
+          type: string
+          readOnly: true
+        selection_note:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - class_code
+      - created_at
+      - id
+      - school
+      - selected_by
+      - selected_by_name
+      - updated_at
+    ClassSourceSelectionRequest:
+      type: object
+      properties:
+        class_code:
+          type: string
+          minLength: 1
+          maxLength: 50
+        manifest:
+          type: string
+          format: uuid
+          nullable: true
+        selection_note:
+          type: string
+      required:
+      - class_code
     ClassStudentAttendance:
       type: object
       properties:
@@ -13376,6 +13769,16 @@ components:
       description: |-
         * `provisional` - provisional
         * `final` - final
+    ConflictTypeEnum:
+      enum:
+      - duplicate_file
+      - class_overlap
+      - student_overlap
+      type: string
+      description: |-
+        * `duplicate_file` - فایل تکراری
+        * `class_overlap` - کلاس مشترک
+        * `student_overlap` - دانش‌آموز مشترک
     CounselingActionPlan:
       type: object
       properties:
@@ -13926,6 +14329,162 @@ components:
       required:
       - id
       - title
+    DataSourceConflict:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        school:
+          type: string
+          format: uuid
+          readOnly: true
+        conflict_type:
+          allOf:
+          - $ref: '#/components/schemas/ConflictTypeEnum'
+          readOnly: true
+        conflict_type_display:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/DataSourceConflictStatusEnum'
+          readOnly: true
+        status_display:
+          type: string
+          readOnly: true
+        class_code:
+          type: string
+          readOnly: true
+        national_id:
+          type: string
+          readOnly: true
+        manifests:
+          type: array
+          items:
+            type: string
+            format: uuid
+          readOnly: true
+        details:
+          readOnly: true
+        resolution_note:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - class_code
+      - conflict_type
+      - conflict_type_display
+      - created_at
+      - details
+      - id
+      - manifests
+      - national_id
+      - resolution_note
+      - school
+      - status
+      - status_display
+      - updated_at
+    DataSourceConflictStatusEnum:
+      enum:
+      - open
+      - resolved
+      type: string
+      description: |-
+        * `open` - باز
+        * `resolved` - رفع‌شده
+    DataSourceManifest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        organization:
+          type: string
+          format: uuid
+          readOnly: true
+        school:
+          type: string
+          format: uuid
+          readOnly: true
+        source_file:
+          type: string
+          readOnly: true
+        checksum:
+          type: string
+          readOnly: true
+        file_size:
+          type: integer
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/DataSourceManifestStatusEnum'
+          readOnly: true
+        status_display:
+          type: string
+          readOnly: true
+        detected_classes:
+          readOnly: true
+        sheet_manifest:
+          readOnly: true
+        errors:
+          readOnly: true
+        row_count:
+          type: integer
+          readOnly: true
+        student_row_count:
+          type: integer
+          readOnly: true
+        scanned_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - checksum
+      - created_at
+      - detected_classes
+      - errors
+      - file_size
+      - id
+      - organization
+      - row_count
+      - scanned_at
+      - school
+      - sheet_manifest
+      - source_file
+      - status
+      - status_display
+      - student_row_count
+      - updated_at
+    DataSourceManifestStatusEnum:
+      enum:
+      - valid
+      - incomplete
+      - invalid
+      - conflict
+      type: string
+      description: |-
+        * `valid` - معتبر
+        * `incomplete` - ناقص
+        * `invalid` - نامعتبر
+        * `conflict` - نیازمند تعیین منبع
     DomainScore:
       type: object
       properties:
@@ -14755,7 +15314,7 @@ components:
         school:
           type: string
           format: uuid
-          nullable: true
+          readOnly: true
         school_name:
           type: string
           readOnly: true
@@ -14827,6 +15386,7 @@ components:
       - requested_by
       - requested_by_name
       - result_summary
+      - school
       - school_name
       - source_file
       - started_at
@@ -14852,7 +15412,7 @@ components:
         school:
           type: string
           format: uuid
-          nullable: true
+          readOnly: true
         school_name:
           type: string
           readOnly: true
@@ -14924,6 +15484,7 @@ components:
       - requested_by
       - requested_by_name
       - result_summary
+      - school
       - school_name
       - source_file
       - started_at
@@ -14940,10 +15501,6 @@ components:
     ImportJobCreateRequest:
       type: object
       properties:
-        school:
-          type: string
-          format: uuid
-          nullable: true
         import_type:
           $ref: '#/components/schemas/ImportJobCreateImportTypeEnum'
         source_file:
@@ -14969,10 +15526,6 @@ components:
     ImportJobRequest:
       type: object
       properties:
-        school:
-          type: string
-          format: uuid
-          nullable: true
         import_type:
           $ref: '#/components/schemas/ImportJobImportTypeEnum'
         source_file:
@@ -15958,6 +16511,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ClassSection'
+    PaginatedClassSourceSelectionList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClassSourceSelection'
     PaginatedCounselingActionPlanList:
       type: object
       required:
@@ -16073,6 +16649,52 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CourseOffering'
+    PaginatedDataSourceConflictList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataSourceConflict'
+    PaginatedDataSourceManifestList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataSourceManifest'
     PaginatedEnrollmentList:
       type: object
       required:
@@ -16533,29 +17155,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RoleAssignment'
-    PaginatedSchoolList:
-      type: object
-      required:
-      - count
-      - results
-      properties:
-        count:
-          type: integer
-          example: 123
-        next:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=4
-        previous:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=2
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/School'
     PaginatedScoreList:
       type: object
       required:
@@ -17223,6 +17822,19 @@ components:
           format: int64
         is_active:
           type: boolean
+    PatchedClassSourceSelectionRequest:
+      type: object
+      properties:
+        class_code:
+          type: string
+          minLength: 1
+          maxLength: 50
+        manifest:
+          type: string
+          format: uuid
+          nullable: true
+        selection_note:
+          type: string
     PatchedCounselingActionPlanRequest:
       type: object
       properties:
@@ -17408,10 +18020,6 @@ components:
     PatchedImportJobRequest:
       type: object
       properties:
-        school:
-          type: string
-          format: uuid
-          nullable: true
         import_type:
           $ref: '#/components/schemas/ImportJobImportTypeEnum'
         source_file:
@@ -17504,41 +18112,6 @@ components:
           nullable: true
         role:
           $ref: '#/components/schemas/RoleEnum'
-        is_active:
-          type: boolean
-    PatchedSchoolRequest:
-      type: object
-      properties:
-        organization:
-          type: string
-          format: uuid
-        code:
-          type: string
-          minLength: 1
-          maxLength: 50
-          pattern: ^[-a-zA-Z0-9_]+$
-        name:
-          type: string
-          minLength: 1
-          maxLength: 200
-        official_name:
-          type: string
-          maxLength: 250
-        phone:
-          type: string
-          maxLength: 30
-        email:
-          type: string
-          format: email
-          maxLength: 254
-        address:
-          type: string
-        manager_name:
-          type: string
-          maxLength: 150
-        logo:
-          type: string
-          format: binary
         is_active:
           type: boolean
     PatchedStudentRequest:
@@ -18161,6 +18734,26 @@ components:
         term:
           type: string
           format: uuid
+          nullable: true
+        report_mode:
+          $ref: '#/components/schemas/ReportModeEnum'
+        month_no:
+          type: integer
+          maximum: 12
+          minimum: 1
+          nullable: true
+        month_title:
+          type: string
+          maxLength: 30
+        source_file:
+          type: string
+          maxLength: 500
+        source_row:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
         report_type:
           $ref: '#/components/schemas/ReportTypeEnum'
         status:
@@ -18249,7 +18842,6 @@ components:
       - started_at
       - status
       - status_display
-      - term
       - updated_at
     ReportArchiveRequest:
       type: object
@@ -18257,6 +18849,26 @@ components:
         term:
           type: string
           format: uuid
+          nullable: true
+        report_mode:
+          $ref: '#/components/schemas/ReportModeEnum'
+        month_no:
+          type: integer
+          maximum: 12
+          minimum: 1
+          nullable: true
+        month_title:
+          type: string
+          maxLength: 30
+        source_file:
+          type: string
+          maxLength: 500
+        source_row:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
         report_type:
           $ref: '#/components/schemas/ReportTypeEnum'
         enrollment:
@@ -18269,7 +18881,6 @@ components:
           nullable: true
       required:
       - report_type
-      - term
     ReportBatch:
       type: object
       properties:
@@ -18607,6 +19218,14 @@ components:
         * `approved` - Approved
         * `rejected` - Rejected
         * `rendered` - Rendered
+    ReportModeEnum:
+      enum:
+      - official_term
+      - data_monthly
+      type: string
+      description: |-
+        * `official_term` - کارنامه رسمی نوبت
+        * `data_monthly` - کارنامه داده‌محور ماهانه
     ReportOutputFormatEnum:
       enum:
       - pdf
@@ -18846,66 +19465,6 @@ components:
         * `half_up` - نیم به بالا
         * `half_even` - نیم به زوج
         * `down` - رو به پایین
-    School:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-          readOnly: true
-        organization:
-          type: string
-          format: uuid
-        organization_name:
-          type: string
-          readOnly: true
-        code:
-          type: string
-          maxLength: 50
-          pattern: ^[-a-zA-Z0-9_]+$
-        name:
-          type: string
-          maxLength: 200
-        display_name:
-          type: string
-          readOnly: true
-        official_name:
-          type: string
-          maxLength: 250
-        phone:
-          type: string
-          maxLength: 30
-        email:
-          type: string
-          format: email
-          maxLength: 254
-        address:
-          type: string
-        manager_name:
-          type: string
-          maxLength: 150
-        logo:
-          type: string
-          format: uri
-        is_active:
-          type: boolean
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-      required:
-      - code
-      - created_at
-      - display_name
-      - id
-      - name
-      - organization
-      - organization_name
-      - updated_at
     SchoolAttendanceIdentity:
       type: object
       properties:
@@ -19015,45 +19574,6 @@ components:
       - grade_title
       - student_count
       - total_attendance_records
-    SchoolRequest:
-      type: object
-      properties:
-        organization:
-          type: string
-          format: uuid
-        code:
-          type: string
-          minLength: 1
-          maxLength: 50
-          pattern: ^[-a-zA-Z0-9_]+$
-        name:
-          type: string
-          minLength: 1
-          maxLength: 200
-        official_name:
-          type: string
-          maxLength: 250
-        phone:
-          type: string
-          maxLength: 30
-        email:
-          type: string
-          format: email
-          maxLength: 254
-        address:
-          type: string
-        manager_name:
-          type: string
-          maxLength: 150
-        logo:
-          type: string
-          format: binary
-        is_active:
-          type: boolean
-      required:
-      - code
-      - name
-      - organization
     Score:
       type: object
       properties:

@@ -70,7 +70,6 @@ from hamamooz.apps.organizations.views import (
     ClassSectionViewSet,
     GradeLevelViewSet,
     OrganizationViewSet,
-    SchoolViewSet,
     TermViewSet,
 )
 from hamamooz.apps.portal.views import (
@@ -98,7 +97,6 @@ from hamamooz.apps.students.views import EnrollmentViewSet, GuardianViewSet, Stu
 
 router = DefaultRouter()
 router.register("organizations", OrganizationViewSet, basename="organization")
-router.register("schools", SchoolViewSet, basename="school")
 router.register("academic-years", AcademicYearViewSet, basename="academic-year")
 router.register("terms", TermViewSet, basename="term")
 router.register("grade-levels", GradeLevelViewSet, basename="grade-level")

@@ -155,7 +155,6 @@ CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 CORS_ALLOW_HEADERS = (
     *default_headers,
     "x-request-id",
-    "x-school-id",
     "x-organization-id",
 )
 
@@ -197,8 +196,8 @@ SIMPLE_JWT = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "HamAmoz School Platform API",
-    "DESCRIPTION": "API نسخه MVP سامانه چندشعبه‌ای هم‌آموز",
+    "TITLE": "HamAmoz Besat School Platform API",
+    "DESCRIPTION": "API نسخه MVP سامانه تک‌مدرسه‌ای هم‌آموز برای مدرسه بعثت",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "SCHEMA_PATH_PREFIX": r"/api/v1",

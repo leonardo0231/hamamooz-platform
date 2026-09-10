@@ -34,7 +34,7 @@ class Activity(SoftDeleteModel):
         "organizations.Organization", on_delete=models.PROTECT, related_name="activities"
     )
     school = models.ForeignKey(
-        "organizations.School", on_delete=models.PROTECT, related_name="activities"
+        "organizations.Organization", on_delete=models.PROTECT, related_name="school_activities"
     )
     academic_year = models.ForeignKey(
         "organizations.AcademicYear", on_delete=models.PROTECT, related_name="activities"

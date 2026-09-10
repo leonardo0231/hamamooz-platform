@@ -1,10 +1,12 @@
 from uuid import UUID
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from rest_framework.exceptions import PermissionDenied
 
-from hamamooz.apps.organizations.models import Organization, School
+from hamamooz.apps.organizations.models import Organization
+from hamamooz.apps.organizations.services import BESAT_CODE, BESAT_NAME
 
 from .models import Role, RoleAssignment
 
@@ -22,7 +24,9 @@ def accessible_organization_ids(user):
     if not user or not user.is_authenticated:
         return []
     if is_system_admin(user):
-        return list(Organization.objects.values_list("id", flat=True))
+        return list(
+            Organization.objects.filter(organization__isnull=True).values_list("id", flat=True)
+        )
     return list(
         RoleAssignment.objects.filter(user=user, is_active=True, organization__isnull=False)
         .values_list("organization_id", flat=True)
@@ -34,7 +38,9 @@ def administered_organization_ids(user):
     if not user or not user.is_authenticated:
         return []
     if is_system_admin(user):
-        return list(Organization.objects.values_list("id", flat=True))
+        return list(
+            Organization.objects.filter(organization__isnull=True).values_list("id", flat=True)
+        )
     return list(
         RoleAssignment.objects.filter(
             user=user,
@@ -47,38 +53,68 @@ def administered_organization_ids(user):
     )
 
 
+def configured_besat_ids():
+    """Return the active organization row used as the sole school boundary.
+
+    The migration consolidates every legacy school into a row with the Besat
+    code.  The fallback is test-only compatibility for legacy fixtures.
+    Production and development deployments must run ``seed_demo`` (or the
+    data migration), so no arbitrary child organization can become an access
+    scope.
+    """
+
+    children = Organization.objects.filter(organization__isnull=False, is_active=True)
+    preferred = children.filter(code=BESAT_CODE)
+    if preferred.exists():
+        return list(preferred.values_list("id", flat=True))
+    named = children.filter(name=BESAT_NAME)
+    if named.exists():
+        return list(named.values_list("id", flat=True))
+    if getattr(settings, "TESTING", False):
+        return list(children.values_list("id", flat=True))
+    return []
+
+
 def accessible_school_ids(user):
     if not user or not user.is_authenticated:
         return []
+    configured_ids = set(configured_besat_ids())
     if is_system_admin(user):
-        return list(School.objects.values_list("id", flat=True))
+        return list(configured_ids)
     assignments = RoleAssignment.objects.filter(user=user, is_active=True)
     organization_admin_ids = assignments.filter(role=Role.ORGANIZATION_ADMIN).values_list(
         "organization_id", flat=True
     )
     direct_school_ids = assignments.filter(school__isnull=False).values_list("school_id", flat=True)
-    return list(
-        School.objects.filter(
+    candidate_ids = set(
+        Organization.objects.filter(
             models.Q(id__in=direct_school_ids)
-            | models.Q(organization_id__in=organization_admin_ids)
+            | models.Q(organization_id__in=organization_admin_ids),
+            organization__isnull=False,
         )
         .values_list("id", flat=True)
         .distinct()
     )
+    return list(candidate_ids & configured_ids)
 
 
 def selected_school_ids(request):
-    allowed = set(accessible_school_ids(request.user))
+    """Return the fixed Besat scope; a client cannot select another school.
+
+    The legacy header is retained only as a consistency check for old clients;
+    it never changes the returned scope.
+    """
+
+    allowed = accessible_school_ids(request.user)
     selected = request.headers.get("X-School-ID")
-    if not selected:
-        return list(allowed)
-    try:
-        selected_id = UUID(selected)
-    except (ValueError, TypeError, ValidationError) as exc:
-        raise PermissionDenied("هدر X-School-ID معتبر نیست.") from exc
-    if selected_id not in allowed:
-        raise PermissionDenied("به شعبه انتخاب‌شده دسترسی ندارید.")
-    return [selected_id]
+    if selected:
+        try:
+            selected_id = UUID(selected)
+        except (ValueError, TypeError, ValidationError) as exc:
+            raise PermissionDenied("هدر X-School-ID معتبر نیست.") from exc
+        if selected_id not in set(allowed):
+            raise PermissionDenied("به مدرسه ثابت بعثت دسترسی ندارید.")
+    return allowed
 
 
 def user_has_role(user, roles, *, organization_id=None, school_id=None):
@@ -89,9 +125,16 @@ def user_has_role(user, roles, *, organization_id=None, school_id=None):
     query = RoleAssignment.objects.filter(user=user, role__in=roles, is_active=True)
     if school_id:
         school_organization_id = (
-            School.objects.filter(id=school_id).values_list("organization_id", flat=True).first()
+            Organization.objects.filter(id=school_id, organization__isnull=False)
+            .values_list("organization_id", flat=True)
+            .first()
         )
         if school_organization_id is None:
+            return False
+        if not Organization.objects.filter(
+            id=school_id,
+            id__in=configured_besat_ids(),
+        ).exists():
             return False
         if organization_id and str(organization_id) != str(school_organization_id):
             return False
@@ -189,8 +232,10 @@ def broad_access_school_ids(user, school_ids):
         "organization_id", flat=True
     )
     broad_school_ids.update(
-        School.objects.filter(id__in=school_ids, organization_id__in=broad_org_ids).values_list(
-            "id", flat=True
-        )
+        Organization.objects.filter(
+            id__in=school_ids,
+            organization__isnull=False,
+            organization_id__in=broad_org_ids,
+        ).values_list("id", flat=True)
     )
     return list(broad_school_ids)

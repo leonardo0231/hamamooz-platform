@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from hamamooz.apps.accounts.access import accessible_organization_ids, accessible_school_ids
 
-from .models import AcademicYear, ClassSection, GradeLevel, Organization, School, Term
+from .models import AcademicYear, ClassSection, GradeLevel, Organization, Term
 
 
 class CleanModelSerializer(serializers.ModelSerializer):
@@ -17,7 +17,7 @@ class CleanModelSerializer(serializers.ModelSerializer):
         if request:
             organization_id = None
             school_id = None
-            if isinstance(instance, School | AcademicYear | GradeLevel):
+            if isinstance(instance, Organization | AcademicYear | GradeLevel):
                 organization_id = instance.organization_id
             elif isinstance(instance, Term) and instance.academic_year_id:
                 organization_id = instance.academic_year.organization_id
@@ -51,41 +51,6 @@ class OrganizationSerializer(CleanModelSerializer):
 
     def get_display_name(self, obj) -> str:
         return f"{obj.name} · کد {obj.code}"
-
-
-class SchoolSerializer(CleanModelSerializer):
-    organization_name = serializers.CharField(source="organization.name", read_only=True)
-    display_name = serializers.SerializerMethodField()
-
-    class Meta:
-        model = School
-        fields = [
-            "id",
-            "organization",
-            "organization_name",
-            "code",
-            "name",
-            "display_name",
-            "official_name",
-            "phone",
-            "email",
-            "address",
-            "manager_name",
-            "logo",
-            "is_active",
-            "created_at",
-            "updated_at",
-        ]
-        read_only_fields = [
-            "id",
-            "organization_name",
-            "display_name",
-            "created_at",
-            "updated_at",
-        ]
-
-    def get_display_name(self, obj) -> str:
-        return f"{obj.name} · {obj.organization.name} · کد {obj.code}"
 
 
 class AcademicYearSerializer(CleanModelSerializer):

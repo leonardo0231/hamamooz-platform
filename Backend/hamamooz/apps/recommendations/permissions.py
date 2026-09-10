@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from hamamooz.apps.accounts.access import is_system_admin, selected_school_ids
 from hamamooz.apps.accounts.models import Role, RoleAssignment
-from hamamooz.apps.organizations.models import School
+from hamamooz.apps.organizations.models import Organization
 
 from .models import Recommendation
 
@@ -47,8 +47,9 @@ def _direct_broad_school_ids(user, school_ids):
         role=Role.ORGANIZATION_ADMIN,
         organization_id__isnull=False,
     ).values_list("organization_id", flat=True)
-    organization_school_ids = School.objects.filter(
+    organization_school_ids = Organization.objects.filter(
         id__in=school_ids,
+        organization__isnull=False,
         organization_id__in=organization_ids,
     ).values_list("id", flat=True)
     return set(direct_school_ids) | set(organization_school_ids)

@@ -68,7 +68,9 @@ def test_data_monthly_preview_uses_summer_period_title_and_explicit_contract(
 
 
 @pytest.mark.django_db
-def test_data_monthly_archive_requires_month_and_provenance(api_client, base_data, monthly_evaluation):
+def test_data_monthly_archive_requires_month_and_provenance(
+    api_client, base_data, monthly_evaluation
+):
     payload = {
         "report_mode": ReportArchive.ReportMode.DATA_MONTHLY,
         "report_type": ReportArchive.ReportType.STUDENT_REPORT_CARD,
@@ -88,7 +90,9 @@ def test_data_monthly_archive_requires_month_and_provenance(api_client, base_dat
 
 
 @pytest.mark.django_db
-def test_data_monthly_archive_rejects_term_or_missing_provenance(api_client, base_data, monthly_evaluation):
+def test_data_monthly_archive_rejects_term_or_missing_provenance(
+    api_client, base_data, monthly_evaluation
+):
     request = SimpleNamespace(user=base_data["manager"])
     serializer = ReportArchiveSerializer(
         data={

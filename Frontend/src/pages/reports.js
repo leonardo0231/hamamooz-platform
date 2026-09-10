@@ -41,8 +41,8 @@ export function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [catalog, setCatalog] = useState({ schools: [], years: [], terms: [], classes: [] });
-  const [form, setForm] = useState({ school: '', academic_year: '', term: '', class_section: '', scope: 'class', page_size: REPORT_PAGE_SIZE });
+  const [catalog, setCatalog] = useState({ years: [], terms: [], classes: [] });
+  const [form, setForm] = useState({ academic_year: '', term: '', class_section: '', scope: 'class', page_size: REPORT_PAGE_SIZE });
   const [creating, setCreating] = useState(false);
   const [previewSnapshot, setPreviewSnapshot] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -63,10 +63,10 @@ export function ReportsPage() {
   const loadCatalog = async () => {
     setCatalogLoading(true);
     try {
-      const [schools, years, terms, classes] = await Promise.all([
-        apiRequest('schools/'), apiRequest('academic-years/'), apiRequest('terms/'), apiRequest('classes/'),
+      const [years, terms, classes] = await Promise.all([
+        apiRequest('academic-years/'), apiRequest('terms/'), apiRequest('classes/'),
       ]);
-      setCatalog({ schools: list(schools), years: list(years), terms: list(terms), classes: list(classes) });
+      setCatalog({ years: list(years), terms: list(terms), classes: list(classes) });
     } catch {
       // The textual UUID fields remain usable for scoped accounts that are not
       // allowed to list these catalogues.
@@ -105,20 +105,14 @@ export function ReportsPage() {
     return () => window.clearInterval(timer);
   }, [hasRunningBatch]);
 
-  useEffect(() => {
-    if (form.school || !catalog.schools.length) return;
-    setForm(current => ({ ...current, school: String(catalog.schools[0].id) }));
-  }, [catalog.schools, form.school]);
-
-  const years = useMemo(() => catalog.years.filter(item => !form.school || !item.organization || String(item.organization) === String(catalog.schools.find(school => String(school.id) === String(form.school))?.organization)), [catalog.years, catalog.schools, form.school]);
+  const years = useMemo(() => catalog.years, [catalog.years]);
   const terms = useMemo(() => catalog.terms.filter(item => !form.academic_year || String(item.academic_year) === String(form.academic_year)), [catalog.terms, form.academic_year]);
-  const classes = useMemo(() => catalog.classes.filter(item => (!form.school || String(item.school) === String(form.school)) && (!form.academic_year || String(item.academic_year) === String(form.academic_year))), [catalog.classes, form.school, form.academic_year]);
+  const classes = useMemo(() => catalog.classes.filter(item => !form.academic_year || String(item.academic_year) === String(form.academic_year)), [catalog.classes, form.academic_year]);
 
   const updateForm = (field, value) => {
     setForm(current => ({
       ...current,
       [field]: value,
-      ...(field === 'school' ? { class_section: '' } : {}),
       ...(field === 'academic_year' ? { term: '', class_section: '' } : {}),
     }));
   };
@@ -127,7 +121,8 @@ export function ReportsPage() {
     event.preventDefault();
     setCreating(true);
     try {
-      const payload = { ...form, page_size: REPORT_PAGE_SIZE, class_section: form.scope === 'class' ? form.class_section : null };
+      const { scope, ...selection } = form;
+      const payload = { ...selection, scope, page_size: REPORT_PAGE_SIZE, class_section: scope === 'class' ? form.class_section : null };
       const batch = await apiRequest('reports/batches/', { method: 'POST', body: payload });
       setBatches(current => [batch, ...current]);
       setError(null);
@@ -145,7 +140,7 @@ export function ReportsPage() {
   }), { total: 0, done: 0, failed: 0 });
 
   return html`<div class="page report-workspace">
-    <${PageHeader} eyebrow="کارنامه تحلیلی" title="کارنامهٔ رشد؛ مشاهده، تحلیل و خروجی رسمی" subtitle="برای یک کلاس یا کل مدرسه کارنامه‌های رنگی بسازید، وضعیت تولید را ببینید و هر دانش‌آموز را در همان سامانه بررسی کنید."/>
+    <${PageHeader} eyebrow="کارنامه تحلیلی" title="کارنامهٔ رشد؛ مشاهده، تحلیل و خروجی رسمی" subtitle="برای مدرسه بعثت، کارنامهٔ یک کلاس یا کل مدرسه را تولید کنید و وضعیت خروجی را در همین سامانه ببینید."/>
     <section class="stats-grid"><${StatCard} label="بسته‌های گزارش" value=${fa(batches.length)} icon="report" tone="purple"/><${StatCard} label="کارنامه‌های آماده" value=${fa(totals.done)} icon="check" tone="green"/><${StatCard} label="در صف یا تولید" value=${fa(Math.max(0, totals.total - totals.done - totals.failed))} icon="calendar" tone="orange"/><${StatCard} label="نیازمند بررسی" value=${fa(totals.failed)} icon="alert" tone="pink"/></section>
 
     <section class="report-preview-zone" data-report-print-root>
@@ -155,7 +150,7 @@ export function ReportsPage() {
 
     <${Card} className="report-create" title="تولید گروهی کارنامه" subtitle="انتخاب‌ها فقط در محدودهٔ دسترسی فعلی شما اعتبارسنجی می‌شوند. خروجی نهایی هر کارنامه در مرورگر و با قالب ثابت A3 چاپ می‌شود.">
       <form onSubmit=${create} class="report-create__form">
-        <${Field} label="مدرسه" required=${true} value=${form.school} options=${catalog.schools} placeholder=${catalogLoading ? 'در حال دریافت…' : 'انتخاب مدرسه'} onChange=${value => updateForm('school', value)}/>
+        <div class="report-create__fixed-school"><span>مدرسه</span><strong>مدرسه بعثت</strong><small>مقصد همهٔ گزارش‌ها به‌صورت ثابت مدرسه بعثت است.</small></div>
         <${Field} label="سال تحصیلی" required=${true} value=${form.academic_year} options=${years} placeholder=${catalogLoading ? 'در حال دریافت…' : 'انتخاب سال'} onChange=${value => updateForm('academic_year', value)}/>
         <${Field} label="نوبت" required=${true} value=${form.term} options=${terms} placeholder=${catalogLoading ? 'در حال دریافت…' : 'انتخاب نوبت'} onChange=${value => updateForm('term', value)}/>
         <${ScopeSelect} value=${form.scope} onChange=${value => updateForm('scope', value)}/>

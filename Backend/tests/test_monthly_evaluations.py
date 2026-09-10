@@ -139,9 +139,7 @@ def test_recomputation_uses_only_valid_raw_indicators_and_exposes_report_insight
     assert summary["metrics"][1]["raw_score"] == 5
     assert summary["metrics"][1]["score"] == 20
     assert summary["completed_metrics"] == 2
-    assert summary["completion_percent"] == pytest.approx(
-        round(2 / len(METRIC_CATALOG) * 100, 2)
-    )
+    assert summary["completion_percent"] == pytest.approx(round(2 / len(METRIC_CATALOG) * 100, 2))
     assert next(item for item in summary["domain_scores"] if item["code"] == "EDU")["score"] == 20
     assert next(item for item in summary["domain_scores"] if item["code"] == "DEV")["score"] == 12
     assert summary["overall_score"] == pytest.approx(round((20 * 20 + 12 * 15) / 35, 2))
@@ -165,9 +163,7 @@ def test_recomputation_exposes_observed_monthly_changes_without_claiming_finalit
 
     assert summary["completion_status"] == "provisional"
     assert summary["change"] is None  # final-only legacy/public summary
-    assert summary["monthly_changes"] == [
-        {"from_month_no": 2, "to_month_no": 3, "change": 4.0}
-    ]
+    assert summary["monthly_changes"] == [{"from_month_no": 2, "to_month_no": 3, "change": 4.0}]
 
 
 @pytest.mark.django_db

@@ -53,7 +53,7 @@ class AnalyticsRun(TimeStampedUUIDModel):
         "organizations.Organization", on_delete=models.PROTECT, related_name="analytics_runs"
     )
     school = models.ForeignKey(
-        "organizations.School", on_delete=models.PROTECT, related_name="analytics_runs"
+        "organizations.Organization", on_delete=models.PROTECT, related_name="school_analytics_runs"
     )
     enrollment = models.ForeignKey(
         "students.Enrollment", on_delete=models.PROTECT, related_name="analytics_runs"
@@ -111,7 +111,7 @@ class StudentRiskSignal(TimeStampedUUIDModel):
         "organizations.Organization", on_delete=models.PROTECT, related_name="risk_signals"
     )
     school = models.ForeignKey(
-        "organizations.School", on_delete=models.PROTECT, related_name="risk_signals"
+        "organizations.Organization", on_delete=models.PROTECT, related_name="school_risk_signals"
     )
     enrollment = models.ForeignKey(
         "students.Enrollment", on_delete=models.PROTECT, related_name="risk_signals"

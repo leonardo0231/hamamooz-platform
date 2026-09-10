@@ -19,7 +19,7 @@
 
 - Access token فقط در حافظه نگه‌داری می‌شود؛ refresh token بسته به گزینه «مرا به خاطر بسپار» در `sessionStorage` یا `localStorage` قرار می‌گیرد.
 - refresh هم‌زمان deduplicate می‌شود و درخواست شکست‌خورده فقط یک بار تکرار می‌شود.
-- `X-Request-ID`، `X-School-ID` یا `X-Organization-ID` در مرز API اضافه می‌شوند.
+- `X-Request-ID` و در صورت نیاز `X-Organization-ID` در مرز API اضافه می‌شوند؛ مدرسه مقصد همیشه بعثت است.
 - timeout، خطای شبکه، خطاهای HTTP و field errorها به `ApiError` یکنواخت تبدیل می‌شوند.
 - حالت `?demo=1` هیچ API تولیدی را صدا نمی‌زند و فقط برای بازبینی بصری با داده نمونه است.
 

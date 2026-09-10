@@ -223,7 +223,7 @@ class MonthlyEvaluationViewSet(ReadOnlyModelViewSet):
         class_ids = allowed_class_ids(self.request.user, school_ids)
         if not AcademicYear.objects.filter(
             id=academic_year_id,
-            organization__schools__id__in=school_ids,
+            organization__children__id__in=school_ids,
         ).exists():
             raise ValidationError({"academic_year": "سال تحصیلی معتبر یا قابل دسترس نیست."})
         queryset = Enrollment.objects.filter(

@@ -10,8 +10,23 @@ def validate_image_size(value):
 
 
 class Organization(SoftDeleteModel):
+    # An organization is the only tenancy boundary in the single-school
+    # deployment.  The self relation is retained only to migrate legacy
+    # branch rows into organization records without keeping a School model.
+    organization = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="children",
+    )
     name = models.CharField(max_length=200)
     code = models.SlugField(max_length=50, unique=True)
+    official_name = models.CharField(max_length=250, blank=True)
+    phone = models.CharField(max_length=30, blank=True)
+    email = models.EmailField(blank=True)
+    address = models.TextField(blank=True)
+    manager_name = models.CharField(max_length=150, blank=True)
     logo = models.ImageField(
         upload_to="organizations/logos/", blank=True, validators=[validate_image_size]
     )
@@ -21,31 +36,9 @@ class Organization(SoftDeleteModel):
         ordering = ["name"]
 
     def __str__(self):
+        if self.organization_id:
+            return f"{self.organization} - {self.name}"
         return self.name
-
-
-class School(SoftDeleteModel):
-    organization = models.ForeignKey(Organization, on_delete=models.PROTECT, related_name="schools")
-    code = models.SlugField(max_length=50)
-    name = models.CharField(max_length=200)
-    official_name = models.CharField(max_length=250, blank=True)
-    phone = models.CharField(max_length=30, blank=True)
-    email = models.EmailField(blank=True)
-    address = models.TextField(blank=True)
-    manager_name = models.CharField(max_length=150, blank=True)
-    logo = models.ImageField(
-        upload_to="schools/logos/", blank=True, validators=[validate_image_size]
-    )
-    is_active = models.BooleanField(default=True, db_index=True)
-
-    class Meta:
-        ordering = ["organization", "name"]
-        constraints = [
-            models.UniqueConstraint(fields=["organization", "code"], name="uq_school_org_code")
-        ]
-
-    def __str__(self):
-        return f"{self.organization} - {self.name}"
 
 
 class AcademicYear(SoftDeleteModel):
@@ -134,7 +127,9 @@ class GradeLevel(SoftDeleteModel):
 
 
 class ClassSection(SoftDeleteModel):
-    school = models.ForeignKey(School, on_delete=models.PROTECT, related_name="classes")
+    school = models.ForeignKey(
+        Organization, on_delete=models.PROTECT, related_name="school_classes"
+    )
     academic_year = models.ForeignKey(
         AcademicYear, on_delete=models.PROTECT, related_name="classes"
     )

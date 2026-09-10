@@ -17,6 +17,9 @@ A modular monolith is used. Django apps define bounded modules, while cross-modu
 
 `core` provides cross-cutting infrastructure. Domain apps may depend on `core`, but `core` must not import domain models. Domain services expose workflows; asynchronous tasks call those services after re-validating authorization scope.
 
-## Multi-branch rule
+## Fixed Besat rule
 
-School scope is enforced in query construction, API permissions, object checks, services, tasks, exports, report generation, downloads and admin. Serializer hiding is not an authorization control.
+The deployment has one school, Besat. Its scope is enforced in query
+construction, API permissions, object checks, services, tasks, exports, report
+generation, downloads and admin. Serializer hiding is not an authorization
+control, and clients cannot select another school.

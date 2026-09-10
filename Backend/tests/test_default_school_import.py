@@ -1,6 +1,7 @@
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 
+from hamamooz.apps.imports.defaults import get_default_school
 from hamamooz.apps.imports.models import ImportJob
 
 
@@ -19,6 +20,11 @@ def sample_excel():
         b"fixture workbook bytes",
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+@pytest.mark.django_db
+def test_default_school_resolves_organization_school(base_data):
+    assert get_default_school(school_ids=[base_data["school1"].id]) == base_data["school1"]
 
 
 @pytest.mark.django_db
@@ -47,13 +53,13 @@ def test_import_without_school_uses_besat(
 
 
 @pytest.mark.django_db
-def test_import_honors_explicit_school(api_client, base_data, sample_excel):
+def test_import_ignores_explicit_school_and_uses_besat(api_client, base_data, sample_excel):
     api_client.force_authenticate(base_data["teacher2"])
 
     response = api_client.post(
         "/api/v1/imports/",
         {
-            "school": str(base_data["school2"].id),
+            "school": str(base_data["school1"].id),
             "source_file": sample_excel,
             "import_type": ImportJob.ImportType.COMPREHENSIVE_SCHOOL,
         },

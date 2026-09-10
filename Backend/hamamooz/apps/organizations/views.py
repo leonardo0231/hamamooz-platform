@@ -6,13 +6,12 @@ from hamamooz.apps.accounts.access import accessible_organization_ids, selected_
 from hamamooz.apps.accounts.models import Role
 from hamamooz.apps.core.viewsets import AuditedModelViewSet
 
-from .models import AcademicYear, ClassSection, GradeLevel, Organization, School, Term
+from .models import AcademicYear, ClassSection, GradeLevel, Organization, Term
 from .serializers import (
     AcademicYearSerializer,
     ClassSectionSerializer,
     GradeLevelSerializer,
     OrganizationSerializer,
-    SchoolSerializer,
     TermSerializer,
 )
 
@@ -32,21 +31,9 @@ class OrganizationViewSet(AuditedModelViewSet):
     }
 
     def get_queryset(self):
-        return Organization.objects.filter(id__in=accessible_organization_ids(self.request.user))
-
-
-class SchoolViewSet(AuditedModelViewSet):
-    queryset = School.objects.none()
-    serializer_class = SchoolSerializer
-    search_fields = ["name", "code", "official_name"]
-    filterset_fields = ["organization", "is_active"]
-    required_roles_by_action = {
-        action: ORG_ADMIN for action in ["create", "update", "partial_update", "destroy"]
-    }
-
-    def get_queryset(self):
-        return School.objects.filter(id__in=selected_school_ids(self.request)).select_related(
-            "organization"
+        return Organization.objects.filter(
+            organization__isnull=True,
+            id__in=accessible_organization_ids(self.request.user),
         )
 
 

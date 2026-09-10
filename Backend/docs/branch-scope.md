@@ -1,13 +1,8 @@
-# Branch Scope Policy
+# Fixed Besat Scope Policy
 
-Every school-scoped resource must be filtered from the authenticated user's active memberships.
-
-Forbidden:
-
-- filtering only in serializer
-- trusting a client-provided school_id
-- checking only role name
-
+The deployment has one school only: Besat School. Every former school relation
+is stored against the Besat child of the organization, and clients cannot
+select or create another school.
 
 Required:
 
@@ -17,7 +12,7 @@ Required:
 - async task validation
 - export/report validation
 
-For unsafe API methods, non-system administrators must send an explicit `X-School-ID` or
-`X-Organization-ID` header. A school header also derives and validates its organization; conflicting
-headers and malformed UUIDs are rejected. Transfers require write authority in both source and
-destination scope.
+The only client scope header is `X-Organization-ID`. The legacy
+`X-School-ID` header is accepted server-side only as a consistency check for
+old clients; it never changes the fixed Besat scope. Malformed or unrelated
+identifiers are rejected.

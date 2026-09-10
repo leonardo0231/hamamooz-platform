@@ -241,18 +241,14 @@ class EvaluationAnalyticsService:
         # finalisation status.  A summer/data-monthly workbook commonly has
         # partial real observations, and those should be shown as measured
         # change, never fabricated as an official final result.
-        observed_months = [
-            item for item in monthly if item["overall_score"] is not None
-        ]
+        observed_months = [item for item in monthly if item["overall_score"] is not None]
         monthly_changes = [
             {
                 "from_month_no": previous["month_no"],
                 "to_month_no": current_month["month_no"],
                 "change": round(current_month["overall_score"] - previous["overall_score"], 2),
             }
-            for previous, current_month in zip(
-                observed_months, observed_months[1:], strict=False
-            )
+            for previous, current_month in zip(observed_months, observed_months[1:], strict=False)
         ]
         change = None
         trend = "insufficient_data"

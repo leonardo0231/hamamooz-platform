@@ -7,27 +7,27 @@ import pytest
 from django.core.files.base import ContentFile
 from openpyxl import load_workbook
 
-from hamamooz.apps.accounts.models import Role, RoleAssignment
 from hamamooz.apps.attendance.validators import attendance_evidence_upload_to
 from hamamooz.apps.imports.models import ImportJob
-from hamamooz.apps.organizations.models import School
 from hamamooz.apps.reports.models import ReportArchive
 from hamamooz.apps.reports.rendering import prepare_react_snapshot
 
 
 @pytest.mark.django_db
-def test_scope_resources_expose_human_names_without_replacing_writable_references(
+def test_scope_resources_expose_human_names_without_a_school_catalog_endpoint(
     api_client, base_data
 ):
     api_client.force_authenticate(base_data["manager"])
     headers = {"HTTP_X_SCHOOL_ID": str(base_data["school1"].id)}
 
-    schools = api_client.get("/api/v1/schools/", **headers)
+    organizations = api_client.get("/api/v1/organizations/", **headers)
     students = api_client.get("/api/v1/students/", **headers)
     classes = api_client.get("/api/v1/classes/", **headers)
+    schools = api_client.get("/api/v1/schools/", **headers)
 
-    assert schools.status_code == students.status_code == classes.status_code == 200
-    assert schools.data["results"][0]["organization_name"] == base_data["organization"].name
+    assert organizations.status_code == students.status_code == classes.status_code == 200
+    assert schools.status_code == 404
+    assert organizations.data["results"][0]["name"] == base_data["organization"].name
     assert students.data["results"][0]["organization_name"] == base_data["organization"].name
     assert classes.data["results"][0]["school_name"] == base_data["school1"].name
     assert classes.data["results"][0]["organization_name"] == base_data["organization"].name
@@ -82,35 +82,14 @@ def test_attendance_report_identities_use_scope_names_without_school_ids(api_cli
 
 
 @pytest.mark.django_db
-def test_duplicate_school_names_are_resolved_by_the_hidden_selected_reference(
-    api_client, base_data
-):
-    duplicate = School.objects.create(
-        organization=base_data["organization"],
-        code="duplicate-name",
-        name=base_data["school1"].name,
-    )
-    RoleAssignment.objects.create(
-        user=base_data["manager"],
-        organization=base_data["organization"],
-        role=Role.ORGANIZATION_ADMIN,
-    )
+def test_organization_catalog_hides_legacy_school_rows(api_client, base_data):
     api_client.force_authenticate(base_data["manager"])
 
-    response = api_client.get(
-        "/api/v1/schools/",
-        {"search": base_data["school1"].name},
-    )
+    response = api_client.get("/api/v1/organizations/")
 
     assert response.status_code == 200
-    selected = next(
-        item for item in response.data["results"] if item["id"] == str(base_data["school1"].id)
-    )
-    assert selected["display_name"] != next(
-        item["display_name"] for item in response.data["results"] if item["id"] == str(duplicate.id)
-    )
-    assert base_data["school1"].name in selected["display_name"]
-    assert str(base_data["school1"].id) not in selected["display_name"]
+    assert len(response.data["results"]) == 1
+    assert response.data["results"][0]["id"] == str(base_data["organization"].id)
 
 
 @pytest.mark.django_db

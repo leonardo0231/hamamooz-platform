@@ -41,11 +41,11 @@ class RoleAssignment(SoftDeleteModel):
         related_name="role_assignments",
     )
     school = models.ForeignKey(
-        "organizations.School",
+        "organizations.Organization",
         null=True,
         blank=True,
         on_delete=models.PROTECT,
-        related_name="role_assignments",
+        related_name="school_role_assignments",
     )
     role = models.CharField(max_length=40, choices=Role.choices, db_index=True)
     is_active = models.BooleanField(default=True, db_index=True)

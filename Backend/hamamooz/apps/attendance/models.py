@@ -12,9 +12,9 @@ from .validators import attendance_evidence_upload_to, validate_attendance_evide
 
 class AttendancePolicy(SoftDeleteModel):
     school = models.ForeignKey(
-        "organizations.School",
+        "organizations.Organization",
         on_delete=models.PROTECT,
-        related_name="attendance_policies",
+        related_name="school_attendance_policies",
     )
     academic_year = models.ForeignKey(
         "organizations.AcademicYear",
@@ -92,9 +92,9 @@ class AttendanceSession(SoftDeleteModel):
         CANCELLED = "cancelled", "لغوشده"
 
     school = models.ForeignKey(
-        "organizations.School",
+        "organizations.Organization",
         on_delete=models.PROTECT,
-        related_name="attendance_sessions",
+        related_name="school_attendance_sessions",
     )
     academic_year = models.ForeignKey(
         "organizations.AcademicYear",
@@ -444,9 +444,9 @@ class AttendanceAlert(SoftDeleteModel):
 
     policy = models.ForeignKey(AttendancePolicy, on_delete=models.PROTECT, related_name="alerts")
     school = models.ForeignKey(
-        "organizations.School",
+        "organizations.Organization",
         on_delete=models.PROTECT,
-        related_name="attendance_alerts",
+        related_name="school_attendance_alerts",
     )
     academic_year = models.ForeignKey(
         "organizations.AcademicYear",
@@ -542,9 +542,9 @@ class ParentNotification(TimeStampedUUIDModel):
         SKIPPED = "skipped", "ردشده"
 
     school = models.ForeignKey(
-        "organizations.School",
+        "organizations.Organization",
         on_delete=models.PROTECT,
-        related_name="parent_notifications",
+        related_name="school_parent_notifications",
     )
     student = models.ForeignKey(
         "students.Student",

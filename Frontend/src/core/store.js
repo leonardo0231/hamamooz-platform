@@ -27,7 +27,7 @@ let state = {
   refreshToken: read(localStorage, REFRESH_REMEMBERED) ?? read(sessionStorage, REFRESH_SESSION),
   rememberSession: Boolean(read(localStorage, REFRESH_REMEMBERED)),
   user: config.demoMode ? demoUser : null,
-  scope: readJson(localStorage, SCOPE, { organizationId: null, schoolId: null }),
+  scope: { organizationId: readJson(localStorage, SCOPE, {}).organizationId ?? null },
   bootstrapping: !config.demoMode,
   sidebarOpen: false,
 };
@@ -54,8 +54,9 @@ export const store = {
     emit();
   },
   setScope(scope) {
-    try { localStorage.setItem(SCOPE, JSON.stringify(scope)); } catch {}
-    state = { ...state, scope };
+    const nextScope = { organizationId: scope?.organizationId ?? null };
+    try { localStorage.setItem(SCOPE, JSON.stringify(nextScope)); } catch {}
+    state = { ...state, scope: nextScope };
     emit();
   },
   clearSession() {
@@ -64,7 +65,7 @@ export const store = {
       sessionStorage.removeItem(REFRESH_SESSION);
       localStorage.removeItem(SCOPE);
     } catch {}
-    state = { ...state, accessToken: null, refreshToken: null, user: null, scope: { organizationId: null, schoolId: null }, sidebarOpen: false };
+    state = { ...state, accessToken: null, refreshToken: null, user: null, scope: { organizationId: null }, sidebarOpen: false };
     emit();
   },
 };

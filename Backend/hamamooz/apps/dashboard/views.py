@@ -34,7 +34,7 @@ class DashboardSummaryView(APIView):
         term_id = request.query_params.get("term")
         term_queryset = (
             Term.objects.select_related("academic_year")
-            .filter(academic_year__organization__schools__id__in=school_ids)
+            .filter(academic_year__organization__children__id__in=school_ids)
             .distinct()
         )
         if term_id:

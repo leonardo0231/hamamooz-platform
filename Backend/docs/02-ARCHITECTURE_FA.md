@@ -23,7 +23,7 @@ flowchart TB
 | ماژول | مسئولیت | وابستگی مجاز اصلی | نباید انجام دهد |
 |---|---|---|---|
 | `core` | Base model، soft delete، Audit، logging، health، tenancy | Django | منطق آموزشی |
-| `organizations` | مجموعه، شعبه، سال، نوبت، پایه، کلاس | `core` | ذخیره نمره یا حضور |
+| `organizations` | مجموعه واحد، مدرسه ثابت بعثت، سال، نوبت، پایه، کلاس | `core` | ذخیره نمره یا حضور |
 | `accounts` | User، JWT، RBAC و Scope | `core`, `organizations` | محاسبه آموزشی |
 | `students` | دانش‌آموز، ولی، ثبت‌نام و انتقال | `organizations`, `accounts` | تعریف ارزیابی |
 | `academics` | درس، ارائه، ارزیابی، نمره، workflow و calculation | `students`, `organizations`, `accounts` | تولید فایل گزارش |
@@ -46,7 +46,7 @@ sequenceDiagram
     C->>A: Bearer token + scope headers
     A->>P: authenticated user
     P->>D: active role assignments
-    P->>V: allowed organization/school/class
+    P->>V: allowed organization/Besat/class
     V->>Z: validate payload
     Z->>S: validated command
     S->>D: atomic transaction + row locks
@@ -56,17 +56,17 @@ sequenceDiagram
 
 Scope فقط در UI کنترل نمی‌شود. چهار لایه دفاعی وجود دارد:
 
-1. `accessible_*` و `selected_school_ids()` حوزه مجاز را از RoleAssignment می‌سازند.
+1. `accessible_*` و `selected_school_ids()` حوزه ثابت مدرسه بعثت را از RoleAssignment می‌سازند.
 2. `get_queryset()` داده خارج از Scope را از ابتدا حذف می‌کند.
 3. `RolePermission` هدر، action، نقش و object را کنترل می‌کند.
 4. Serializer و Service سازگاری Tenant و invariantهای دامنه را دوباره بررسی می‌کنند.
 
-## خواندن و نوشتن چندشعبه‌ای
+## خواندن و نوشتن مدرسه بعثت
 
-- خواندن بدون هدر، همه شعب مجاز کاربر را پوشش می‌دهد.
+- خواندن بدون هدر، حوزه مجاز مدرسه بعثت کاربر را پوشش می‌دهد.
 - نوشتن بدون Scope صریح فقط برای `system_admin` مجاز است.
-- `X-School-ID` باید داخل حوزه کاربر باشد.
-- اگر `X-Organization-ID` و `X-School-ID` هم‌زمان ارسال شوند، مجموعه باید مالک همان شعبه باشد.
+- `X-Organization-ID` تنها Scope قابل ارسال از Client است.
+- `X-School-ID` فقط برای سازگاری با Clientهای قدیمی بررسی می‌شود و مدرسه را انتخاب نمی‌کند.
 - دبیر فقط کلاس‌های CourseOffering خودش را می‌بیند؛ در ارزیابی و نمره، مالکیت درس نیز کنترل می‌شود.
 
 ## تراکنش و هم‌زمانی

@@ -28,7 +28,7 @@ class ReportArchive(SoftDeleteModel):
         "organizations.Organization", on_delete=models.PROTECT, related_name="reports"
     )
     school = models.ForeignKey(
-        "organizations.School", on_delete=models.PROTECT, related_name="reports"
+        "organizations.Organization", on_delete=models.PROTECT, related_name="school_reports"
     )
     academic_year = models.ForeignKey(
         "organizations.AcademicYear", on_delete=models.PROTECT, related_name="reports"
@@ -113,7 +113,9 @@ class ReportArchive(SoftDeleteModel):
             models.CheckConstraint(
                 condition=(
                     models.Q(report_mode="official_term", term__isnull=False, month_no__isnull=True)
-                    | models.Q(report_mode="data_monthly", term__isnull=True, month_no__isnull=False)
+                    | models.Q(
+                        report_mode="data_monthly", term__isnull=True, month_no__isnull=False
+                    )
                 ),
                 name="ck_report_archive_mode_period",
             )
@@ -141,7 +143,7 @@ class ReportBatch(TimeStampedUUIDModel):
         "organizations.Organization", on_delete=models.PROTECT, related_name="report_batches"
     )
     school = models.ForeignKey(
-        "organizations.School", on_delete=models.PROTECT, related_name="report_batches"
+        "organizations.Organization", on_delete=models.PROTECT, related_name="school_report_batches"
     )
     academic_year = models.ForeignKey(
         "organizations.AcademicYear", on_delete=models.PROTECT, related_name="report_batches"
@@ -229,11 +231,11 @@ class ReportTemplate(SoftDeleteModel):
         "organizations.Organization", on_delete=models.PROTECT, related_name="report_templates"
     )
     school = models.ForeignKey(
-        "organizations.School",
+        "organizations.Organization",
         null=True,
         blank=True,
         on_delete=models.PROTECT,
-        related_name="report_templates",
+        related_name="school_report_templates",
     )
     code = models.SlugField(max_length=60)
     title = models.CharField(max_length=150)
@@ -301,7 +303,7 @@ class ReportDraft(TimeStampedUUIDModel):
         "organizations.Organization", on_delete=models.PROTECT, related_name="report_drafts"
     )
     school = models.ForeignKey(
-        "organizations.School", on_delete=models.PROTECT, related_name="report_drafts"
+        "organizations.Organization", on_delete=models.PROTECT, related_name="school_report_drafts"
     )
     academic_year = models.ForeignKey(
         "organizations.AcademicYear", on_delete=models.PROTECT, related_name="report_drafts"
