@@ -1274,3 +1274,70 @@ ol.report-bullet-list { list-style-type: decimal; }
     min-height: 112px;
   }
 }
+
+/* The personal-skills card has a small, intentional reserve area.  Keep the
+   Excel-backed subject grades inside that card so the report grid stays
+   unchanged and the table remains part of the same student context. */
+.monthly-subject-grades {
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px solid #dbe8e5;
+}
+.monthly-subject-grades__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.monthly-subject-grades__heading h4 {
+  margin: 0;
+  color: var(--report-navy);
+  font-size: .76rem;
+  font-weight: 900;
+}
+.monthly-subject-grades__heading span {
+  color: var(--report-muted);
+  font-size: .61rem;
+  white-space: nowrap;
+}
+.monthly-subject-grades__tables {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+.monthly-subject-grades__table {
+  table-layout: fixed;
+  font-size: .64rem;
+}
+.monthly-subject-grades__table th,
+.monthly-subject-grades__table td {
+  padding: 3px 4px;
+  line-height: 1.2;
+  vertical-align: middle;
+}
+.monthly-subject-grades__table thead th:first-child { width: 66%; }
+.monthly-subject-grades__table thead th:last-child { width: 34%; }
+.monthly-subject-grades__table tbody th { font-weight: 700; }
+.monthly-subject-grades__table .report-number { font-size: .67rem; }
+.monthly-subject-grades__table .is-current,
+.monthly-subject-grades__table .is-alert { font-weight: 900; }
+
+@media screen and (max-width: 720px) {
+  .monthly-subject-grades__tables { grid-template-columns: 1fr; gap: 0; }
+}
+
+@media print {
+  .monthly-subject-grades {
+    margin-top: 4px;
+    padding-top: 3px;
+  }
+  .monthly-subject-grades__heading { margin-bottom: 2px; }
+  .monthly-subject-grades__heading h4 { font-size: 9px; }
+  .monthly-subject-grades__heading span { font-size: 8px; }
+  .monthly-subject-grades__tables { gap: 4px; }
+  .monthly-subject-grades__table { font-size: 9px; }
+  .monthly-subject-grades__table th,
+  .monthly-subject-grades__table td { padding: 2px 3px; line-height: 1.15; }
+  .monthly-subject-grades__table .report-number { font-size: 9px; }
+}

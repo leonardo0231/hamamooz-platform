@@ -73,6 +73,19 @@ const excelSampleMetrics = [
   ['PER_03', 'ارائه مطلب', 4],
 ].map(([code, title, raw_score, raw_unit]) => excelMetric(code, title, raw_score, raw_unit));
 
+// The attached «کارنامه تفصیلی آزمون تابستانه هشتم.xlsx» stores one row per
+// student and subject.  These are the seven «نمره نهائی» values for the first
+// sample student (workbook rows 2–8), kept anonymous in the public preview.
+const excelSampleSubjectGrades = [
+  { title: 'عربی هشتم', final_score: 4, percent: 20 },
+  { title: 'زبان هشتم', final_score: 12, percent: 60 },
+  { title: 'زیست هشتم', final_score: 4, percent: 20 },
+  { title: 'شیمی هشتم', final_score: 4, percent: 20 },
+  { title: 'فیزیک هشتم', final_score: 12, percent: 60 },
+  { title: 'ریاضی هشتم', final_score: 14, percent: 66.67 },
+  { title: 'هوش مصنوعی هشتم', final_score: 0, percent: 0 },
+];
+
 const monthlySampleSnapshot = {
   report_mode: 'data_monthly',
   title: 'کارنامه ارزیابی تابستانه رشد دانش‌آموز',
@@ -84,6 +97,7 @@ const monthlySampleSnapshot = {
     grade: 'پایه هشتم', class_code: '۸۰۳ / نمونه', photo_url: '',
   },
   metrics: excelSampleMetrics,
+  subject_grades: excelSampleSubjectGrades,
   domains: [],
   overall_score: '#VALUE!',
   completed_metrics: 45,
@@ -94,7 +108,7 @@ const monthlySampleSnapshot = {
   monthly_change: null,
   monthly_changes: [],
   recommendations: [],
-  missing_sections: ['attendance', 'honors', 'activities', 'counselor', 'official_subject_grades'],
+  missing_sections: ['attendance', 'honors', 'activities', 'counselor'],
 };
 const snapshot = globalThis.__REPORT_SNAPSHOT__
   ?? (sampleMode === 'data_monthly' ? monthlySampleSnapshot : undefined);

@@ -501,16 +501,36 @@ function buildMonthlyMetricGroups(metricRows) {
   ]));
 }
 
+function normalizeMonthlySubjectRows(rows) {
+  const sourceRows = Array.isArray(rows) ? rows : [];
+  return sourceRows.map(item => {
+    const source = item && typeof item === 'object' ? item : { title: item };
+    const title = String(source.title ?? source.subject ?? source.name ?? 'درس ثبت نشده').trim();
+    const rawScore = source.final_score ?? source.finalScore ?? source.final
+      ?? source.score ?? source.grade ?? source.current ?? source.value;
+    return {
+      ...source,
+      title,
+      score: numericSubject(rawScore),
+      percent: numericValue(source.percent ?? source.percentage),
+    };
+  }).filter(item => item.title);
+}
+
 function mapDataMonthlyReport(report) {
-  // ``monthly-preview`` is deliberately a separate API contract: it has no
-  // official term or subject grades.  Adapt it here, at the React boundary,
-  // instead of making the backend invent fields from an official report.
+  // ``monthly-preview`` is deliberately a separate API contract.  Optional
+  // subject_grades are accepted only when the source explicitly provides them;
+  // the renderer never derives official grades from indicator values.
   const rawMetrics = Array.isArray(report?.metrics) ? report.metrics : [];
   // Keep every coded metric row, including an invalid/raw value such as
   // «ندارد».  The table uses rawValue for auditability while value is the
   // explicitly scaled score converted to a percentage.
   const metricRows = rawMetrics.map(normalizeMetricRow).filter(item => item.code);
   const metricGroups = buildMonthlyMetricGroups(metricRows);
+  const subjectRows = normalizeMonthlySubjectRows(
+    Array.isArray(report?.subject_grades) ? report.subject_grades : report?.subjects,
+  );
+  const visibleSubjects = bounded(subjectRows, 12);
   const behavior = metricRows.filter(item => /^(DEV|CHR|DIS)_/.test(item.code ?? ''));
   const skills21 = metricRows.filter(item => /^PER_/.test(item.code ?? ''));
   const indexRows = metricRows.filter(item => /^(EDU|DEV|CHR|DIS)_/.test(item.code ?? ''));
@@ -584,7 +604,8 @@ function mapDataMonthlyReport(report) {
   const summerTitle = 'کارنامه ارزیابی تابستانه رشد دانش‌آموز';
   const requestedTitle = typeof report?.title === 'string' ? report.title.trim() : '';
   const reportTitle = requestedTitle && !/سه\s*ساله/.test(requestedTitle) ? requestedTitle : summerTitle;
-  const sourceSections = Array.isArray(report?.missing_sections) ? report.missing_sections : [];
+  const sourceSections = (Array.isArray(report?.missing_sections) ? report.missing_sections : [])
+    .filter(section => !(section === 'official_subject_grades' && visibleSubjects.items.length));
   return {
     demo: false,
     reportMode: 'data_monthly',
@@ -607,7 +628,7 @@ function mapDataMonthlyReport(report) {
     average: overallScore,
     rank: null,
     history,
-    subjects: [],
+    subjects: visibleSubjects.items,
     skills: behavior,
     skills21,
     readiness: [],
@@ -635,7 +656,7 @@ function mapDataMonthlyReport(report) {
     sourceFile: report?.source_file ?? '',
     sourceRow: report?.source_row ?? null,
     missingSections: sourceSections,
-    subjectsOmitted: 0,
+    subjectsOmitted: visibleSubjects.omitted,
     strengthsOmitted: strengths.omitted,
     improvementsOmitted: improvements.omitted,
     skillsOmitted: 0,
@@ -876,6 +897,18 @@ function MonthlyMetricTable({ rows, caption, showDomain = false }) {
   return html`<div class="report-monthly-metric-tables">${chunks.map(renderTable)}</div>`;
 }
 
+function MonthlySubjectGradesTable({ rows }) {
+  const sourceRows = Array.isArray(rows) ? rows : [];
+  if (!sourceRows.length) return null;
+  const splitAt = Math.ceil(sourceRows.length / 2);
+  const chunks = [sourceRows.slice(0, splitAt), sourceRows.slice(splitAt)].filter(chunk => chunk.length);
+  const renderTable = (chunk, tableIndex) => html`<table key=${`monthly-subject-grades-${tableIndex}`} class="report-score-table monthly-subject-grades__table"><caption class="sr-only">نمرات درسی دانش‌آموز</caption><thead><tr><th scope="col">درس</th><th scope="col">نمره از ۲۰</th></tr></thead><tbody>${chunk.map(subject => {
+    const scoreClass = isNumber(subject.score) && subject.score < 12 ? 'is-alert' : 'is-current';
+    return html`<tr key=${subject.title}><th scope="row"><span class="report-score-table__subject">${subject.title}</span></th><td class=${isNumber(subject.score) ? scoreClass : 'report-rating-missing'}>${isNumber(subject.score) ? reportNumber(subject.score) : 'ثبت نشده'}</td></tr>`;
+  })}</tbody></table>`;
+  return html`<section class="monthly-subject-grades" aria-labelledby="monthly-subject-grades-title"><div class="monthly-subject-grades__heading"><h4 id="monthly-subject-grades-title">نمرات درسی دانش‌آموز</h4><span>مقیاس ۰ تا ۲۰</span></div><div class="monthly-subject-grades__tables">${chunks.map(renderTable)}</div></section>`;
+}
+
 function MonthlyMetricSection({ report, group }) {
   const rows = report.metricGroups?.[group.key] ?? [];
   if (!rows.length) {
@@ -893,6 +926,7 @@ function MonthlyMetricSection({ report, group }) {
     <div class="monthly-metric-section__intro"><span>${group.eyebrow}</span><b>امتیازها از شاخص‌های ثبت‌شده</b></div>
     ${chart ? html`<${EChart} option=${chart} label=${`${group.title} به تفکیک ${group.chart === 'metrics' ? 'شاخص' : 'حوزه'}`} className="echart--metric-group"/>` : null}
     <${MonthlyMetricTable} rows=${rows} caption=${group.title} showDomain=${group.codes.length > 1}/>
+    ${group.key === 'personal' ? html`<${MonthlySubjectGradesTable} rows=${report.subjects}/>` : null}
   </${Panel}>`;
 }
 
