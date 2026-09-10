@@ -202,11 +202,9 @@ expect_http 200 "$WORK_DIR/dashboard.json" \
     "$API_URL/dashboard/summary/" "${AUTH_HEADERS[@]}"
 expect_http 200 "$WORK_DIR/students-before-import.json" \
     "$API_URL/students/?page_size=10" "${AUTH_HEADERS[@]}"
-expect_http 200 "$WORK_DIR/schools.json" \
+expect_http 404 "$WORK_DIR/school-catalog-removed.json" \
     "$API_URL/schools/?page_size=100" "${AUTH_HEADERS[@]}"
-SCHOOL_ID="$(json_result_id_by_field "$WORK_DIR/schools.json" code branch-01)" \
-    || fail 'The demo seed did not expose school branch-01.'
-SCOPE_HEADERS=("${AUTH_HEADERS[@]}" -H "X-School-ID: ${SCHOOL_ID}")
+SCOPE_HEADERS=("${AUTH_HEADERS[@]}")
 
 # The deployed backend image contains openpyxl and the official template.  Seed
 # one valid row from the demo scope so the request validates the complete async
@@ -223,7 +221,7 @@ workbook = load_workbook('/app/docs/import_templates/comprehensive_school_templa
 classes = workbook['کلاس‌بندی']
 students = workbook['دانش‌آموزان']
 
-for column, value in enumerate([1, 'branch-01', '1405-1406', '7-a', 'هفتم الف', 'grade-7', 35], start=1):
+for column, value in enumerate([1, 'besat', '1405-1406', '7-a', 'هفتم الف', 'grade-7', 35], start=1):
     classes.cell(row=5, column=column, value=value)
 for column, value in enumerate(
     [1, '1', os.environ['SMOKE_NATIONAL_ID'], os.environ['SMOKE_STUDENT_NUMBER'], 'آزمون', 'دود', 'پسر', '2012-01-01', '7-a'],
@@ -241,7 +239,6 @@ WEB_CONTAINER="$("${COMPOSE[@]}" ps -q web)"
 
 expect_http 201 "$WORK_DIR/import-created.json" \
     -X POST "$API_URL/imports/" "${SCOPE_HEADERS[@]}" \
-    -F "school=${SCHOOL_ID}" \
     -F 'import_type=comprehensive_school' \
     -F "source_file=@${SMOKE_UPLOAD_PATH};type=application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 IMPORT_ID="$(json_value "$WORK_DIR/import-created.json" id)"
