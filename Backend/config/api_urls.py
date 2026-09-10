@@ -59,7 +59,12 @@ from hamamooz.apps.guidance.views import (
     GuideFollowUpViewSet,
     GuideTeacherAssignmentViewSet,
 )
-from hamamooz.apps.imports.views import ImportJobViewSet
+from hamamooz.apps.imports.views import (
+    ClassSourceSelectionViewSet,
+    DataSourceConflictViewSet,
+    DataSourceManifestViewSet,
+    ImportJobViewSet,
+)
 from hamamooz.apps.organizations.views import (
     AcademicYearViewSet,
     ClassSectionViewSet,
@@ -155,6 +160,11 @@ router.register(
     "portal/visibility-policies", PortalVisibilityPolicyViewSet, basename="portal-visibility-policy"
 )
 router.register("imports", ImportJobViewSet, basename="import-job")
+router.register("data-sources", DataSourceManifestViewSet, basename="data-source")
+router.register("data-source-conflicts", DataSourceConflictViewSet, basename="data-source-conflict")
+router.register(
+    "class-source-selections", ClassSourceSelectionViewSet, basename="class-source-selection"
+)
 router.register(
     "monthly-evaluations",
     MonthlyEvaluationViewSet,
