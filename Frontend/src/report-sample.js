@@ -8,51 +8,95 @@ const sampleMode = params.get('mode');
 // A trusted renderer may inject the already-authorized snapshot before the
 // bundle starts.  Keeping the snapshot out of the query string avoids leaking
 // student data into browser history and server logs; the public sample still
-// falls back to the reviewed demo payload when no snapshot is supplied.
+// falls back to the reviewed Excel-derived payload when no snapshot is supplied.
+//
+// Source: Data/Excel/803-804.xlsx, sheet «ثبت اطلاعات», Excel row 103.
+// The student identifiers are intentionally removed.  EDU_01 is a 0–20 grade,
+// EDU_02 is a progress delta/text field, and the remaining rubric indicators
+// use the workbook's 0–5 scale.  The cached Excel domain/overall formulas are
+// not copied because this workbook contains a #VALUE! overall formula and an
+// over-scaled EDU summary; the frontend recomputes those values from raw rows.
+// Raw cells such as `{ raw_score: 'ندارد' }` remain visible in the indicator table.
+const excelMetric = (code, title, raw_score, raw_unit = 'rubric_5') => ({
+  code,
+  title,
+  domain_code: code.split('_', 1)[0],
+  raw_score,
+  raw_unit,
+});
+const excelSampleMetrics = [
+  ['EDU_01', 'نمرات درسی', 18.64, 'score_20'],
+  ['EDU_02', 'پیشرفت نسبت به قبل', 'ندارد', 'delta'],
+  ['EDU_03', 'انجام تکالیف', 4],
+  ['EDU_04', 'مشارکت در کلاس', 4],
+  ['EDU_05', 'دقت و تمرکز', 4],
+  ['EDU_06', 'مهارت حل مسئله', 3],
+  ['EDU_07', 'آمادگی برای امتحان', 4],
+  ['EDU_08', 'مطالعه غیر درسی', 3],
+  ['DEV_01', 'احترام به معلم و همکلاسی', 4],
+  ['DEV_02', 'مسئولیت‌پذیری', 2],
+  ['DEV_03', 'همکاری با دیگران', 3],
+  ['DEV_04', 'ادب و رفتار اجتماعی', 5],
+  ['DEV_05', 'اعتماد به نفس', 4],
+  ['CHR_01', 'هدف‌گذاری', 4],
+  ['CHR_02', 'دوست یابی', 4],
+  ['DIS_01', 'حضور و غیاب', 4],
+  ['DIS_02', 'تأخیر', 3],
+  ['DIS_03', 'رعایت قوانین مدرسه', 4],
+  ['DIS_04', 'رعایت پوشش', 4],
+  ['DIS_05', 'احترام به مقررات کلاس', 3],
+  ['CUL_01', 'مشارکت در برنامه‌های فرهنگی', 4],
+  ['CUL_02', 'شناخت ارزش‌های اجتماعی', 4],
+  ['CUL_03', 'رفتار مناسب در مراسم‌ها', 4],
+  ['RES_01', 'انجام تحقیق', 4],
+  ['RES_02', 'خلاقیت در پروژه‌ها', 4],
+  ['RES_03', 'تحلیل اطلاعات', 4],
+  ['RES_04', 'استفاده از منابع', 4],
+  ['RES_05', 'نوآوری', 4],
+  ['RES_06', 'پرسشگری', 4],
+  ['SPT_01', 'آمادگی جسمانی', 4],
+  ['SPT_02', 'مشارکت در فعالیت‌های ورزشی', 5],
+  ['SPT_03', 'روحیه تیمی', 4],
+  ['SPT_04', 'رعایت قوانین بازی', 4],
+  ['SPT_05', 'تلاش و پشتکار', 4],
+  ['SPT_06', 'پیشرفت بدنی', 0],
+  ['SPT_07', 'مهارت‌های حرکتی', 5],
+  ['ART_01', 'خلاقیت', 3],
+  ['ART_02', 'مشارکت در فعالیت‌های هنری', 3],
+  ['ART_03', 'مهارت در نقاشی / موسیقی / ...', 3],
+  ['ART_04', 'دقت در کار هنری', 4],
+  ['ART_05', 'نوآوری', 4],
+  ['ART_06', 'علاقه‌مندی', 0],
+  ['ART_07', 'ارائه آثار', 4],
+  ['PER_01', 'مهارت ارتباطی', 3],
+  ['PER_02', 'مهارت برنامه‌ریزی', 3],
+  ['PER_03', 'ارائه مطلب', 4],
+].map(([code, title, raw_score, raw_unit]) => excelMetric(code, title, raw_score, raw_unit));
+
 const monthlySampleSnapshot = {
   report_mode: 'data_monthly',
-  title: 'کارنامه جامع رشد سه ساله دانش‌آموز',
+  title: 'کارنامه ارزیابی تابستانه رشد دانش‌آموز',
   month: { no: 3, title: 'شهریور' },
   organization: { name: 'سامانه هوشمند هم‌آموز', logo_url: '' },
-  school: { name: 'دبیرستان پسرانه بعثت', branch: 'دوره اول', logo_url: '/assets/besat-logo.png' },
+  school: { name: 'مدرسه نمونه هم‌آموز', branch: 'دوره اول', logo_url: '/assets/besat-logo.png' },
   student: {
     name: 'دانش‌آموز نمونه', national_id: null, student_number: null,
-    grade: 'پایه هفتم', class_code: 'هفتم / الف', photo_url: '',
+    grade: 'پایه هشتم', class_code: '۸۰۳ / نمونه', photo_url: '',
   },
-  metrics: [
-    { code: 'EDU_01', title: 'یادگیری مفاهیم درسی', domain_title: 'آموزشی', raw_score: 5, score: 20 },
-    { code: 'EDU_02', title: 'پیشرفت نسبت به ارزیابی قبل', domain_title: 'آموزشی', raw_score: 'ندارد', score: null },
-    { code: 'DEV_01', title: 'احترام و همکاری', domain_title: 'تربیتی', raw_score: 3, score: 12 },
-    { code: 'CHR_01', title: 'مسئولیت‌پذیری', domain_title: 'شخصیتی', raw_score: 4, score: 16 },
-    { code: 'DIS_01', title: 'نظم و پیگیری', domain_title: 'انضباطی', raw_score: 4, score: 16 },
-    { code: 'PER_01', title: 'مدیریت زمان', domain_title: 'مهارت‌های فردی', raw_score: 3, score: 12 },
-  ],
-  domains: [
-    { code: 'EDU', title: 'آموزشی', score: 100, completed_metrics: 1 },
-    { code: 'DEV', title: 'تربیتی', score: 60, completed_metrics: 1 },
-    { code: 'CHR', title: 'شخصیتی', score: 80, completed_metrics: 1 },
-    { code: 'DIS', title: 'انضباطی', score: 80, completed_metrics: 1 },
-    { code: 'COM', title: 'ارتباطی', score: null, completed_metrics: 0 },
-    { code: 'EMO', title: 'هیجانی', score: null, completed_metrics: 0 },
-    { code: 'SOC', title: 'اجتماعی', score: null, completed_metrics: 0 },
-    { code: 'CRE', title: 'خلاقیت', score: null, completed_metrics: 0 },
-    { code: 'PHY', title: 'سلامت و آمادگی', score: null, completed_metrics: 0 },
-  ],
-  overall_score: 16.57,
-  completion_percent: 50,
+  metrics: excelSampleMetrics,
+  domains: [],
+  overall_score: '#VALUE!',
+  completed_metrics: 45,
+  required_metrics: 46,
+  completion_ratio: 45 / 46,
   completion_status: 'provisional',
-  monthly_scores: [
-    { month_no: 1, overall_score: 15 },
-    { month_no: 2, overall_score: null },
-    { month_no: 3, overall_score: 16.57 },
-  ],
-  monthly_change: 1.57,
-  monthly_changes: [{ from_month_no: 1, to_month_no: 3, change: 1.57 }],
-  recommendations: [
-    'برنامهٔ ثابت مطالعهٔ روزانه برای تثبیت رشد ادامه یابد.',
-    'در فعالیت‌های گروهی، نقش ارائه‌دهنده تجربه شود.',
-  ],
-  missing_sections: ['attendance', 'honors', 'activities', 'counselor'],
+  monthly_scores: [{ month_no: 3, month_title: 'شهریور', overall_score: '#VALUE!' }],
+  monthly_change: null,
+  monthly_changes: [],
+  recommendations: [],
+  source_file: 'نمونه Excel · 803-804.xlsx · شیت ثبت اطلاعات',
+  source_row: 103,
+  missing_sections: ['attendance', 'honors', 'activities', 'counselor', 'official_subject_grades'],
 };
 const snapshot = globalThis.__REPORT_SNAPSHOT__
   ?? (sampleMode === 'data_monthly' ? monthlySampleSnapshot : undefined);

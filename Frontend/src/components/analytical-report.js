@@ -2,18 +2,33 @@ import { html, useMemo } from '../core/view.js';
 import { EChart } from './echart.js';
 import { Icon } from './icons.js';
 
-const fa = value => value === null || value === undefined || value === '' || !Number.isFinite(Number(value))
-  ? '—'
-  : new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 2 }).format(Number(value));
+const normalizeNumericText = value => {
+  if (typeof value !== 'string') return value;
+  const digits = value
+    .replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+    .replace(/[٠-٩]/g, digit => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+    .replace(/[٬،]/g, '')
+    .replace(/٫/g, '.')
+    .trim();
+  return /^[-+]?\d+\/\d+$/.test(digits) ? digits.replace('/', '.') : digits;
+};
+const numericValue = value => {
+  if (typeof value !== 'number' && typeof value !== 'string') return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
+  const numeric = Number(normalizeNumericText(value));
+  return Number.isFinite(numeric) ? numeric : null;
+};
+const fa = value => {
+  const numeric = numericValue(value);
+  return numeric === null
+    ? '—'
+    : new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 2 }).format(numeric);
+};
 const clamp = (value, min = 0, max = 100) => {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? Math.max(min, Math.min(max, numeric)) : null;
+  const numeric = numericValue(value);
+  return numeric === null ? null : Math.max(min, Math.min(max, numeric));
 };
-const isNumber = value => {
-  if (typeof value !== 'number' && typeof value !== 'string') return false;
-  if (typeof value === 'string' && value.trim() === '') return false;
-  return Number.isFinite(Number(value));
-};
+const isNumber = value => numericValue(value) !== null;
 const reportNumber = value => html`<bdi class="report-number" dir="ltr">${fa(value)}</bdi>`;
 const bounded = (items, limit) => {
   const source = Array.isArray(items) ? items : [];
@@ -43,7 +58,7 @@ const rawMetricDisplay = value => {
   if (typeof value === 'number' && Number.isFinite(value)) return fa(value);
   return String(value);
 };
-const numericOrNull = value => isNumber(value) ? Number(value) : null;
+const numericOrNull = value => numericValue(value);
 
 /**
  * Print the report that is already rendered by the React tree.  The print
@@ -114,6 +129,16 @@ export const ANALYSIS_DOMAINS = Object.freeze([
   { code: 'ART', title: 'هنری' },
   { code: 'PER', title: 'مهارت‌های فردی' },
 ]);
+
+const DOMAIN_WEIGHTS = Object.freeze({
+  EDU: 20, DEV: 15, CHR: 15, DIS: 15, CUL: 7,
+  RES: 8, SPT: 7, ART: 6, PER: 7,
+});
+const DOMAIN_METRIC_TOTALS = Object.freeze({
+  EDU: 8, DEV: 5, CHR: 2, DIS: 5, CUL: 3,
+  RES: 6, SPT: 7, ART: 7, PER: 3,
+});
+const MONTHLY_METRIC_TOTAL = 46;
 
 // A single outline icon family keeps stickers legible in print and avoids
 // emoji glyphs changing between operating systems and PDF engines.
@@ -255,16 +280,47 @@ function normalizeSignatureLabels(value) {
   const source = Array.isArray(value) && value.length ? value : DEFAULT_SIGNATURE_LABELS;
   return source.map(item => typeof item === 'string' ? item : item?.title ?? item?.label ?? item?.role).filter(Boolean).slice(0, 5);
 }
-function metricValue(value) {
-  // MonthlyEvaluation/MetricScore is an explicit 0–5 integer rubric.  Do not
-  // infer a unit from the magnitude: EDU_01 in the source workbooks is a
-  // 0–20 academic score, while EDU_02 can be decimal, negative, or «ندارد».
-  // Those values are not this rubric and must remain unavailable until the
-  // school approves a mapping.
-  if (typeof value !== 'number' && typeof value !== 'string') return null;
-  if (typeof value === 'string' && value.trim() === '') return null;
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric) || !Number.isInteger(numeric) || numeric < 0 || numeric > 5) return null;
+
+function normalizedUnit(value) {
+  return normalizeNumericText(String(value ?? ''))
+    .toLowerCase()
+    .replace(/[‌\s]/g, '')
+    .replace(/٪/g, '%');
+}
+
+function unitKind(value) {
+  const unit = normalizedUnit(value);
+  if (!unit) return null;
+  if (['percent', 'percentage', '%', 'درصد', 'درصدی'].includes(unit)) return 'percent';
+  if (['score_20', 'score20', '0-20', '0to20', '20', 'نمرهاز۲۰', 'نمره۲۰'].includes(unit)) return 'score20';
+  if (['rubric_5', 'rubric5', 'score_5', 'score5', '0-5', '0to5', '5', 'نمرهاز۵', 'نمره۵'].includes(unit)) return 'rubric5';
+  if (['ratio', 'نسبت', 'نسبتیتکمیل'].includes(unit)) return 'ratio';
+  if (['delta', 'change', 'difference', 'تغییر', 'اختلاف'].includes(unit)) return 'delta';
+  return null;
+}
+
+function metricUnit(item) {
+  // `value_unit`/`unit`/`scale` are accepted for older snapshots; the newer
+  // import adapter uses `raw_unit` so the source scale is never guessed from
+  // the magnitude of a number.
+  const declared = item.raw_unit ?? item.metric_unit ?? item.value_unit ?? item.unit ?? item.scale;
+  if (declared !== undefined && declared !== null && declared !== '') return declared;
+  const maxRawScore = numericValue(item.max_raw_score);
+  return maxRawScore === 20 ? 'score_20' : maxRawScore === 5 ? 'rubric_5' : null;
+}
+
+function metricValue(value, unit = null) {
+  const numeric = numericValue(value);
+  if (numeric === null) return null;
+  const kind = unitKind(unit);
+  if (kind === 'percent') return numeric >= 0 && numeric <= 100 ? numeric : null;
+  if (kind === 'score20') return numeric >= 0 && numeric <= 20 ? numeric * 5 : null;
+  if (kind === 'delta') return null;
+  // The API's default metric contract is an integer 0–5 rubric.  Without an
+  // explicit unit, keep that strict boundary so a 0–20 grade or a signed
+  // change cannot silently become a rubric score.
+  if (kind && kind !== 'rubric5') return null;
+  if (!Number.isInteger(numeric) || numeric < 0 || numeric > 5) return null;
   return numeric * 20;
 }
 function numericSubject(row) {
@@ -285,12 +341,14 @@ function normalizeMetricRow(item) {
   const source = item && typeof item === 'object' ? item : {};
   const code = source.code ?? source.metric_code;
   const rawValue = rawMetricValue(source);
-  const value = metricValue(rawValue);
+  const rawUnit = metricUnit(source);
+  const value = metricValue(rawValue, rawUnit);
   return {
     ...source,
     code,
     title: source.title ?? titleForMetric(code),
     rawValue,
+    rawUnit,
     value,
     hasData: value !== null,
   };
@@ -298,28 +356,71 @@ function normalizeMetricRow(item) {
 
 function domainPercent(item) {
   if (!item || item.has_data === false || item.hasData === false) return null;
-  if (isNumber(item.score)) {
-    const score = Number(item.score);
-    return score >= 0 && score <= 20 ? score * 5 : null;
-  }
   if (isNumber(item.percent)) {
-    const percent = Number(item.percent);
+    const percent = numericValue(item.percent);
     return percent >= 0 && percent <= 100 ? percent : null;
+  }
+  const scoreUnit = unitKind(item.score_unit ?? item.unit ?? item.scale);
+  if (isNumber(item.score)) {
+    const score = numericValue(item.score);
+    if (scoreUnit === 'percent') return score >= 0 && score <= 100 ? score : null;
+    return score >= 0 && score <= 20 ? score * 5 : null;
   }
   // A bare `value` is ambiguous (it may be a 0–20 score or a percentage).
   // Only accept it when the producer declares its unit/scale explicitly;
   // otherwise keeping the domain missing is safer than silently converting it.
   if (isNumber(item.value)) {
-    const value = Number(item.value);
-    const unit = String(item.value_unit ?? item.unit ?? item.scale ?? '').trim().toLowerCase();
-    if (['percent', 'percentage', '%', 'درصد'].includes(unit)) {
+    const value = numericValue(item.value);
+    const unit = unitKind(item.value_unit ?? item.unit ?? item.scale);
+    if (unit === 'percent') {
       return value >= 0 && value <= 100 ? value : null;
     }
-    if (['score_20', '0-20', '20'].includes(unit)) {
+    if (unit === 'score20') {
       return value >= 0 && value <= 20 ? value * 5 : null;
     }
   }
   return null;
+}
+
+function normalizeCompletionPercent(report, metricRows) {
+  const explicitValue = hasOwn(report, 'completion_percent')
+    ? report.completion_percent
+    : hasOwn(report, 'completion_ratio')
+      ? report.completion_ratio
+      : report.completion;
+  if (isNumber(explicitValue)) {
+    const explicitUnit = unitKind(report.completion_percent_unit ?? report.completion_unit ?? report.completion_scale);
+    const value = numericValue(explicitValue);
+    if (explicitUnit === 'ratio' || hasOwn(report, 'completion_ratio')) return clamp(value * 100);
+    return clamp(value);
+  }
+  const completed = numericOrNull(report?.completed_metrics)
+    ?? metricRows.filter(item => item.hasData).length;
+  const total = numericOrNull(report?.total_metrics)
+    ?? numericOrNull(report?.required_metrics)
+    ?? MONTHLY_METRIC_TOTAL;
+  return total > 0 ? clamp((completed / total) * 100) : null;
+}
+
+function weightedOverallScore(domainScores) {
+  const scored = (Array.isArray(domainScores) ? domainScores : [])
+    .map(item => ({ value: numericValue(item?.value), weight: numericValue(item?.weight) ?? DOMAIN_WEIGHTS[item?.code] }))
+    .filter(item => item.value !== null && item.weight > 0);
+  const totalWeight = scored.reduce((sum, item) => sum + item.weight, 0);
+  if (!totalWeight) return null;
+  const score = scored.reduce((sum, item) => sum + (item.value / 5) * item.weight, 0) / totalWeight;
+  return Math.round(score * 100) / 100;
+}
+
+function monthlyChangeFromHistory(history, currentMonthNo = null) {
+  if (!Array.isArray(history) || history.length < 2) return null;
+  const latest = currentMonthNo === null
+    ? history.at(-1)
+    : history.find(item => item.monthNo === currentMonthNo) ?? history.at(-1);
+  const latestIndex = history.indexOf(latest);
+  const previous = latestIndex > 0 ? history[latestIndex - 1] : history.at(-2);
+  if (!latest || !previous) return null;
+  return Math.round((latest.average - previous.average) * 100) / 100;
 }
 
 // Export the boundary normalizers so the React report contract can be tested
@@ -334,14 +435,15 @@ export {
 
 function normalizeDomainScores(rows, metricRows = []) {
   const sourceRows = Array.isArray(rows) ? rows : [];
-  const rowByCode = new Map(sourceRows.map(item => [
-    String(item?.code ?? item?.domain_code ?? '').toUpperCase(), item,
-  ]));
+  const rowByCode = new Map(sourceRows.map(item => {
+    const rawCode = String(item?.code ?? item?.domain_code ?? '').toUpperCase();
+    return [rawCode.split('_', 1)[0], item];
+  }));
   const metricGroups = new Map();
   for (const item of metricRows) {
     const code = metricDomainCode(item);
     if (!code) continue;
-    // mapSnapshot has already converted valid rubric scores to percentages;
+    // mapSnapshot has already converted valid scaled scores to percentages;
     // applying metricValue a second time would discard every value above 5.
     const value = item.hasData === false || !isNumber(item.value)
       ? null
@@ -351,19 +453,30 @@ function normalizeDomainScores(rows, metricRows = []) {
   return ANALYSIS_DOMAINS.map(domain => {
     const source = rowByCode.get(domain.code);
     const values = metricGroups.get(domain.code) ?? [];
-    const value = source
-      ? domainPercent(source)
+    const sourceValue = source ? domainPercent(source) : null;
+    // Raw metric rows are the recovery path when an imported workbook has a
+    // stale formula, an unlabelled percent, or a null summary column.  A
+    // domain summary must not erase valid indicators just because its cached
+    // spreadsheet formula is malformed.
+    const value = sourceValue !== null
+      ? sourceValue
       : values.length ? clamp(values.reduce((sum, item) => sum + item, 0) / values.length) : null;
-    const completedMetrics = source?.completed_metrics ?? source?.completedMetrics
-      ?? (values.length || value === null ? values.length : 1);
+    const completedMetrics = values.length > 0
+      ? values.length
+      : source?.completed_metrics ?? source?.completedMetrics
+        ?? (value === null ? 0 : 1);
+    const totalMetrics = source?.total_metrics ?? source?.totalMetrics
+      ?? DOMAIN_METRIC_TOTALS[domain.code] ?? values.length;
     return {
       ...domain,
       ...source,
+      code: domain.code,
       title: source?.title ?? source?.domain_title ?? domain.title,
+      weight: source?.weight ?? DOMAIN_WEIGHTS[domain.code],
       value,
       percent: value,
       completedMetrics,
-      totalMetrics: source?.total_metrics ?? source?.totalMetrics ?? 0,
+      totalMetrics,
       hasData: value !== null,
     };
   });
@@ -375,14 +488,14 @@ function mapDataMonthlyReport(report) {
   // instead of making the backend invent fields from an official report.
   const rawMetrics = Array.isArray(report?.metrics) ? report.metrics : [];
   // Keep every coded metric row, including an invalid/raw value such as
-  // «ندارد».  The table uses rawValue for auditability while value is only the
-  // authoritative 0–5 rubric converted to a percentage.
+  // «ندارد».  The table uses rawValue for auditability while value is the
+  // explicitly scaled score converted to a percentage.
   const metricRows = rawMetrics.map(normalizeMetricRow).filter(item => item.code);
   const behavior = metricRows.filter(item => /^(DEV|CHR|DIS)_/.test(item.code ?? ''));
   const skills21 = metricRows.filter(item => /^PER_/.test(item.code ?? ''));
   const indexRows = metricRows.filter(item => /^(EDU|DEV|CHR|DIS)_/.test(item.code ?? ''));
   const domainScores = normalizeDomainScores(report?.domains, metricRows);
-  const metricInsights = indexRows
+  const metricInsights = metricRows
     .filter(item => item.hasData && isNumber(item.value))
     .map(item => ({ code: item.code, title: item.title, value: Number(item.value) }));
   const externalMetricInsights = rows => (Array.isArray(rows) ? rows : [])
@@ -401,8 +514,9 @@ function mapDataMonthlyReport(report) {
     .filter(Boolean), 6);
   const student = report?.student ?? {};
   const month = report?.month ?? {};
-  const overallScore = numericSubject(report?.overall_score);
-  const monthlyChanges = Array.isArray(report?.monthly_changes) ? report.monthly_changes : [];
+  const overallScore = numericSubject(report?.overall_score) ?? weightedOverallScore(domainScores);
+  const completionPercent = normalizeCompletionPercent(report, metricRows);
+  const sourceMonthlyChanges = Array.isArray(report?.monthly_changes) ? report.monthly_changes : [];
   const currentMonthNo = numericOrNull(month.no);
   const history = (Array.isArray(report?.monthly_scores) ? report.monthly_scores : [])
     .map(item => {
@@ -416,12 +530,33 @@ function mapDataMonthlyReport(report) {
         monthNo,
       };
     })
-    .filter(Boolean);
+    .filter(Boolean)
+    .sort((left, right) => {
+      if (left.monthNo === null && right.monthNo === null) return 0;
+      if (left.monthNo === null) return 1;
+      if (right.monthNo === null) return -1;
+      return left.monthNo - right.monthNo;
+    });
   if (overallScore !== null && !history.some(item => item.monthNo !== null && item.monthNo === currentMonthNo)) {
     history.push({ label: month.title ?? 'ماه جاری', average: overallScore, rank: null, monthNo: currentMonthNo });
   }
+  const derivedMonthlyChanges = history.length > 1
+    ? history.slice(1).map((item, index) => {
+      const previous = history[index];
+      return {
+        from_month_no: previous.monthNo,
+        to_month_no: item.monthNo,
+        from_month_title: previous.label,
+        to_month_title: item.label,
+        change: Math.round((item.average - previous.average) * 100) / 100,
+      };
+    })
+    : [];
+  const monthlyChanges = sourceMonthlyChanges.length ? sourceMonthlyChanges : derivedMonthlyChanges;
   const declaredChange = numericOrNull(report?.monthly_change);
-  const currentChange = declaredChange ?? numericOrNull(monthlyChanges.find(item => numericOrNull(item?.to_month_no) === currentMonthNo)?.change);
+  const currentChange = declaredChange
+    ?? (currentMonthNo === null ? null : numericOrNull(monthlyChanges.find(item => numericOrNull(item?.to_month_no) === currentMonthNo)?.change))
+    ?? monthlyChangeFromHistory(history, currentMonthNo);
   const organizationSource = typeof report?.organization === 'object' ? report.organization : {};
   const schoolSource = typeof report?.school === 'object' ? report.school : {};
   const fallbackOrganization = typeof report?.organization === 'string' ? report.organization : 'ثبت نشده';
@@ -468,8 +603,8 @@ function mapDataMonthlyReport(report) {
     support: [],
     signatures: DEFAULT_SIGNATURE_LABELS,
     attendance: { rate: null, sessions: null, unexcused: null, late: null },
-    completionPercent: clamp(report?.completion_percent),
-    completionStatus: report?.completion_status ?? 'provisional',
+    completionPercent,
+    completionStatus: report?.completion_status ?? (completionPercent >= 100 ? 'final' : 'provisional'),
     monthlyChange: currentChange,
     monthlyChanges,
     monthlyScores: history,

@@ -130,8 +130,11 @@ function RadarChart({ option, label, className }) {
   const width = 520;
   const height = 260;
   const cx = width / 2;
-  const cy = 126;
-  const radius = 94;
+  const cy = 130;
+  // Use the available plot area more aggressively.  The numbered perimeter
+  // markers still have a safe inset, while the nine-domain shape is readable
+  // in the A3 preview instead of looking like a small dot in a large panel.
+  const radius = 110;
   const { points, segments } = radarSegments(values, indicators.length, cx, cy, radius);
   const hasData = points.some(Boolean);
   return chartShell({ label, className, children: html`<svg class="echart__svg echart__svg--radar" viewBox=${`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet" focusable="false" aria-hidden="true">
