@@ -694,6 +694,18 @@ function MissingSection({ message = 'اطلاعات ثبت نشده' }) {
   return html`<p class="analytical-empty report-missing-section" role="status">${message}</p>`;
 }
 
+function ReportFooter({ report, monthly = false }) {
+  const heading = monthly ? 'توضیحات و امضا' : 'امضا و تأیید مسئولان مدرسه';
+  const note = monthly
+    ? 'این نسخه بر اساس شاخص‌های ثبت‌شده در ارزیابی ماهانه صادر شده است.'
+    : 'این کارنامه تصویری جامع از مسیر رشد علمی، تربیتی و شخصیتی دانش‌آموز است.';
+  return html`<footer class=${`analytical-sheet__footer ${monthly ? 'monthly-sheet__footer' : ''}`}>
+    <div class="report-footer-signatures"><div class="report-signature-heading"><strong>${heading}</strong><span>${note}</span></div><div class="report-signatures">${report.signatures.map((label, index) => html`<span key=${`signature-${monthly ? 'monthly-' : ''}${index}`}>${label}</span>`)}</div></div>
+    <div class="report-footer-note"><span>هم‌آموز</span><strong>${monthly ? 'گزارش رشد ماهانه' : 'گزارش جامع رشد دانش‌آموز'}</strong><p>${monthly ? 'اطلاعات ثبت‌نشده در این نسخه به‌عنوان داده‌ی در انتظار ثبت نمایش داده شده است.' : 'رشد هر دانش‌آموز، مسیر منحصربه‌فردی است که با همراهی مدرسه و خانواده کامل می‌شود.'}</p></div>
+    <div class="report-footer-brand"><div class="report-footer-brand__mark"><${SchoolMark} report=${report}/></div><strong>${report.school}</strong><span>${report.organization}</span><small>برای رشد، یادگیری و ساختن آینده‌ای روشن</small></div>
+  </footer>`;
+}
+
 function MonthlyMetricTable({ report }) {
   const rows = Array.isArray(report.indexRows) ? report.indexRows : [];
   if (!rows.length) return html`<${MissingSection}/>`;
@@ -745,7 +757,7 @@ function MonthlyReport({ report, loading = false }) {
       <${Panel} key="monthly-change-panel" title="تغییرات نسبت به ارزیابی قبلی" className="monthly-change-panel" tone="gold"><${MonthlyChange} report=${report}/>${report.monthlyChanges?.length ? html`<ul class="monthly-change-list">${report.monthlyChanges.slice(-3).map((item, index) => html`<li key=${`${item.from_month_no ?? 'missing'}-${item.to_month_no ?? 'missing'}-${index}`}><span>${item.from_month_no ?? '—'} ← ${item.to_month_no ?? '—'}</span><b>${isNumber(item.change) ? `${fa(item.change)} نمره` : 'ثبت نشده'}</b></li>`)}</ul>` : html`<${MissingSection} message="ارزیابی قبلی ثبت نشده است"/>`}</${Panel}>
       <${Panel} key="monthly-notes" title="توضیحات و پیشنهادها" className="monthly-notes" tone="navy">${report.recommendations?.length ? html`<ul class="report-bullet-list">${report.recommendations.map((item, index) => html`<li key=${`monthly-recommendation-${index}`}>${item}</li>`)}</ul>` : html`<${MissingSection}/>`}<p class="monthly-note-source">${sourceLabel}</p></${Panel}>
     </div>
-    <footer class="analytical-sheet__footer monthly-sheet__footer"><div class="report-signature-heading"><strong>توضیحات و امضا</strong><span>این نسخه بر اساس شاخص‌های ثبت‌شده در ارزیابی ماهانه صادر شده است.</span></div><div class="report-signatures">${report.signatures.map((label, index) => html`<span key=${`monthly-signature-${index}`}>${label}</span>`)}</div></footer>
+    <${ReportFooter} report=${report} monthly/>
   </article>`;
 }
 
@@ -772,7 +784,7 @@ function OfficialReport({ report, loading = false }) {
       <${Panel} title="آمادگی برای دوره متوسطه" className="analytical-readiness" tone="navy">${readiness ? html`<${EChart} option=${readiness} label="آمادگی تحصیلی برای دوره متوسطه" className="echart--readiness"/>` : html`<${Empty}/>`}</${Panel}>
       <${Panel} title="افتخارات و عناوین کسب‌شده" className="analytical-awards" tone="gold">${report.awards?.length ? html`<div class="report-awards">${report.awards.map(item => html`<div><${Sticker} kind=${item.icon} title=${item.title}/><span><b>${item.title}</b><small>${item.text}</small></span></div>`)}</div><${OverflowNote} count=${report.awardsOmitted}/>` : html`<${Empty}/>`}</${Panel}>
     </div>
-    <footer class="analytical-sheet__footer"><div class="report-signature-heading"><strong>امضا و تأیید مسئولان مدرسه</strong><span>این نسخه پس از بررسی اطلاعات تحصیلی و تربیتی صادر می‌شود.</span></div><div class="report-signatures">${report.signatures.map(label => html`<span>${label}</span>`)}</div></footer>
+    <${ReportFooter} report=${report}/>
   </article>`;
 }
 
