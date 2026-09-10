@@ -1,10 +1,15 @@
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from hamamooz.apps.core.models import SoftDeleteModel, TimeStampedUUIDModel
 
 
 class ReportArchive(SoftDeleteModel):
+    class ReportMode(models.TextChoices):
+        OFFICIAL_TERM = "official_term", "کارنامه رسمی نوبت"
+        DATA_MONTHLY = "data_monthly", "کارنامه داده‌محور ماهانه"
+
     class OutputFormat(models.TextChoices):
         PDF = "pdf", "PDF"
         DOCX = "docx", "Word"
@@ -28,7 +33,32 @@ class ReportArchive(SoftDeleteModel):
     academic_year = models.ForeignKey(
         "organizations.AcademicYear", on_delete=models.PROTECT, related_name="reports"
     )
-    term = models.ForeignKey("organizations.Term", on_delete=models.PROTECT, related_name="reports")
+    # A formal term is intentionally optional only for data-driven monthly
+    # reports.  Official report cards still require it (enforced by the
+    # database constraint below and by the write serializer).
+    term = models.ForeignKey(
+        "organizations.Term",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="reports",
+    )
+    report_mode = models.CharField(
+        max_length=20,
+        choices=ReportMode.choices,
+        default=ReportMode.OFFICIAL_TERM,
+        db_index=True,
+    )
+    month_no = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(12)],
+    )
+    month_title = models.CharField(max_length=30, blank=True)
+    # These values are immutable provenance labels, not uploads.  The raw
+    # workbook itself is tracked by the imports manifest.
+    source_file = models.CharField(max_length=500, blank=True)
+    source_row = models.PositiveIntegerField(null=True, blank=True)
     report_type = models.CharField(max_length=40, choices=ReportType.choices)
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.QUEUED, db_index=True
@@ -73,7 +103,20 @@ class ReportArchive(SoftDeleteModel):
         indexes = [
             models.Index(fields=["school", "academic_year", "report_type", "status"]),
             models.Index(fields=["enrollment", "term"]),
+            models.Index(
+                fields=["enrollment", "report_mode", "month_no"],
+                name="reports_enrol_mode_mon_idx",
+            ),
             models.Index(fields=["enrollment", "released_at"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(report_mode="official_term", term__isnull=False, month_no__isnull=True)
+                    | models.Q(report_mode="data_monthly", term__isnull=True, month_no__isnull=False)
+                ),
+                name="ck_report_archive_mode_period",
+            )
         ]
 
     def __str__(self):
