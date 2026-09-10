@@ -128,7 +128,7 @@ ol.report-bullet-list { list-style-type: decimal; }
 .report-score-table__subject { display: block; overflow-wrap: anywhere; text-align: right; white-space: normal; }
 .report-score-table thead th { color: #0d605d; background: #eef8f6; font-weight: 900; }
 .report-score-table tbody th { color: #365453; font-weight: 700; text-align: right; }
-.report-score-table .is-current, .report-score-table .is-ok { color: #08766f; font-weight: 900; }
+.report-score-table .is-current { color: #08766f; font-weight: 900; }
 .report-score-table .is-alert { color: #a61d4d; font-weight: 900; }
 .report-overflow-note { margin: 7px 0 0; padding-top: 5px; border-top: 1px dashed #d7e4df; color: #6e7f7d; font-size: .7rem; line-height: 1.35; overflow-wrap: anywhere; }
 .report-overflow-row td { padding: 3px 6px; background: #fbfdfc; text-align: right; }
@@ -726,8 +726,7 @@ ol.report-bullet-list { list-style-type: decimal; }
 }
 .report-score-table tbody tr:nth-child(even) { background: #fcfaf2; }
 .report-score-table tbody th { color: #3c5551; }
-.report-score-table .is-current,
-.report-score-table .is-ok { color: var(--report-teal); }
+.report-score-table .is-current { color: var(--report-teal); }
 .report-score-table .is-alert { color: var(--report-rose); }
 .report-raw-value { color: var(--report-navy); }
 .report-rating-missing { color: #8a887b; }
@@ -1339,5 +1338,27 @@ ol.report-bullet-list { list-style-type: decimal; }
   .monthly-subject-grades__table { font-size: 9px; }
   .monthly-subject-grades__table th,
   .monthly-subject-grades__table td { padding: 2px 3px; line-height: 1.15; }
-  .monthly-subject-grades__table .report-number { font-size: 9px; }
+.monthly-subject-grades__table .report-number { font-size: 9px; }
+}
+
+/* Four growth domains need a little more vertical breathing room so the last
+   «هنری» bar stays visible instead of being covered by the table below it. */
+.monthly-metric-section--growth .echart--metric-group {
+  height: 108px;
+  min-height: 108px;
+}
+.monthly-metric-section--education .report-monthly-metric-table thead th:last-child,
+.monthly-metric-section--personal .report-monthly-metric-table thead th:last-child {
+  width: 41%;
+}
+.monthly-metric-section--behavior .report-monthly-metric-table thead th:last-child,
+.monthly-metric-section--growth .report-monthly-metric-table thead th:last-child {
+  width: 31%;
+}
+
+@media print {
+  .monthly-metric-section--growth .echart--metric-group {
+    height: 86px;
+    min-height: 86px;
+  }
 }
