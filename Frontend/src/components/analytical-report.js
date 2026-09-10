@@ -332,7 +332,103 @@ function normalizeDomainScores(rows, metricRows = []) {
   });
 }
 
+function mapDataMonthlyReport(report) {
+  // ``monthly-preview`` is deliberately a separate API contract: it has no
+  // official term or subject grades.  Adapt it here, at the React boundary,
+  // instead of making the backend invent fields from an official report.
+  const rawMetrics = Array.isArray(report?.metrics) ? report.metrics : [];
+  const metricRows = rawMetrics.map(item => {
+    const code = item?.code ?? item?.metric_code;
+    const rawScore = item?.raw_score ?? item?.value;
+    const value = metricValue(rawScore);
+    return {
+      ...item,
+      code,
+      title: item?.title ?? titleForMetric(code),
+      value,
+      hasData: value !== null,
+    };
+  }).filter(item => item.code);
+  const behavior = metricRows.filter(item => /^(DEV|CHR|DIS)_/.test(item.code ?? ''));
+  const skills21 = metricRows.filter(item => /^PER_/.test(item.code ?? ''));
+  const academic = metricRows.filter(item => /^EDU_/.test(item.code ?? ''));
+  const domainScores = normalizeDomainScores(report?.domains, metricRows);
+  const toInsightRows = rows => bounded((Array.isArray(rows) ? rows : []).map(item => ({
+    title: item?.title ?? item?.domain_title ?? item?.code ?? 'ثبت نشده',
+    value: domainPercent(item),
+  })).filter(item => isNumber(item.value)), 6);
+  const strengths = toInsightRows(report?.strengths);
+  const improvements = toInsightRows(report?.improvements);
+  const toActivity = item => ({
+    icon: REPORT_STICKER_ICONS[item?.kind] ? item.kind : 'activity',
+    title: item?.title ?? 'فعالیت ثبت‌شده',
+    text: item?.text ?? item?.result ?? 'ثبت‌شده',
+  });
+  const activities = bounded((report?.activities ?? []).map(toActivity), 8);
+  const awards = bounded((report?.awards ?? []).map(toActivity), 4);
+  const recommendations = bounded((report?.recommendations ?? [])
+    .map(item => typeof item === 'string' ? item : item?.text ?? item?.title)
+    .filter(Boolean), 6);
+  const student = report?.student ?? {};
+  const month = report?.month ?? {};
+  const overallScore = numericSubject(report?.overall_score);
+  const history = overallScore === null ? [] : [{
+    label: month.title ?? 'ماه جاری', average: overallScore, rank: null,
+  }];
+  return {
+    demo: false,
+    reportTitle: report?.title ?? 'کارنامه ارزیابی تابستانه رشد دانش‌آموز',
+    organization: 'ثبت نشده',
+    school: 'ثبت نشده',
+    schoolLogoUrl: '',
+    student: {
+      name: student.name ?? 'دانش‌آموز',
+      nationalId: student.national_id ?? '—',
+      number: student.student_number ?? '—',
+      initial: (student.name ?? 'د').slice(0, 1),
+      photoUrl: assetUrl(student.photo_url),
+    },
+    academic: {
+      year: '—', grade: student.grade ?? '—', gradeRange: student.grade ?? DEFAULT_REPORT_GRADE_RANGE,
+      className: student.class_code ? `کلاس ${student.class_code}` : '—',
+      term: month.title ? `${month.title} · گزارش ماهانه` : 'گزارش ماهانه',
+    },
+    average: overallScore,
+    rank: null,
+    history,
+    subjects: [],
+    skills: behavior,
+    skills21,
+    readiness: academic,
+    domainScores,
+    strengths: strengths.items,
+    improvements: improvements.items,
+    activities: activities.items,
+    awards: awards.items,
+    counselor: [],
+    recommendations: recommendations.items,
+    teacherRecommendations: [],
+    followUps: [],
+    support: [],
+    signatures: DEFAULT_SIGNATURE_LABELS,
+    attendance: { rate: null, sessions: null, unexcused: null, late: null },
+    subjectsOmitted: 0,
+    strengthsOmitted: strengths.omitted,
+    improvementsOmitted: improvements.omitted,
+    skillsOmitted: 0,
+    skills21Omitted: 0,
+    activitiesOmitted: activities.omitted,
+    awardsOmitted: awards.omitted,
+    counselorOmitted: 0,
+    followUpsOmitted: 0,
+    recommendationsOmitted: recommendations.omitted,
+    teacherRecommendationsOmitted: 0,
+    supportOmitted: 0,
+  };
+}
+
 export function mapSnapshot(snapshot) {
+  if (snapshot?.report_mode === 'data_monthly') return mapDataMonthlyReport(snapshot);
   const report = snapshot?.reports?.[0];
   if (!report) return snapshot === undefined || snapshot === null ? demo : { ...emptyReport };
   const context = report.product_context ?? {};
