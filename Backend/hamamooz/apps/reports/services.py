@@ -26,7 +26,9 @@ from hamamooz.apps.academics.models import (
     SubjectResult,
     TermResult,
 )
-from hamamooz.apps.evaluations.catalog import DOMAIN_DEFINITIONS
+from hamamooz.apps.evaluations.catalog import DOMAIN_DEFINITIONS, METRIC_CATALOG
+from hamamooz.apps.evaluations.models import MonthlyEvaluation
+from hamamooz.apps.evaluations.services import EvaluationAnalyticsService
 from hamamooz.apps.students.models import Enrollment
 
 from .models import ReportArchive, ReportBatch, ReportBatchItem, ReportDraft
@@ -41,6 +43,10 @@ ALLOWED_REPORT_BLOCKS = {
     "recommendations",
     "signatures",
 }
+
+
+class MonthlyReportSourceSelectionRequired(ValueError):
+    """Raised when a Data-folder row belongs to an unresolved file conflict."""
 
 # The layout is data, but not executable template source.  Keeping the CSS
 # values here prevents a manager-provided presentation JSON object from
@@ -237,6 +243,161 @@ def build_report_snapshot(report_type, term, enrollment=None, class_section=None
     recalculate_class_term(class_section, term)
     return {
         "reports": [build_student_snapshot(item, term, recalculate=False) for item in enrollments]
+    }
+
+
+def _monthly_source_provenance(evaluation, *, source_file="", source_row=None):
+    """Resolve immutable monthly-report provenance without requiring Data import.
+
+    Legacy monthly imports have only an ImportJob reference.  New Data-folder
+    scans retain row-level manifest records.  Supporting both here lets older
+    schools use the report API while making the more precise provenance visible
+    as soon as the scanner has indexed a workbook.
+    """
+
+    if source_file or source_row is not None:
+        return source_file, source_row
+    import_job = evaluation.source_import_job
+    resolved_file = import_job.source_file.name if import_job and import_job.source_file else ""
+    try:
+        from hamamooz.apps.imports.data_directory import selected_manifest_for_class
+        from hamamooz.apps.imports.models import DataSourceRow
+
+        enrollment = evaluation.enrollment
+        rows = DataSourceRow.objects.select_related("manifest").filter(
+            manifest__school=enrollment.school,
+            national_id=enrollment.student.national_id,
+            month_no=evaluation.month_no,
+        )
+        if enrollment.class_section.code:
+            rows = rows.filter(class_code=enrollment.class_section.code)
+        rows = list(rows.order_by("source_file", "sheet_name", "source_row"))
+        if rows:
+            selected_manifest = selected_manifest_for_class(
+                enrollment.school, enrollment.class_section.code
+            )
+            manifests = {row.manifest_id for row in rows}
+            if len(manifests) > 1 and not selected_manifest:
+                raise MonthlyReportSourceSelectionRequired(
+                    "برای داده‌های مشترک این کلاس، ابتدا فایل منبع اصلی را انتخاب کنید."
+                )
+            if selected_manifest:
+                rows = [row for row in rows if row.manifest_id == selected_manifest.id]
+                if not rows:
+                    raise MonthlyReportSourceSelectionRequired(
+                        "فایل منبع انتخاب‌شده برای این دانش‌آموز و ماه داده‌ای ندارد."
+                    )
+            if rows:
+                return rows[0].source_file, rows[0].source_row
+    except (ImportError, LookupError):
+        # The Data-folder manifest migration may not have been applied yet in
+        # an upgrade.  An import-job file remains valid coarse provenance.
+        pass
+    return resolved_file, None
+
+
+def _fallback_monthly_metrics(evaluation):
+    values_by_code = {item.metric_code: item.value for item in evaluation.metric_scores.all()}
+    rows = []
+    for code, definition in METRIC_CATALOG.items():
+        raw_value = values_by_code.get(code)
+        if raw_value is None:
+            continue
+        rows.append(
+            {
+                "code": code,
+                "title": definition["title"],
+                "domain_code": definition["domain_code"],
+                "domain_title": definition["domain_title"],
+                "raw_value": raw_value,
+                "score": round(raw_value * 4, 2),
+            }
+        )
+    return rows
+
+
+def build_monthly_report_contract(
+    enrollment,
+    month_no,
+    *,
+    month_title,
+    source_file="",
+    source_row=None,
+):
+    """Return the explicit React contract for one data-driven monthly report.
+
+    This intentionally does not invoke the official-term calculation pipeline:
+    every score is derived from the persisted monthly raw metrics, and null
+    sections remain explicit so the frontend never invents attendance, subject
+    grades, activities, or a counsellor report.
+    """
+
+    evaluation = (
+        MonthlyEvaluation.objects.select_related(
+            "enrollment__student",
+            "enrollment__class_section",
+            "enrollment__grade_level",
+            "source_import_job",
+        )
+        .prefetch_related("metric_scores")
+        .get(enrollment=enrollment, month_no=month_no)
+    )
+    summary = EvaluationAnalyticsService.evaluation_summary(evaluation)
+    resolved_file, resolved_row = _monthly_source_provenance(
+        evaluation,
+        source_file=source_file,
+        source_row=source_row,
+    )
+    metric_rows = summary.get("metrics") or _fallback_monthly_metrics(evaluation)
+    domains = summary["domain_scores"]
+    strengths = summary.get("strengths")
+    improvements = summary.get("improvements")
+    if strengths is None or improvements is None:
+        scored_domains = [item for item in domains if item["score"] is not None]
+        strengths = sorted(scored_domains, key=lambda item: item["score"], reverse=True)[:3]
+        improvements = sorted(scored_domains, key=lambda item: item["score"])[:3]
+    student_summary = EvaluationAnalyticsService.student_summary(enrollment)
+    student = enrollment.student
+    return {
+        "report_mode": "data_monthly",
+        "title": "کارنامه ارزیابی تابستانه رشد دانش‌آموز",
+        "month": {"no": month_no, "title": month_title},
+        "source_file": resolved_file,
+        "source_row": resolved_row,
+        "student": {
+            "name": student.full_name,
+            "national_id": student.national_id,
+            "student_number": enrollment.student_number or None,
+            "class_code": enrollment.class_section.code,
+            "grade": enrollment.grade_level.title,
+            "photo_url": student.photo.url if student.photo else "",
+        },
+        "domains": domains,
+        "metrics": metric_rows,
+        "overall_score": summary["overall_score"],
+        "completion_percent": summary["completion_percent"],
+        "completion_status": summary["completion_status"],
+        "monthly_change": next(
+            (
+                item["change"]
+                for item in student_summary.get("monthly_changes", [])
+                if item["to_month_no"] == month_no
+            ),
+            None,
+        ),
+        "monthly_changes": student_summary.get("monthly_changes", []),
+        "strengths": strengths,
+        "improvements": improvements,
+        "attendance": None,
+        "activities": [],
+        "awards": [],
+        "recommendations": [item for item in [student_summary.get("recommendation")] if item],
+        "missing_sections": [
+            "attendance",
+            "activities",
+            "counselor_report",
+            "official_subject_grades",
+        ],
     }
 
 
