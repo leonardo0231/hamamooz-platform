@@ -1200,3 +1200,68 @@ ol.report-bullet-list { list-style-type: decimal; }
   .monthly-metric-section .report-monthly-metric-table .report-raw-value { font-size: 9px; }
   .analytical-sheet--monthly .monthly-sheet__grid .echart--bars { height: 100px; }
 }
+
+/* Final balance pass for the monthly sample.  The radar remains prominent,
+   but no longer forces a tall empty first row; the wider behavioural section
+   gets the room that the educational table does not need. */
+.analytical-sheet--monthly .monthly-sheet__grid {
+  grid-template-areas:
+    'identity radar radar'
+    'education behavior behavior'
+    'growth growth personal'
+    'strengths improvements trend';
+}
+.analytical-sheet--monthly .monthly-radar {
+  align-self: start;
+  width: min(100%, 680px);
+  justify-self: center;
+}
+.analytical-sheet--monthly .monthly-radar .echart--radar {
+  height: 255px;
+  min-height: 255px;
+  padding-bottom: 78px;
+}
+.analytical-sheet--monthly .monthly-radar .echart--radar .echart__svg {
+  height: 177px;
+  min-height: 177px;
+}
+.analytical-sheet--monthly .monthly-radar .report-radar-legend {
+  gap: 4px 9px;
+}
+.analytical-sheet--monthly .monthly-metric-section--personal {
+  align-self: start;
+  height: fit-content;
+}
+.analytical-sheet--monthly .monthly-strengths .echart--bars,
+.analytical-sheet--monthly .monthly-improvements .echart--bars {
+  height: 214px;
+  min-height: 214px;
+}
+
+@media screen and (max-width: 1150px) {
+  .analytical-sheet--monthly .monthly-radar { width: 100%; }
+}
+
+@media print {
+  .analytical-sheet--monthly .monthly-sheet__grid {
+    grid-template-rows: 225px 190px 245px 100px;
+  }
+  .analytical-sheet--monthly .monthly-radar {
+    width: 100%;
+  }
+  .analytical-sheet--monthly .monthly-radar .echart--radar {
+    height: 190px;
+    min-height: 190px;
+    padding-bottom: 52px;
+  }
+  .analytical-sheet--monthly .monthly-radar .echart--radar .echart__svg {
+    height: 138px;
+    min-height: 138px;
+  }
+  .analytical-sheet--monthly .monthly-radar .report-radar-legend { height: 52px; }
+  .analytical-sheet--monthly .monthly-strengths .echart--bars,
+  .analytical-sheet--monthly .monthly-improvements .echart--bars {
+    height: 112px;
+    min-height: 112px;
+  }
+}
