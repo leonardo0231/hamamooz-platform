@@ -128,6 +128,9 @@ test('standalone report entry exposes a readiness marker for browser print autom
   assert.match(sampleScript, /window\.__REPORT_READY__\s*=\s*false/);
   assert.match(sampleScript, /window\.__REPORT_READY__\s*=\s*true/);
   assert.match(sampleScript, /globalThis\.__REPORT_SNAPSHOT__/);
+  assert.match(sampleScript, /sampleMode === 'data_monthly'/);
+  assert.match(sampleScript, /monthlySampleSnapshot/);
+  assert.match(sampleScript, /raw_score: 'ندارد'/);
   assert.match(sampleScript, /snapshot=\$\{pageSnapshot\}/);
   assert.match(sampleScript, /printAnalyticalReport/);
   assert.match(styles, /body\.report-printing \.sidebar/);

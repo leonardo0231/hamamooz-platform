@@ -2,12 +2,60 @@ import { html, render } from './core/view.js';
 import { AnalyticalReport, printAnalyticalReport } from './components/analytical-report.js';
 
 const root = document.querySelector('#report-sample');
-const printMode = new URLSearchParams(location.search).get('print') === '1';
+const params = new URLSearchParams(location.search);
+const printMode = params.get('print') === '1';
+const sampleMode = params.get('mode');
 // A trusted renderer may inject the already-authorized snapshot before the
 // bundle starts.  Keeping the snapshot out of the query string avoids leaking
 // student data into browser history and server logs; the public sample still
 // falls back to the reviewed demo payload when no snapshot is supplied.
-const snapshot = globalThis.__REPORT_SNAPSHOT__ ?? undefined;
+const monthlySampleSnapshot = {
+  report_mode: 'data_monthly',
+  title: 'کارنامه جامع رشد سه ساله دانش‌آموز',
+  month: { no: 3, title: 'شهریور' },
+  organization: { name: 'سامانه هوشمند هم‌آموز', logo_url: '' },
+  school: { name: 'دبیرستان پسرانه بعثت', branch: 'دوره اول', logo_url: '/assets/besat-logo.png' },
+  student: {
+    name: 'دانش‌آموز نمونه', national_id: null, student_number: null,
+    grade: 'پایه هفتم', class_code: 'هفتم / الف', photo_url: '',
+  },
+  metrics: [
+    { code: 'EDU_01', title: 'یادگیری مفاهیم درسی', domain_title: 'آموزشی', raw_score: 5, score: 20 },
+    { code: 'EDU_02', title: 'پیشرفت نسبت به ارزیابی قبل', domain_title: 'آموزشی', raw_score: 'ندارد', score: null },
+    { code: 'DEV_01', title: 'احترام و همکاری', domain_title: 'تربیتی', raw_score: 3, score: 12 },
+    { code: 'CHR_01', title: 'مسئولیت‌پذیری', domain_title: 'شخصیتی', raw_score: 4, score: 16 },
+    { code: 'DIS_01', title: 'نظم و پیگیری', domain_title: 'انضباطی', raw_score: 4, score: 16 },
+    { code: 'PER_01', title: 'مدیریت زمان', domain_title: 'مهارت‌های فردی', raw_score: 3, score: 12 },
+  ],
+  domains: [
+    { code: 'EDU', title: 'آموزشی', score: 100, completed_metrics: 1 },
+    { code: 'DEV', title: 'تربیتی', score: 60, completed_metrics: 1 },
+    { code: 'CHR', title: 'شخصیتی', score: 80, completed_metrics: 1 },
+    { code: 'DIS', title: 'انضباطی', score: 80, completed_metrics: 1 },
+    { code: 'COM', title: 'ارتباطی', score: null, completed_metrics: 0 },
+    { code: 'EMO', title: 'هیجانی', score: null, completed_metrics: 0 },
+    { code: 'SOC', title: 'اجتماعی', score: null, completed_metrics: 0 },
+    { code: 'CRE', title: 'خلاقیت', score: null, completed_metrics: 0 },
+    { code: 'PHY', title: 'سلامت و آمادگی', score: null, completed_metrics: 0 },
+  ],
+  overall_score: 16.57,
+  completion_percent: 50,
+  completion_status: 'provisional',
+  monthly_scores: [
+    { month_no: 1, overall_score: 15 },
+    { month_no: 2, overall_score: null },
+    { month_no: 3, overall_score: 16.57 },
+  ],
+  monthly_change: 1.57,
+  monthly_changes: [{ from_month_no: 1, to_month_no: 3, change: 1.57 }],
+  recommendations: [
+    'برنامهٔ ثابت مطالعهٔ روزانه برای تثبیت رشد ادامه یابد.',
+    'در فعالیت‌های گروهی، نقش ارائه‌دهنده تجربه شود.',
+  ],
+  missing_sections: ['attendance', 'honors', 'activities', 'counselor'],
+};
+const snapshot = globalThis.__REPORT_SNAPSHOT__
+  ?? (sampleMode === 'data_monthly' ? monthlySampleSnapshot : undefined);
 window.__REPORT_READY__ = false;
 window.__REPORT_ERROR__ = '';
 if (printMode) {
