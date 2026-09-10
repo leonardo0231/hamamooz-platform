@@ -155,6 +155,17 @@ const metricTitles = {
   PER_04: 'کار تیمی', PER_05: 'تفکر انتقادی',
 };
 
+// The summer report is easier to read when the 46 imported indicators are
+// grouped by the same language used in the reference report.  Each group has
+// its own compact chart and table; the raw value remains available in the
+// table, but implementation codes never become part of the printed report.
+const MONTHLY_METRIC_GROUPS = Object.freeze([
+  { key: 'education', title: 'شاخص‌های آموزشی', eyebrow: 'یادگیری و عملکرد تحصیلی', codes: ['EDU'], chart: 'domains', tone: 'teal', color: '#0a746b' },
+  { key: 'behavior', title: 'شاخص‌های رفتاری و تربیتی', eyebrow: 'پرورشی، تربیتی و انضباطی', codes: ['DEV', 'CHR', 'DIS'], chart: 'domains', tone: 'gold', color: '#b28a16' },
+  { key: 'growth', title: 'شاخص‌های رشد تکمیلی', eyebrow: 'فرهنگی، پژوهشی، ورزشی و هنری', codes: ['CUL', 'RES', 'SPT', 'ART'], chart: 'domains', tone: 'purple', color: '#4a287d' },
+  { key: 'personal', title: 'مهارت‌های فردی', eyebrow: 'ارتباط، برنامه‌ریزی و ارائه', codes: ['PER'], chart: 'domains', tone: 'navy', color: '#123d70' },
+]);
+
 const DEFAULT_SIGNATURE_LABELS = Object.freeze([
   'ولی دانش‌آموز',
   'مشاور',
@@ -267,6 +278,7 @@ const emptyReport = {
   monthlyChange: null,
   monthlyChanges: [],
   monthlyScores: [],
+  metricGroups: Object.fromEntries(MONTHLY_METRIC_GROUPS.map(group => [group.key, []])),
   metricRows: [],
   missingSections: [],
   subjectsOmitted: 0, strengthsOmitted: 0, improvementsOmitted: 0,
@@ -482,6 +494,13 @@ function normalizeDomainScores(rows, metricRows = []) {
   });
 }
 
+function buildMonthlyMetricGroups(metricRows) {
+  return Object.fromEntries(MONTHLY_METRIC_GROUPS.map(group => [
+    group.key,
+    metricRows.filter(item => group.codes.includes(metricDomainCode(item))),
+  ]));
+}
+
 function mapDataMonthlyReport(report) {
   // ``monthly-preview`` is deliberately a separate API contract: it has no
   // official term or subject grades.  Adapt it here, at the React boundary,
@@ -491,6 +510,7 @@ function mapDataMonthlyReport(report) {
   // «ندارد».  The table uses rawValue for auditability while value is the
   // explicitly scaled score converted to a percentage.
   const metricRows = rawMetrics.map(normalizeMetricRow).filter(item => item.code);
+  const metricGroups = buildMonthlyMetricGroups(metricRows);
   const behavior = metricRows.filter(item => /^(DEV|CHR|DIS)_/.test(item.code ?? ''));
   const skills21 = metricRows.filter(item => /^PER_/.test(item.code ?? ''));
   const indexRows = metricRows.filter(item => /^(EDU|DEV|CHR|DIS)_/.test(item.code ?? ''));
@@ -609,6 +629,7 @@ function mapDataMonthlyReport(report) {
     monthlyChanges,
     monthlyScores: history,
     monthlyHistory: history,
+    metricGroups,
     metricRows,
     indexRows,
     sourceFile: report?.source_file ?? '',
@@ -830,40 +851,49 @@ function MissingSection({ message = 'اطلاعات ثبت نشده' }) {
 }
 
 function ReportFooter({ report, monthly = false }) {
-  const heading = monthly ? 'توضیحات و امضا' : 'امضا و تأیید مسئولان مدرسه';
-  const note = monthly
-    ? 'این نسخه بر اساس شاخص‌های ثبت‌شده در ارزیابی ماهانه صادر شده است.'
-    : 'این کارنامه تصویری جامع از مسیر رشد علمی، تربیتی و شخصیتی دانش‌آموز است.';
+  const heading = monthly ? 'امضا و تأیید مدرسه' : 'امضا و تأیید مسئولان مدرسه';
+  const note = monthly ? '' : 'این کارنامه تصویری جامع از مسیر رشد علمی، تربیتی و شخصیتی دانش‌آموز است.';
   return html`<footer class=${`analytical-sheet__footer ${monthly ? 'monthly-sheet__footer' : ''}`}>
-    <div class="report-footer-signatures"><div class="report-signature-heading"><strong>${heading}</strong><span>${note}</span></div><div class="report-signatures">${report.signatures.map((label, index) => html`<span key=${`signature-${monthly ? 'monthly-' : ''}${index}`}>${label}</span>`)}</div></div>
-    <div class="report-footer-note"><span>هم‌آموز</span><strong>${monthly ? 'گزارش رشد ماهانه' : 'گزارش جامع رشد دانش‌آموز'}</strong><p>${monthly ? 'اطلاعات ثبت‌نشده در این نسخه به‌عنوان داده‌ی در انتظار ثبت نمایش داده شده است.' : 'رشد هر دانش‌آموز، مسیر منحصربه‌فردی است که با همراهی مدرسه و خانواده کامل می‌شود.'}</p></div>
+    <div class="report-footer-signatures"><div class="report-signature-heading"><strong>${heading}</strong>${note && html`<span>${note}</span>`}</div><div class="report-signatures">${report.signatures.map((label, index) => html`<span key=${`signature-${monthly ? 'monthly-' : ''}${index}`}>${label}</span>`)}</div></div>
+    <div class=${`report-footer-note ${monthly ? 'report-footer-note--monthly' : ''}`}><span>هم‌آموز</span><strong>${monthly ? 'گزارش رشد ماهانه' : 'گزارش جامع رشد دانش‌آموز'}</strong>${!monthly && html`<p>رشد هر دانش‌آموز، مسیر منحصربه‌فردی است که با همراهی مدرسه و خانواده کامل می‌شود.</p>`}</div>
     <div class="report-footer-brand"><div class="report-footer-brand__mark"><${SchoolMark} report=${report}/></div><strong>${report.school}</strong><span>${report.organization}</span><small>برای رشد، یادگیری و ساختن آینده‌ای روشن</small></div>
   </footer>`;
 }
 
-function MonthlyMetricTable({ report }) {
-  const rows = Array.isArray(report.indexRows) ? report.indexRows : [];
-  if (!rows.length) return html`<${MissingSection}/>`;
-  return html`<table class="report-score-table report-monthly-metric-table"><caption class="sr-only">شاخص‌های آموزشی و رفتاری</caption><thead><tr><th scope="col">شاخص</th><th scope="col">حوزه</th><th scope="col">مقدار خام</th><th scope="col">امتیاز</th><th scope="col">وضعیت</th></tr></thead><tbody>${rows.map(item => {
+function MonthlyMetricTable({ rows, caption, showDomain = false }) {
+  const sourceRows = Array.isArray(rows) ? rows : [];
+  if (!sourceRows.length) return html`<${MissingSection}/>`;
+  // Two small tables keep long groups such as cultural/research/arts readable
+  // on the A3 sheet without reducing the raw-data audit trail to a scroll area.
+  const chunks = sourceRows.length > 4
+    ? [sourceRows.slice(0, Math.ceil(sourceRows.length / 2)), sourceRows.slice(Math.ceil(sourceRows.length / 2))]
+    : [sourceRows];
+  const renderTable = (chunk, tableIndex) => html`<table key=${`${caption}-${tableIndex}`} class="report-score-table report-monthly-metric-table"><caption class="sr-only">${caption}</caption><thead><tr><th scope="col">شاخص</th>${showDomain ? html`<th scope="col">حوزه</th>` : null}<th scope="col">مقدار خام</th><th scope="col">امتیاز</th><th scope="col">وضعیت</th></tr></thead><tbody>${chunk.map(item => {
     const available = item.hasData && isNumber(item.value);
     const domain = ANALYSIS_DOMAINS.find(candidate => candidate.code === metricDomainCode(item));
-    return html`<tr key=${item.code} class=${available ? 'is-available' : 'is-missing'}><th scope="row"><span class="report-score-table__subject">${item.title}</span><small class="report-metric-code" dir="ltr">${item.code}</small></th><td>${item.domain_title ?? domain?.title ?? 'ثبت نشده'}</td><td><bdi class="report-raw-value" dir="ltr">${rawMetricDisplay(item.rawValue)}</bdi></td><td>${available ? html`<${MetricPercent} value=${item.value}/>` : html`<span class="report-rating-missing">ثبت نشده</span>`}</td><td>${available ? html`<b class="is-ok">ثبت شده</b>` : html`<span class="report-rating-missing">ثبت نشده</span>`}</td></tr>`;
+    return html`<tr key=${item.code} class=${available ? 'is-available' : 'is-missing'}><th scope="row"><span class="report-score-table__subject">${item.title}</span></th>${showDomain ? html`<td>${item.domain_title ?? domain?.title ?? 'ثبت نشده'}</td>` : null}<td><bdi class="report-raw-value" dir="ltr">${rawMetricDisplay(item.rawValue)}</bdi></td><td>${available ? html`<${MetricPercent} value=${item.value}/>` : html`<span class="report-rating-missing">ثبت نشده</span>`}</td><td>${available ? html`<b class="is-ok">ثبت شده</b>` : html`<span class="report-rating-missing">ثبت نشده</span>`}</td></tr>`;
   })}</tbody></table>`;
+  return html`<div class="report-monthly-metric-tables">${chunks.map(renderTable)}</div>`;
 }
 
-function MonthlyChange({ report }) {
-  const change = numericOrNull(report.monthlyChange);
-  const changeClass = change === null ? 'is-missing' : change > 0 ? 'is-positive' : change < 0 ? 'is-negative' : 'is-stable';
-  const label = change === null
-    ? 'ثبت نشده'
-    : change > 0
-      ? `افزایش ${fa(change)} نمره`
-      : change < 0
-        ? `کاهش ${fa(Math.abs(change))} نمره`
-        : 'بدون تغییر';
-  const latest = report.monthlyHistory?.at?.(-1);
-  const previous = report.monthlyHistory?.at?.(-2);
-  return html`<div class=${`monthly-change ${changeClass}`}><span class="monthly-change__icon" aria-hidden="true">${change === null ? '—' : change > 0 ? '↑' : change < 0 ? '↓' : '→'}</span><div><strong>${label}</strong><small>${previous && latest ? `${previous.label} ← ${latest.label}` : 'مقایسه با ارزیابی قبلی'}</small></div></div>`;
+function MonthlyMetricSection({ report, group }) {
+  const rows = report.metricGroups?.[group.key] ?? [];
+  if (!rows.length) {
+    return html`<${Panel} title=${group.title} className=${`monthly-metric-section monthly-metric-section--${group.key}`} tone=${group.tone}><${MissingSection}/></${Panel}>`;
+  }
+  const domains = group.codes
+    .map(code => report.domainScores?.find(item => item.code === code))
+    .filter(item => item?.hasData && isNumber(item.value))
+    .map(item => ({ title: item.title, value: item.value }));
+  const chartItems = group.chart === 'metrics'
+    ? rows.filter(item => item.hasData && isNumber(item.value)).map(item => ({ title: item.title, value: item.value }))
+    : domains;
+  const chart = barsOption(chartItems, group.color);
+  return html`<${Panel} title=${group.title} className=${`monthly-metric-section monthly-metric-section--${group.key}`} tone=${group.tone}>
+    <div class="monthly-metric-section__intro"><span>${group.eyebrow}</span><b>امتیازها از شاخص‌های ثبت‌شده</b></div>
+    ${chart ? html`<${EChart} option=${chart} label=${`${group.title} به تفکیک ${group.chart === 'metrics' ? 'شاخص' : 'حوزه'}`} className="echart--metric-group"/>` : null}
+    <${MonthlyMetricTable} rows=${rows} caption=${group.title} showDomain=${group.codes.length > 1}/>
+  </${Panel}>`;
 }
 
 function MonthlyReport({ report, loading = false }) {
@@ -871,26 +901,19 @@ function MonthlyReport({ report, loading = false }) {
   const radar = radarOption(report.domainScores);
   const strengths = barsOption(report.strengths, '#0f766e');
   const improvements = barsOption(report.improvements, '#a61d4d');
-  const completion = isNumber(report.completionPercent) ? clamp(report.completionPercent) : null;
   const average = isNumber(report.average) ? report.average : null;
-  const statusLabel = report.completionStatus === 'final' ? 'تکمیل‌شده' : 'ناقص / در حال تکمیل';
-  const sourceLabel = report.sourceFile
-    ? `منبع: ${report.sourceFile}${report.sourceRow ? ` · ردیف ${fa(report.sourceRow)}` : ''}`
-    : 'منبع دادهٔ ماهانه';
+  const hasTrend = (report.monthlyHistory ?? report.history)?.length > 1;
   return html`<article class="analytical-sheet analytical-sheet--monthly" data-report-mode="data_monthly" aria-label=${`کارنامه تابستانه ${report.student.name}`}>
     <header class="analytical-sheet__header monthly-sheet__header"><div class="analytical-sheet__mark"><${SchoolMark} report=${report}/></div><div class="analytical-sheet__heading"><p>${report.reportTitle}</p><h2>${report.academic.term}</h2><strong>${report.school}</strong></div><div class="monthly-sheet__meta"><strong>گزارش شاخص‌محور</strong><span>${report.organization}</span><span>${report.academic.grade} · کلاس ${report.academic.className}</span></div></header>
-    <div class="analytical-sheet__subhead monthly-sheet__subhead"><span>ارزیابی تابستانه بر اساس داده‌های واقعی</span><span>${sourceLabel}</span></div>
-    <div class="monthly-kpi-strip" aria-label="خلاصهٔ امتیاز و تکمیل گزارش"><div class="monthly-kpi"><span>امتیاز کلی</span><strong>${average === null ? 'ثبت نشده' : html`<span class="monthly-kpi-value">${reportNumber(average)} <small>از ۲۰</small></span>`}</strong><em>${report.completionStatus === 'final' ? 'ارزیابی نهایی' : 'ارزیابی موقت'}</em></div><div class="monthly-kpi monthly-kpi--completion"><span>درصد تکمیل داده</span><strong>${completion === null ? 'ثبت نشده' : html`<span class="monthly-kpi-value">${reportNumber(completion)}٪</span>`}</strong><div class="monthly-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow=${completion ?? 0} aria-label="درصد تکمیل داده">${completion !== null && html`<i style=${`width:${completion}%`}></i>`}</div><em>${statusLabel}</em></div><div class="monthly-kpi monthly-kpi--change"><span>تغییر نسبت به قبل</span><${MonthlyChange} report=${report}/></div></div>
+    <div class="analytical-sheet__subhead monthly-sheet__subhead"><span>ارزیابی تابستانه بر اساس شاخص‌های رشد</span><span>${report.academic.term}</span></div>
+    <div class="monthly-kpi-strip" aria-label="خلاصهٔ امتیاز گزارش"><div class="monthly-kpi monthly-kpi--overall"><span>امتیاز کلی شاخص‌ها</span><strong>${average === null ? 'ثبت نشده' : html`<span class="monthly-kpi-value">${reportNumber(average)} <small>از ۲۰</small></span>`}</strong><em>میانگین نمره‌های ثبت‌شده</em></div></div>
     <div class="monthly-sheet__grid">
       <${Panel} key="monthly-identity" title="مشخصات دانش‌آموز" className="monthly-identity" tone="navy"><div class="report-portrait"><${StudentPhoto} report=${report}/></div><dl class="report-identity-list"><div><dt>نام و نام خانوادگی</dt><dd>${report.student.name}</dd></div><div><dt>کد ملی</dt><dd><bdi dir="ltr">${report.student.nationalId}</bdi></dd></div><div><dt>شماره دانش‌آموزی</dt><dd><bdi dir="ltr">${report.student.number}</bdi></dd></div><div><dt>پایه و کلاس</dt><dd>${report.academic.grade} · ${report.academic.className}</dd></div></dl></${Panel}>
       <${Panel} key="monthly-radar" title="نمودار ۹ حوزهٔ رشد" className="monthly-radar" tone="teal">${loading ? html`<${MissingSection} message="در حال آماده‌سازی گزارش…"/>` : radar ? html`<${EChart} option=${radar} label="نمودار راداری ۹ حوزهٔ رشد" className="echart--radar"/>` : html`<${MissingSection}/>`}</${Panel}>
-      <${Panel} key="monthly-trend" title="روند ارزیابی ماهانه" className="monthly-trend" tone="navy">${loading ? html`<${MissingSection} message="در حال آماده‌سازی گزارش…"/>` : trend ? html`<${EChart} option=${trend} label="روند امتیازهای ارزیابی ماهانه" className="echart--trend echart--monthly-trend"/>` : html`<${MissingSection}/>`}</${Panel}>
-      <${Panel} key="monthly-metrics" title="شاخص‌های آموزشی و رفتاری" className="monthly-metrics" tone="teal"><${MonthlyMetricTable} report=${report}/></${Panel}>
+      ${hasTrend && html`<${Panel} key="monthly-trend" title="روند امتیازهای ماهانه" className="monthly-trend" tone="navy">${loading ? html`<${MissingSection} message="در حال آماده‌سازی گزارش…"/>` : trend ? html`<${EChart} option=${trend} label="روند امتیازهای ارزیابی ماهانه" className="echart--trend echart--monthly-trend"/>` : html`<${MissingSection}/>`}</${Panel}>`}
+      ${MONTHLY_METRIC_GROUPS.map(group => html`<${MonthlyMetricSection} key=${`monthly-group-${group.key}`} report=${report} group=${group}/>`)}
       <${Panel} key="monthly-strengths" title="نقاط قوت" className="monthly-strengths" tone="green">${strengths ? html`<${EChart} option=${strengths} label="نقاط قوت بر اساس شاخص‌ها" className="echart--bars"/>` : html`<${MissingSection}/>`}</${Panel}>
       <${Panel} key="monthly-improvements" title="نقاط قابل بهبود" className="monthly-improvements" tone="rose">${improvements ? html`<${EChart} option=${improvements} label="نقاط قابل بهبود بر اساس شاخص‌ها" className="echart--bars"/>` : html`<${MissingSection}/>`}</${Panel}>
-      <${Panel} key="monthly-skills" title="مهارت‌های فردی" className="monthly-skills" tone="gold">${report.skills21?.length ? html`<div class="report-rating-list">${report.skills21.map(item => html`<div key=${item.code}><span>${item.title}</span><${Stars} value=${item.value}/><bdi class="monthly-skill-raw" dir="ltr">خام: ${rawMetricDisplay(item.rawValue)}</bdi><${MetricPercent} value=${item.value}/></div>`)}</div>` : html`<${MissingSection}/>`}</${Panel}>
-      <${Panel} key="monthly-change-panel" title="تغییرات نسبت به ارزیابی قبلی" className="monthly-change-panel" tone="gold"><${MonthlyChange} report=${report}/>${report.monthlyChanges?.length ? html`<ul class="monthly-change-list">${report.monthlyChanges.slice(-3).map((item, index) => html`<li key=${`${item.from_month_no ?? 'missing'}-${item.to_month_no ?? 'missing'}-${index}`}><span>${item.from_month_no ?? '—'} ← ${item.to_month_no ?? '—'}</span><b>${isNumber(item.change) ? `${fa(item.change)} نمره` : 'ثبت نشده'}</b></li>`)}</ul>` : html`<${MissingSection} message="ارزیابی قبلی ثبت نشده است"/>`}</${Panel}>
-      <${Panel} key="monthly-notes" title="توضیحات و پیشنهادها" className="monthly-notes" tone="navy">${report.recommendations?.length ? html`<ul class="report-bullet-list">${report.recommendations.map((item, index) => html`<li key=${`monthly-recommendation-${index}`}>${item}</li>`)}</ul>` : html`<${MissingSection}/>`}<p class="monthly-note-source">${sourceLabel}</p></${Panel}>
     </div>
     <${ReportFooter} report=${report} monthly/>
   </article>`;

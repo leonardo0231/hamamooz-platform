@@ -97,6 +97,10 @@ test('Excel mixed scales are normalized from raw metrics and recover broken summ
   assert.equal(report.metricRows.find(item => item.code === 'EDU_02').value, null);
   assert.equal(report.domainScores.length, 9);
   assert.equal(report.domainScores.every(item => item.hasData), true);
+  assert.equal(report.metricGroups.education.length, 8);
+  assert.equal(report.metricGroups.behavior.length, 12);
+  assert.equal(report.metricGroups.growth.length, 23);
+  assert.equal(report.metricGroups.personal.length, 3);
   assert.equal(Math.round(report.domainScores.find(item => item.code === 'EDU').value * 100) / 100, 76.17);
   assert.equal(Math.round(report.domainScores.find(item => item.code === 'ART').value * 100) / 100, 60);
   assert.equal(report.average, 14.86);

@@ -94,8 +94,6 @@ const monthlySampleSnapshot = {
   monthly_change: null,
   monthly_changes: [],
   recommendations: [],
-  source_file: 'نمونه Excel · 803-804.xlsx · شیت ثبت اطلاعات',
-  source_row: 103,
   missing_sections: ['attendance', 'honors', 'activities', 'counselor', 'official_subject_grades'],
 };
 const snapshot = globalThis.__REPORT_SNAPSHOT__

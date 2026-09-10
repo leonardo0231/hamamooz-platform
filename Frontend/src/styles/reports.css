@@ -982,3 +982,221 @@ ol.report-bullet-list { list-style-type: decimal; }
     gap: 3px 6px;
   }
 }
+
+/* -------------------------------------------------------------------------
+   Monthly indicator sections
+
+   The workbook has one row per indicator, while the reference report reads
+   like a set of small editorial cards.  Keep every raw row, but give the
+   reader four meaningful sections with their own summary chart and table.
+   ------------------------------------------------------------------------- */
+.analytical-sheet__header::before {
+  /* Keep the navy corner decoration behind the school mark, never behind the
+     large Persian title. */
+  left: -28px;
+  width: 330px;
+}
+.analytical-sheet__header::after { left: -20px; width: 316px; }
+.analytical-sheet__heading {
+  position: relative;
+  z-index: 2;
+  justify-self: center;
+  width: min(100%, 720px);
+  padding: 7px 24px 8px;
+  border: 1px solid rgba(214, 197, 143, .86);
+  border-radius: 16px;
+  color: var(--report-navy-deep);
+  background: rgba(255, 253, 247, .97);
+  box-shadow: 0 3px 0 rgba(255, 255, 255, .8), 0 7px 16px rgba(61, 47, 14, .06);
+  box-sizing: border-box;
+}
+.analytical-sheet__heading p {
+  color: var(--report-navy-deep);
+  text-wrap: balance;
+}
+
+.analytical-sheet--monthly .monthly-sheet__subhead > span:last-child { display: none; }
+.analytical-sheet--monthly .monthly-kpi-strip {
+  grid-template-columns: minmax(260px, 430px);
+  justify-content: center;
+  padding: 7px 10px;
+}
+.analytical-sheet--monthly .monthly-kpi--overall {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 16px;
+  min-height: 46px;
+}
+.analytical-sheet--monthly .monthly-kpi--overall > strong { text-align: center; }
+.analytical-sheet--monthly .monthly-kpi--overall > em { text-align: left; }
+
+.analytical-sheet--monthly .monthly-sheet__grid {
+  grid-template-columns: minmax(220px, .9fr) minmax(320px, 1.25fr) minmax(250px, 1fr);
+  grid-template-rows: auto auto auto auto;
+  grid-template-areas:
+    'identity radar radar'
+    'education education behavior'
+    'growth growth personal'
+    'strengths improvements trend';
+  align-items: stretch;
+}
+.monthly-metric-section--education { grid-area: education; }
+.monthly-metric-section--behavior { grid-area: behavior; }
+.monthly-metric-section--growth { grid-area: growth; }
+.monthly-metric-section--personal { grid-area: personal; }
+.monthly-metric-section .analytical-panel__body { padding: 7px 8px 8px; }
+.monthly-metric-section__intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 22px;
+  margin-bottom: 3px;
+  padding: 0 2px 4px;
+  border-bottom: 1px dashed var(--report-line);
+}
+.monthly-metric-section__intro span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--report-muted);
+  font-size: .68rem;
+}
+.monthly-metric-section__intro b {
+  flex: none;
+  color: var(--report-navy);
+  font-size: .63rem;
+  font-weight: 800;
+}
+.monthly-metric-section .echart--metric-group {
+  height: 132px;
+  margin: 0 0 3px;
+}
+.monthly-metric-section--education .echart--metric-group { height: 142px; }
+.monthly-metric-section--growth .echart--metric-group { height: 106px; }
+.monthly-metric-section--personal .echart--metric-group { height: 88px; }
+.monthly-metric-section .report-metric-bars { gap: 5px; padding: 1px 0; }
+.monthly-metric-section .report-metric-bar { gap: 2px; }
+.monthly-metric-section .report-metric-bar__head { font-size: .66rem; }
+.monthly-metric-section .report-metric-bar__head b { font-size: .64rem; }
+.monthly-metric-section .report-metric-bar__track { height: 7px; }
+.monthly-metric-section .report-monthly-metric-table { table-layout: fixed; font-size: .65rem; }
+.monthly-metric-section .report-monthly-metric-table th,
+.monthly-metric-section .report-monthly-metric-table td { padding: 3px 4px; line-height: 1.25; }
+.monthly-metric-section .report-monthly-metric-table thead th:nth-child(1) { width: 42%; }
+.monthly-metric-section .report-monthly-metric-table thead th:nth-child(2) { width: 17%; }
+.monthly-metric-section .report-monthly-metric-table thead th:nth-child(3) { width: 15%; }
+.monthly-metric-section .report-monthly-metric-table thead th:nth-child(4) { width: 14%; }
+.monthly-metric-section .report-monthly-metric-table thead th:nth-child(5) { width: 12%; }
+.monthly-metric-section--behavior .report-monthly-metric-table thead th:nth-child(1),
+.monthly-metric-section--growth .report-monthly-metric-table thead th:nth-child(1) { width: 35%; }
+.monthly-metric-section--behavior .report-monthly-metric-table thead th:nth-child(2),
+.monthly-metric-section--growth .report-monthly-metric-table thead th:nth-child(2) { width: 18%; }
+.monthly-metric-section--behavior .report-monthly-metric-table thead th:nth-child(3),
+.monthly-metric-section--growth .report-monthly-metric-table thead th:nth-child(3) { width: 16%; }
+.monthly-metric-section--behavior .report-monthly-metric-table thead th:nth-child(4),
+.monthly-metric-section--growth .report-monthly-metric-table thead th:nth-child(4) { width: 15%; }
+.monthly-metric-section--behavior .report-monthly-metric-table thead th:nth-child(5),
+.monthly-metric-section--growth .report-monthly-metric-table thead th:nth-child(5) { width: 16%; }
+.monthly-metric-section .report-monthly-metric-table .report-rating-missing { font-size: .64rem; }
+.monthly-metric-section .report-monthly-metric-table .report-number { font-size: .68rem; }
+.monthly-metric-section .report-monthly-metric-table .report-raw-value { font-size: .68rem; }
+.monthly-metric-section--behavior .analytical-panel__header { background: #a47d12; }
+.monthly-metric-section--growth .analytical-panel__header { background: var(--report-purple); }
+.monthly-metric-section--personal .analytical-panel__header { background: var(--report-navy); }
+.monthly-sheet__footer .report-footer-note--monthly p { display: none; }
+.report-monthly-metric-tables {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.report-monthly-metric-tables > table { min-width: 0; }
+.monthly-metric-section .echart--metric-group { height: 78px; }
+.monthly-metric-section--education .echart--metric-group,
+.monthly-metric-section--personal .echart--metric-group { height: 64px; }
+.monthly-metric-section--growth .echart--metric-group { height: 92px; }
+.monthly-metric-section .report-metric-bars { gap: 4px; }
+.monthly-metric-section .report-metric-bar__head { font-size: .64rem; }
+.monthly-metric-section .report-metric-bar__track { height: 6px; }
+
+@media screen and (max-width: 1150px) {
+  .analytical-sheet--monthly .monthly-sheet__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      'identity radar'
+      'education education'
+      'behavior behavior'
+      'growth growth'
+      'personal personal'
+      'strengths improvements'
+      'trend trend';
+  }
+}
+
+@media screen and (max-width: 720px) {
+  .analytical-sheet__header::before { left: -24px; width: 220px; }
+  .analytical-sheet__header::after { left: -18px; width: 210px; }
+  .analytical-sheet__heading { width: 100%; padding: 5px 10px 6px; border-radius: 11px; }
+  .analytical-sheet--monthly .monthly-kpi-strip { grid-template-columns: 1fr; }
+  .analytical-sheet--monthly .monthly-kpi--overall { grid-template-columns: 1fr 1fr; column-gap: 8px; }
+  .analytical-sheet--monthly .monthly-kpi--overall > em { grid-column: 1 / -1; text-align: center; }
+  .analytical-sheet--monthly .monthly-sheet__grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'identity'
+      'radar'
+      'education'
+      'behavior'
+      'growth'
+      'personal'
+      'strengths'
+      'improvements'
+      'trend';
+  }
+  .report-monthly-metric-tables { grid-template-columns: 1fr; gap: 0; }
+}
+
+@media print {
+  .analytical-sheet__header::before { left: -18px; width: 278px; }
+  .analytical-sheet__header::after { left: -12px; width: 264px; }
+  .analytical-sheet__heading { width: min(100%, 680px); padding: 4px 17px 5px; }
+  .analytical-sheet--monthly .monthly-kpi-strip { grid-template-columns: minmax(260px, 430px); }
+  .analytical-sheet--monthly .monthly-sheet__grid {
+    flex: 0 0 800px;
+    height: 800px;
+    min-height: 800px;
+    grid-template-columns: minmax(205px, .9fr) minmax(290px, 1.25fr) minmax(225px, 1fr);
+    grid-template-rows: 185px 200px 265px 110px;
+    grid-template-areas:
+      'identity radar radar'
+      'education education behavior'
+      'growth growth personal'
+      'strengths improvements trend';
+  }
+  .analytical-sheet--monthly .monthly-radar .echart--radar {
+    height: 180px;
+    padding-bottom: 52px;
+  }
+  .analytical-sheet--monthly .monthly-radar .echart--radar .echart__svg { height: 128px; min-height: 128px; }
+  .analytical-sheet--monthly .monthly-radar .report-radar-legend { height: 52px; }
+  .monthly-metric-section .analytical-panel__body { padding: 4px 5px 5px; }
+  .monthly-metric-section__intro { min-height: 17px; margin-bottom: 1px; padding-bottom: 2px; }
+  .monthly-metric-section__intro span { font-size: 10px; }
+  .monthly-metric-section__intro b { font-size: 9px; }
+  .monthly-metric-section .echart--metric-group { height: 58px; }
+  .monthly-metric-section--education .echart--metric-group,
+  .monthly-metric-section--personal .echart--metric-group { height: 48px; }
+  .monthly-metric-section--growth .echart--metric-group { height: 68px; }
+  .monthly-metric-section .report-metric-bars { gap: 3px; }
+  .monthly-metric-section .report-metric-bar { gap: 1px; }
+  .monthly-metric-section .report-metric-bar__head { font-size: 9px; }
+  .monthly-metric-section .report-metric-bar__head b { font-size: 9px; }
+  .monthly-metric-section .report-metric-bar__track { height: 5px; }
+  .monthly-metric-section .report-monthly-metric-tables { gap: 4px; }
+  .monthly-metric-section .report-monthly-metric-table { font-size: 9px; }
+  .monthly-metric-section .report-monthly-metric-table th,
+  .monthly-metric-section .report-monthly-metric-table td { padding: 2px 3px; line-height: 1.15; }
+  .monthly-metric-section .report-monthly-metric-table .report-rating-missing,
+  .monthly-metric-section .report-monthly-metric-table .report-number,
+  .monthly-metric-section .report-monthly-metric-table .report-raw-value { font-size: 9px; }
+  .analytical-sheet--monthly .monthly-sheet__grid .echart--bars { height: 100px; }
+}
