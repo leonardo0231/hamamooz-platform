@@ -8,7 +8,7 @@ from hamamooz.apps.accounts.access import accessible_school_ids
 from hamamooz.apps.organizations.models import School
 
 from .defaults import get_default_school
-from .models import ImportJob
+from .models import ClassSourceSelection, DataSourceConflict, DataSourceManifest, ImportJob
 
 
 def uploaded_file_checksum(uploaded_file):
@@ -146,3 +146,94 @@ class ImportJobCreateSerializer(ImportJobSerializer):
     import_type = serializers.ChoiceField(
         choices=[(ImportJob.ImportType.COMPREHENSIVE_SCHOOL, "فایل جامع مدرسه")]
     )
+
+
+class DataSourceManifestSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+
+    class Meta:
+        model = DataSourceManifest
+        fields = [
+            "id",
+            "organization",
+            "school",
+            "source_file",
+            "checksum",
+            "file_size",
+            "status",
+            "status_display",
+            "detected_classes",
+            "sheet_manifest",
+            "errors",
+            "row_count",
+            "student_row_count",
+            "scanned_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+
+class DataSourceConflictSerializer(serializers.ModelSerializer):
+    conflict_type_display = serializers.CharField(source="get_conflict_type_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    manifests = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
+
+    class Meta:
+        model = DataSourceConflict
+        fields = [
+            "id",
+            "school",
+            "conflict_type",
+            "conflict_type_display",
+            "status",
+            "status_display",
+            "class_code",
+            "national_id",
+            "manifests",
+            "details",
+            "resolution_note",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+
+class ClassSourceSelectionSerializer(serializers.ModelSerializer):
+    selected_by_name = serializers.CharField(source="selected_by.get_full_name", read_only=True)
+
+    class Meta:
+        model = ClassSourceSelection
+        fields = [
+            "id",
+            "school",
+            "class_code",
+            "manifest",
+            "selected_by",
+            "selected_by_name",
+            "selection_note",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "selected_by", "selected_by_name", "created_at", "updated_at"]
+
+    def validate(self, attrs):
+        school = attrs.get("school") or getattr(self.instance, "school", None)
+        manifest = attrs.get("manifest")
+        if manifest is None and self.instance is not None:
+            manifest = self.instance.manifest
+        class_code = str(attrs.get("class_code") or getattr(self.instance, "class_code", "")).strip()
+        if not school or not manifest:
+            raise serializers.ValidationError("مدرسه و فایل منبع اصلی الزامی هستند.")
+        if manifest.school_id != school.id:
+            raise serializers.ValidationError({"manifest": "فایل منبع متعلق به مدرسه انتخابی نیست."})
+        if manifest.status in {
+            DataSourceManifest.Status.INVALID,
+            DataSourceManifest.Status.INCOMPLETE,
+        }:
+            raise serializers.ValidationError({"manifest": "فایل ناقص یا نامعتبر قابل انتخاب نیست."})
+        if class_code not in manifest.detected_classes:
+            raise serializers.ValidationError(
+                {"class_code": "این کلاس در فایل منبع انتخابی پیدا نشد."}
+            )
+        return attrs
