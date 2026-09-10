@@ -205,11 +205,80 @@ ol.report-bullet-list { list-style-type: decimal; }
 .report-signatures { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 15px; color: #4d5c60; }
 .report-signatures span { min-height: 48px; padding-top: 26px; border-top: 1px solid #8e9d9a; text-align: center; font-size: .78rem; font-weight: 800; }
 
+/* The monthly contract is a compact indicator report, not a reduced copy of
+   the official term grid.  Its areas mirror the summer-report reading order:
+   identity, score context, indicators, insights, change and notes. */
+.analytical-sheet--monthly .monthly-sheet__header { grid-template-columns: 150px 1fr 250px; }
+.monthly-sheet__meta { display: grid; align-content: center; gap: 4px; direction: rtl; color: #e5f7f3; font-size: .78rem; line-height: 1.45; text-align: right; }
+.monthly-sheet__meta strong { color: #f9d976; font-family: var(--font-display); font-size: .95rem; }
+.monthly-sheet__meta span { overflow-wrap: anywhere; }
+.monthly-sheet__subhead { color: #0d605d; background: #f4fbf8; }
+.monthly-kpi-strip { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.2fr) minmax(0, 1fr); gap: 9px; padding: 10px; border: 1px solid #d6e4dd; border-top: 0; background: #f8fbfa; direction: rtl; }
+.monthly-kpi { display: grid; align-content: center; gap: 3px; min-width: 0; padding: 9px 13px; border: 1px solid #dce9e4; border-radius: 9px; background: #fff; }
+.monthly-kpi > span { color: #52716e; font-size: .78rem; font-weight: 800; }
+.monthly-kpi > strong { color: #0c615f; font-family: var(--font-display); font-size: 1.5rem; line-height: 1.1; }
+.monthly-kpi > strong small { color: #6d8380; font-family: var(--font-body); font-size: .72rem; font-weight: 700; }
+.monthly-kpi > em { color: #70827f; font-size: .7rem; font-style: normal; }
+.monthly-kpi--completion { gap: 5px; }
+.monthly-kpi--change { align-content: stretch; }
+.monthly-progress { height: 9px; overflow: hidden; border-radius: 99px; background: #edf2f4; box-shadow: inset 0 0 0 1px rgba(14, 55, 65, .04); }
+.monthly-progress i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #0d746f, #d4a11e); }
+.monthly-change { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.monthly-change__icon { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 50%; color: #0d746f; background: #e8f5f2; font-size: 1.25rem; font-weight: 900; }
+.monthly-change > div { display: grid; gap: 2px; min-width: 0; }
+.monthly-change strong { color: #0d746f; font-size: .92rem; line-height: 1.35; }
+.monthly-change small { color: #70827f; font-size: .7rem; line-height: 1.3; }
+.monthly-change.is-positive .monthly-change__icon { color: #08766f; background: #e5f6f0; }
+.monthly-change.is-negative .monthly-change__icon, .monthly-change.is-negative strong { color: #a61d4d; }
+.monthly-change.is-negative .monthly-change__icon { background: #fff0f4; }
+.monthly-change.is-stable .monthly-change__icon { color: #946d13; background: #fff7dc; }
+.monthly-change.is-stable strong { color: #946d13; }
+.monthly-change.is-missing .monthly-change__icon, .monthly-change.is-missing strong { color: #71817f; }
+.monthly-change.is-missing .monthly-change__icon { background: #f1f5f4; }
+.monthly-sheet__grid { display: grid; grid-template-columns: minmax(220px, .95fr) minmax(290px, 1.25fr) minmax(220px, .95fr); grid-template-rows: auto auto auto auto; grid-template-areas: "identity radar trend" "metrics metrics change" "strengths improvements skills" "notes notes notes"; gap: 10px; padding: 10px; border: 1px solid #d6e4dd; border-top: 0; background: #fff; direction: ltr; }
+.monthly-sheet__grid > .analytical-panel { direction: rtl; }
+.monthly-identity { grid-area: identity; }
+.monthly-radar { grid-area: radar; }
+.monthly-trend { grid-area: trend; }
+.monthly-metrics { grid-area: metrics; }
+.monthly-strengths { grid-area: strengths; }
+.monthly-improvements { grid-area: improvements; }
+.monthly-skills { grid-area: skills; }
+.monthly-change-panel { grid-area: change; }
+.monthly-notes { grid-area: notes; }
+.monthly-metrics .analytical-panel__body { padding: 0; overflow: auto; }
+.report-monthly-metric-table { table-layout: fixed; font-size: .78rem; }
+.report-monthly-metric-table th, .report-monthly-metric-table td { padding: 6px 7px; white-space: normal; vertical-align: middle; }
+.report-monthly-metric-table th:nth-child(1) { width: 31%; }
+.report-monthly-metric-table th:nth-child(2) { width: 17%; }
+.report-monthly-metric-table th:nth-child(3) { width: 18%; }
+.report-monthly-metric-table th:nth-child(4) { width: 15%; }
+.report-monthly-metric-table th:nth-child(5) { width: 19%; }
+.report-monthly-metric-table tbody tr.is-missing { background: #fbfcfc; }
+.report-monthly-metric-table tbody tr.is-missing th, .report-monthly-metric-table tbody tr.is-missing td { color: #748584; }
+.report-metric-code { display: block; margin-top: 2px; color: #829391; font: 600 .64rem/1.2 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.report-raw-value { color: #174b6d; font-weight: 900; }
+.report-monthly-metric-table .report-rating-missing { font-size: .72rem; }
+.report-missing-section { display: grid; place-items: center; min-height: 58px; padding: 12px 8px; border: 1px dashed #cbdad5; border-radius: 7px; background: #fbfdfc; }
+.monthly-sheet__grid .echart--trend { height: 168px; }
+.monthly-sheet__grid .echart--radar { height: 305px; }
+.monthly-skills .report-rating-list { gap: 7px; }
+.monthly-skills .report-rating-list > div { grid-template-columns: minmax(0, 1fr) auto auto 44px; }
+.monthly-skill-raw { color: #6f8180; font-size: .68rem; white-space: nowrap; }
+.monthly-change-panel .monthly-change { padding: 2px 0 9px; border-bottom: 1px dashed #dce7e5; }
+.monthly-change-list { display: grid; gap: 5px; margin: 8px 0 0; padding: 0; list-style: none; }
+.monthly-change-list li { display: flex; justify-content: space-between; gap: 8px; padding: 5px 7px; border-radius: 6px; color: #5b7272; background: #f7faf9; font-size: .74rem; }
+.monthly-change-list b { color: #0d746f; }
+.monthly-note-source { margin: 9px 0 0; padding-top: 6px; border-top: 1px dashed #dce7e5; color: #7a8a88; font-size: .7rem; overflow-wrap: anywhere; }
+.monthly-sheet__footer { margin-top: 0; }
+
 @media screen and (max-width: 1150px) {
   .analytical-sheet__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto; }
   .analytical-identity, .analytical-trend, .analytical-insights, .analytical-table, .analytical-radar, .analytical-strengths, .analytical-improvements, .analytical-behavior, .analytical-recommendations, .analytical-attendance, .analytical-skills21, .analytical-activities, .analytical-readiness, .analytical-awards { grid-area: auto; }
   .analytical-identity, .analytical-trend, .analytical-insights, .analytical-table, .analytical-recommendations, .analytical-activities, .analytical-awards { grid-column: 1 / span 2; }
   .report-create__form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .analytical-sheet--monthly .monthly-sheet__header { grid-template-columns: 110px 1fr 190px; }
+  .monthly-sheet__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "identity radar" "trend trend" "metrics metrics" "strengths improvements" "skills change" "notes notes"; }
 }
 
 @media screen and (max-width: 720px) {
@@ -233,6 +302,10 @@ ol.report-bullet-list { list-style-type: decimal; }
   .report-signature-heading { display: grid; gap: 3px; }
   .report-signatures { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .report-create__form { grid-template-columns: 1fr; }
+  .analytical-sheet--monthly .monthly-sheet__header { grid-template-columns: 56px 1fr; }
+  .monthly-sheet__meta { display: none; }
+  .monthly-kpi-strip { grid-template-columns: 1fr; }
+  .monthly-sheet__grid { grid-template-columns: 1fr; grid-template-areas: "identity" "radar" "trend" "metrics" "strengths" "improvements" "skills" "change" "notes"; }
 }
 
 @media print {
@@ -361,6 +434,55 @@ ol.report-bullet-list { list-style-type: decimal; }
      summary. Hiding this duplicate pair in the one-sheet print layout leaves
      the identity metadata enough height for long student numbers/names. */
   .analytical-identity .report-mini-kpis { display: none; }
+
+  /* Summer reports use the same A3 box, but a different information hierarchy
+     and a shorter set of panels. */
+  .analytical-sheet--monthly .monthly-sheet__header { flex: 0 0 90px; min-height: 90px; grid-template-columns: 92px 1fr 185px; }
+  .analytical-sheet--monthly .monthly-sheet__meta { font-size: 12px; }
+  .analytical-sheet--monthly .monthly-sheet__meta strong { font-size: 13px; }
+  .monthly-sheet__subhead { flex: 0 0 30px; min-height: 30px; }
+  .monthly-kpi-strip { flex: 0 0 76px; min-height: 76px; gap: 5px; padding: 5px 6px; }
+  .monthly-kpi { gap: 2px; padding: 5px 8px; }
+  .monthly-kpi > span { font-size: 12px; }
+  .monthly-kpi > strong { font-size: 1.18rem; }
+  .monthly-kpi > strong small, .monthly-kpi > em { font-size: 11px; }
+  .monthly-progress { height: 7px; }
+  .monthly-change { gap: 5px; }
+  .monthly-change__icon { width: 23px; height: 23px; font-size: 1rem; }
+  .monthly-change strong { font-size: 12px; }
+  .monthly-change small { font-size: 10px; }
+  .monthly-sheet__grid { flex: 0 0 700px; height: 700px; min-height: 700px; grid-template-columns: minmax(160px, .95fr) minmax(245px, 1.25fr) minmax(160px, .95fr); grid-template-rows: 150px 235px 170px 90px; grid-template-areas: "identity radar trend" "metrics metrics change" "strengths improvements skills" "notes notes notes"; gap: 5px; padding: 5px; overflow: visible; }
+  .monthly-sheet__grid .analytical-panel__header { min-height: 26px; padding: 4px 8px; }
+  .monthly-sheet__grid .analytical-panel__header h3 { font-size: 13px; line-height: 1.3; }
+  .monthly-sheet__grid .analytical-panel__body { padding: 5px; }
+  .monthly-identity .analytical-panel__body { display: grid; grid-template-columns: 68px minmax(0, 1fr); gap: 4px 6px; align-items: start; }
+  .monthly-identity .report-portrait { grid-row: 1; width: 68px; height: 88px; margin: 0; border-width: 2px; }
+  .monthly-identity .report-identity-list { grid-column: 2; grid-row: 1; gap: 2px; }
+  .monthly-identity .report-identity-list div { gap: 4px; padding-bottom: 2px; }
+  .monthly-identity .report-identity-list dt, .monthly-identity .report-identity-list dd { font-size: 11px; }
+  .monthly-identity .report-avatar-fallback { gap: 1px; }
+  .monthly-identity .report-avatar-fallback img { width: 50px; height: 60px; }
+  .monthly-identity .report-avatar-fallback small { font-size: 8px; line-height: 1; }
+  .monthly-sheet__grid .echart--trend { height: 126px; }
+  .monthly-sheet__grid .echart--radar { height: 218px; min-height: 218px; padding-bottom: 64px; }
+  .monthly-sheet__grid .echart--radar .echart__svg { height: 154px; min-height: 154px; }
+  .monthly-metrics .analytical-panel__body { padding: 0; }
+  .report-monthly-metric-table { font-size: 11px; line-height: 1.12; }
+  .report-monthly-metric-table th, .report-monthly-metric-table td { padding: 3px 4px; }
+  .report-metric-code { margin-top: 1px; font-size: 8px; }
+  .report-monthly-metric-table .report-rating-missing { font-size: 10px; }
+  .report-monthly-metric-table .report-number { font-size: 11px; }
+  .monthly-sheet__grid .echart--bars { height: 139px; }
+  .monthly-skills .report-rating-list { gap: 3px; }
+  .monthly-skills .report-rating-list > div { grid-template-columns: minmax(0, 1fr) auto auto 30px; gap: 2px; }
+  .monthly-skills .report-rating-list > div > span:first-child, .monthly-skills .report-rating-list b, .monthly-skill-raw { font-size: 10px; }
+  .monthly-skills .report-stars .icon { width: 10px; height: 10px; }
+  .monthly-change-panel .monthly-change { padding-bottom: 5px; }
+  .monthly-change-list { gap: 2px; margin-top: 4px; }
+  .monthly-change-list li { padding: 3px 4px; font-size: 10px; }
+  .monthly-note-source { margin-top: 3px; padding-top: 3px; font-size: 10px; }
+  .monthly-sheet__grid .report-missing-section { min-height: 32px; padding: 5px; font-size: 11px; }
+  .monthly-sheet__footer { flex: 0 0 86px; min-height: 86px; max-height: 86px; }
 
   /* The application shell and creation controls are not part of the printed
      report.  This selector is intentionally class-scoped so a browser print

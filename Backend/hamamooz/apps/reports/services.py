@@ -60,6 +60,21 @@ ALLOWED_REPORT_PAGE_SIZES = {
 }
 REPORT_PAGE_SIZE_CSS = ALLOWED_REPORT_PAGE_SIZES[REPORT_PAGE_SIZE_KEY]
 
+MONTH_TITLES = {
+    1: "تیر",
+    2: "مرداد",
+    3: "شهریور",
+    4: "مهر",
+    5: "آبان",
+    6: "آذر",
+    7: "دی",
+    8: "بهمن",
+    9: "اسفند",
+    10: "فروردین",
+    11: "اردیبهشت",
+    12: "خرداد",
+}
+
 
 def normalize_report_page_size(value=None):
     """Return the single supported report page profile.
@@ -335,6 +350,7 @@ def build_monthly_report_contract(
     evaluation = (
         MonthlyEvaluation.objects.select_related(
             "enrollment__student",
+            "enrollment__school__organization",
             "enrollment__class_section",
             "enrollment__grade_level",
             "source_import_job",
@@ -358,12 +374,32 @@ def build_monthly_report_contract(
         improvements = sorted(scored_domains, key=lambda item: item["score"])[:3]
     student_summary = EvaluationAnalyticsService.student_summary(enrollment)
     student = enrollment.student
+    school = enrollment.school
+    organization = school.organization
+    monthly_scores = [
+        {
+            **item,
+            "month_title": MONTH_TITLES.get(
+                item.get("month_no"), f"ماه {item.get('month_no', '')}"
+            ),
+        }
+        for item in student_summary.get("monthly_scores", [])
+    ]
     return {
         "report_mode": "data_monthly",
         "title": "کارنامه ارزیابی تابستانه رشد دانش‌آموز",
         "month": {"no": month_no, "title": month_title},
         "source_file": resolved_file,
         "source_row": resolved_row,
+        "organization": {
+            "name": organization.name,
+            "logo_url": organization.logo.url if organization.logo else "",
+        },
+        "school": {
+            "name": school.official_name or school.name,
+            "branch": school.name if school.official_name else "",
+            "logo_url": school.logo.url if school.logo else "",
+        },
         "student": {
             "name": student.full_name,
             "national_id": student.national_id,
@@ -377,6 +413,7 @@ def build_monthly_report_contract(
         "overall_score": summary["overall_score"],
         "completion_percent": summary["completion_percent"],
         "completion_status": summary["completion_status"],
+        "monthly_scores": monthly_scores,
         "monthly_change": next(
             (
                 item["change"]

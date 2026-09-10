@@ -43,8 +43,21 @@ def test_data_monthly_preview_uses_summer_period_title_and_explicit_contract(
     assert response.data["month"] == {"no": 3, "title": "شهریور"}
     assert response.data["source_file"] == "Data/Excel/701.xlsx"
     assert response.data["source_row"] == 12
+    assert response.data["organization"]["name"] == base_data["organization"].name
+    assert response.data["school"]["name"] == (
+        base_data["school1"].official_name or base_data["school1"].name
+    )
     assert response.data["student"]["class_code"] == base_data["class1"].code
     assert response.data["completion_percent"] > 0
+    assert response.data["monthly_scores"] == [
+        {
+            "month_no": 3,
+            "overall_score": response.data["monthly_scores"][0]["overall_score"],
+            "completion_percent": response.data["monthly_scores"][0]["completion_percent"],
+            "completion_status": response.data["monthly_scores"][0]["completion_status"],
+            "month_title": "شهریور",
+        }
+    ]
     assert {item["code"] for item in response.data["metrics"]} == {"EDU_01", "DEV_01"}
     assert response.data["missing_sections"] == [
         "attendance",

@@ -465,12 +465,17 @@ class MonthlyReportContractSerializer(serializers.Serializer):
     month = MonthlyReportMonthSerializer()
     source_file = serializers.CharField(allow_blank=True)
     source_row = serializers.IntegerField(allow_null=True)
+    organization = serializers.JSONField(required=False, allow_null=True)
+    school = serializers.JSONField(required=False, allow_null=True)
     student = MonthlyReportStudentSerializer()
     domains = serializers.ListField(child=serializers.DictField())
     metrics = serializers.ListField(child=serializers.DictField())
     overall_score = serializers.FloatField(allow_null=True)
     completion_percent = serializers.FloatField()
     completion_status = serializers.ChoiceField(choices=["provisional", "final"])
+    monthly_scores = serializers.ListField(
+        child=serializers.DictField(), required=False
+    )
     monthly_change = serializers.FloatField(allow_null=True)
     monthly_changes = serializers.ListField(child=serializers.DictField())
     strengths = serializers.ListField(child=serializers.DictField())

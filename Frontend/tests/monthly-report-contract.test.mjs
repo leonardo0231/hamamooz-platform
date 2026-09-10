@@ -6,7 +6,7 @@ import { mapSnapshot } from '../src/components/analytical-report.js';
 test('the data-monthly API contract renders without inventing official data', () => {
   const report = mapSnapshot({
     report_mode: 'data_monthly',
-    title: 'کارنامه ارزیابی تابستانه رشد دانش‌آموز',
+    title: 'کارنامه جامع رشد سه ساله دانش‌آموز',
     month: { no: 3, title: 'شهریور' },
     student: {
       name: 'آرین محمدی', national_id: '0012345678', student_number: null,
@@ -14,6 +14,7 @@ test('the data-monthly API contract renders without inventing official data', ()
     },
     metrics: [
       { code: 'EDU_01', title: 'نمرات درسی', raw_score: 5, score: 20 },
+      { code: 'EDU_02', title: 'پیشرفت نسبت به قبل', raw_score: 'ندارد', score: null },
       { code: 'DEV_01', title: 'احترام و همکاری', raw_score: 3, score: 12 },
       { code: 'PER_01', title: 'مدیریت زمان', raw_score: null, score: null },
     ],
@@ -22,6 +23,14 @@ test('the data-monthly API contract renders without inventing official data', ()
       { code: 'DEV', title: 'پرورشی', score: 12, completed_metrics: 1 },
     ],
     overall_score: 16.57,
+    completion_percent: 40,
+    completion_status: 'provisional',
+    monthly_changes: [{ from_month_no: 1, to_month_no: 3, change: 1.57 }],
+    monthly_scores: [
+      { month_no: 1, overall_score: 15 },
+      { month_no: 2, overall_score: null },
+      { month_no: 3, overall_score: 16.57 },
+    ],
     strengths: [{ code: 'EDU', title: 'آموزشی', score: 20 }],
     improvements: [{ code: 'DEV', title: 'پرورشی', score: 12 }],
     attendance: null,
@@ -30,14 +39,27 @@ test('the data-monthly API contract renders without inventing official data', ()
   });
 
   assert.equal(report.demo, false);
+  assert.equal(report.reportMode, 'data_monthly');
   assert.equal(report.reportTitle, 'کارنامه ارزیابی تابستانه رشد دانش‌آموز');
   assert.equal(report.academic.term, 'شهریور · گزارش ماهانه');
   assert.equal(report.student.number, '—');
   assert.equal(report.subjects.length, 0);
   assert.equal(report.average, 16.57);
+  assert.equal(report.completionPercent, 40);
+  assert.equal(report.monthlyChange, 1.57);
+  assert.deepEqual(report.monthlyHistory.map(item => item.label), ['تیر', 'شهریور']);
+  assert.equal(report.domainScores.length, 9);
   assert.equal(report.domainScores.find(item => item.code === 'EDU').value, 100);
   assert.equal(report.strengths[0].value, 100);
   assert.equal(report.improvements[0].value, 60);
+  assert.equal(report.metricRows.find(item => item.code === 'EDU_02').rawValue, 'ندارد');
+  assert.equal(report.metricRows.find(item => item.code === 'EDU_02').hasData, false);
+  assert.equal(report.metricRows.find(item => item.code === 'EDU_02').value, null);
+  assert.equal(report.indexRows.length, 3);
   assert.equal(report.skills21[0].hasData, false);
+  assert.equal(report.readiness.length, 0);
+  assert.equal(report.activities.length, 0);
+  assert.equal(report.awards.length, 0);
+  assert.deepEqual(report.missingSections, ['attendance', 'official_subject_grades']);
   assert.equal(report.attendance.rate, null);
 });

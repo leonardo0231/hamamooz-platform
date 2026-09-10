@@ -20,12 +20,30 @@ const bounded = (items, limit) => {
   return { items: source.slice(0, limit), omitted: Math.max(0, source.length - limit) };
 };
 const DEFAULT_STUDENT_PHOTO_URL = '/assets/report-default-student.svg';
+const MONTH_TITLES = Object.freeze({
+  1: 'تیر', 2: 'مرداد', 3: 'شهریور', 4: 'مهر', 5: 'آبان', 6: 'آذر',
+  7: 'دی', 8: 'بهمن', 9: 'اسفند', 10: 'فروردین', 11: 'اردیبهشت', 12: 'خرداد',
+});
 const assetUrl = value => {
   if (!value) return '';
   const text = String(value).trim();
   if (/^(?:data:|blob:|file:|https?:\/\/|\/)/i.test(text)) return text;
   return `/${text}`;
 };
+const hasOwn = (value, key) => Boolean(value && Object.prototype.hasOwnProperty.call(value, key));
+const rawMetricValue = item => {
+  if (!item || typeof item !== 'object') return null;
+  if (hasOwn(item, 'raw_score')) return item.raw_score;
+  if (hasOwn(item, 'raw_value')) return item.raw_value;
+  if (hasOwn(item, 'value')) return item.value;
+  return null;
+};
+const rawMetricDisplay = value => {
+  if (value === null || value === undefined || value === '') return 'ثبت نشده';
+  if (typeof value === 'number' && Number.isFinite(value)) return fa(value);
+  return String(value);
+};
+const numericOrNull = value => isNumber(value) ? Number(value) : null;
 
 /**
  * Print the report that is already rendered by the React tree.  The print
@@ -123,6 +141,7 @@ const DEFAULT_REPORT_GRADE_RANGE = 'پایه هفتم تا نهم';
 
 const demo = {
   demo: true,
+  reportMode: 'official_term',
   reportTitle: 'کارنامه جامع رشد سه ساله دانش‌آموز',
   organization: 'سامانه هوشمند هم‌آموز',
   school: 'دبیرستان پسرانه بعثت',
@@ -192,6 +211,7 @@ const demo = {
 // field explicit for the school operator.
 const emptyReport = {
   demo: false,
+  reportMode: 'official_term',
   reportTitle: 'کارنامه جامع رشد سه ساله دانش‌آموز',
   organization: 'ثبت نشده',
   school: 'ثبت نشده',
@@ -217,6 +237,13 @@ const emptyReport = {
   support: [],
   signatures: DEFAULT_SIGNATURE_LABELS,
   attendance: { rate: null, sessions: null, unexcused: null, late: null },
+  completionPercent: null,
+  completionStatus: 'provisional',
+  monthlyChange: null,
+  monthlyChanges: [],
+  monthlyScores: [],
+  metricRows: [],
+  missingSections: [],
   subjectsOmitted: 0, strengthsOmitted: 0, improvementsOmitted: 0,
   skillsOmitted: 0, skills21Omitted: 0, activitiesOmitted: 0, awardsOmitted: 0,
   counselorOmitted: 0, followUpsOmitted: 0, recommendationsOmitted: 0,
@@ -252,6 +279,21 @@ function metricDomainCode(item) {
   return String(item?.domain_code ?? item?.domainCode ?? item?.code ?? '')
     .split('_', 1)[0]
     .toUpperCase();
+}
+
+function normalizeMetricRow(item) {
+  const source = item && typeof item === 'object' ? item : {};
+  const code = source.code ?? source.metric_code;
+  const rawValue = rawMetricValue(source);
+  const value = metricValue(rawValue);
+  return {
+    ...source,
+    code,
+    title: source.title ?? titleForMetric(code),
+    rawValue,
+    value,
+    hasData: value !== null,
+  };
 }
 
 function domainPercent(item) {
@@ -292,31 +334,26 @@ export {
 
 function normalizeDomainScores(rows, metricRows = []) {
   const sourceRows = Array.isArray(rows) ? rows : [];
-  const hasAuthoritativeRows = sourceRows.length > 0;
   const rowByCode = new Map(sourceRows.map(item => [
     String(item?.code ?? item?.domain_code ?? '').toUpperCase(), item,
   ]));
   const metricGroups = new Map();
-  if (!hasAuthoritativeRows) {
-    for (const item of metricRows) {
-      const code = metricDomainCode(item);
-      if (!code) continue;
-      // mapSnapshot has already converted valid rubric scores to percentages;
-      // applying metricValue a second time would discard every value above 5.
-      const value = item.hasData === false || !isNumber(item.value)
-        ? null
-        : Number(item.value) >= 0 && Number(item.value) <= 100 ? Number(item.value) : null;
-      if (value !== null) metricGroups.set(code, [...(metricGroups.get(code) ?? []), value]);
-    }
+  for (const item of metricRows) {
+    const code = metricDomainCode(item);
+    if (!code) continue;
+    // mapSnapshot has already converted valid rubric scores to percentages;
+    // applying metricValue a second time would discard every value above 5.
+    const value = item.hasData === false || !isNumber(item.value)
+      ? null
+      : Number(item.value) >= 0 && Number(item.value) <= 100 ? Number(item.value) : null;
+    if (value !== null) metricGroups.set(code, [...(metricGroups.get(code) ?? []), value]);
   }
   return ANALYSIS_DOMAINS.map(domain => {
     const source = rowByCode.get(domain.code);
     const values = metricGroups.get(domain.code) ?? [];
     const value = source
       ? domainPercent(source)
-      : hasAuthoritativeRows
-        ? null
-        : values.length ? clamp(values.reduce((sum, item) => sum + item, 0) / values.length) : null;
+      : values.length ? clamp(values.reduce((sum, item) => sum + item, 0) / values.length) : null;
     const completedMetrics = source?.completed_metrics ?? source?.completedMetrics
       ?? (values.length || value === null ? values.length : 1);
     return {
@@ -337,60 +374,79 @@ function mapDataMonthlyReport(report) {
   // official term or subject grades.  Adapt it here, at the React boundary,
   // instead of making the backend invent fields from an official report.
   const rawMetrics = Array.isArray(report?.metrics) ? report.metrics : [];
-  const metricRows = rawMetrics.map(item => {
-    const code = item?.code ?? item?.metric_code;
-    const rawScore = item?.raw_score ?? item?.value;
-    const value = metricValue(rawScore);
-    return {
-      ...item,
-      code,
-      title: item?.title ?? titleForMetric(code),
-      value,
-      hasData: value !== null,
-    };
-  }).filter(item => item.code);
+  // Keep every coded metric row, including an invalid/raw value such as
+  // «ندارد».  The table uses rawValue for auditability while value is only the
+  // authoritative 0–5 rubric converted to a percentage.
+  const metricRows = rawMetrics.map(normalizeMetricRow).filter(item => item.code);
   const behavior = metricRows.filter(item => /^(DEV|CHR|DIS)_/.test(item.code ?? ''));
   const skills21 = metricRows.filter(item => /^PER_/.test(item.code ?? ''));
-  const academic = metricRows.filter(item => /^EDU_/.test(item.code ?? ''));
+  const indexRows = metricRows.filter(item => /^(EDU|DEV|CHR|DIS)_/.test(item.code ?? ''));
   const domainScores = normalizeDomainScores(report?.domains, metricRows);
-  const toInsightRows = rows => bounded((Array.isArray(rows) ? rows : []).map(item => ({
-    title: item?.title ?? item?.domain_title ?? item?.code ?? 'ثبت نشده',
-    value: domainPercent(item),
-  })).filter(item => isNumber(item.value)), 6);
-  const strengths = toInsightRows(report?.strengths);
-  const improvements = toInsightRows(report?.improvements);
-  const toActivity = item => ({
-    icon: REPORT_STICKER_ICONS[item?.kind] ? item.kind : 'activity',
-    title: item?.title ?? 'فعالیت ثبت‌شده',
-    text: item?.text ?? item?.result ?? 'ثبت‌شده',
-  });
-  const activities = bounded((report?.activities ?? []).map(toActivity), 8);
-  const awards = bounded((report?.awards ?? []).map(toActivity), 4);
+  const metricInsights = indexRows
+    .filter(item => item.hasData && isNumber(item.value))
+    .map(item => ({ code: item.code, title: item.title, value: Number(item.value) }));
+  const externalMetricInsights = rows => (Array.isArray(rows) ? rows : [])
+    .filter(item => /_/.test(String(item?.code ?? item?.metric_code ?? '')))
+    .map(item => ({
+      code: item.code ?? item.metric_code,
+      title: item.title ?? item.domain_title ?? item.code ?? 'ثبت نشده',
+      value: domainPercent(item),
+    }))
+    .filter(item => isNumber(item.value));
+  const insightSource = metricInsights.length ? metricInsights : externalMetricInsights(report?.strengths);
+  const strengths = bounded([...insightSource].sort((a, b) => b.value - a.value), 6);
+  const improvements = bounded([...insightSource].sort((a, b) => a.value - b.value), 6);
   const recommendations = bounded((report?.recommendations ?? [])
     .map(item => typeof item === 'string' ? item : item?.text ?? item?.title)
     .filter(Boolean), 6);
   const student = report?.student ?? {};
   const month = report?.month ?? {};
   const overallScore = numericSubject(report?.overall_score);
-  const history = overallScore === null ? [] : [{
-    label: month.title ?? 'ماه جاری', average: overallScore, rank: null,
-  }];
+  const monthlyChanges = Array.isArray(report?.monthly_changes) ? report.monthly_changes : [];
+  const currentMonthNo = numericOrNull(month.no);
+  const history = (Array.isArray(report?.monthly_scores) ? report.monthly_scores : [])
+    .map(item => {
+      const average = numericSubject(item?.overall_score ?? item?.average);
+      if (average === null) return null;
+      const monthNo = numericOrNull(item?.month_no);
+      return {
+        label: item?.month_title ?? item?.title ?? (monthNo === currentMonthNo ? month.title : null) ?? (monthNo === null ? 'ماه ثبت‌شده' : MONTH_TITLES[monthNo] ?? `ماه ${fa(monthNo)}`),
+        average,
+        rank: null,
+        monthNo,
+      };
+    })
+    .filter(Boolean);
+  if (overallScore !== null && !history.some(item => item.monthNo !== null && item.monthNo === currentMonthNo)) {
+    history.push({ label: month.title ?? 'ماه جاری', average: overallScore, rank: null, monthNo: currentMonthNo });
+  }
+  const declaredChange = numericOrNull(report?.monthly_change);
+  const currentChange = declaredChange ?? numericOrNull(monthlyChanges.find(item => numericOrNull(item?.to_month_no) === currentMonthNo)?.change);
+  const organizationSource = typeof report?.organization === 'object' ? report.organization : {};
+  const schoolSource = typeof report?.school === 'object' ? report.school : {};
+  const fallbackOrganization = typeof report?.organization === 'string' ? report.organization : 'ثبت نشده';
+  const fallbackSchool = typeof report?.school === 'string' ? report.school : 'ثبت نشده';
+  const summerTitle = 'کارنامه ارزیابی تابستانه رشد دانش‌آموز';
+  const requestedTitle = typeof report?.title === 'string' ? report.title.trim() : '';
+  const reportTitle = requestedTitle && !/سه\s*ساله/.test(requestedTitle) ? requestedTitle : summerTitle;
+  const sourceSections = Array.isArray(report?.missing_sections) ? report.missing_sections : [];
   return {
     demo: false,
-    reportTitle: report?.title ?? 'کارنامه ارزیابی تابستانه رشد دانش‌آموز',
-    organization: 'ثبت نشده',
-    school: 'ثبت نشده',
-    schoolLogoUrl: '',
+    reportMode: 'data_monthly',
+    reportTitle,
+    organization: organizationSource.name ?? fallbackOrganization,
+    school: schoolSource.name ?? fallbackSchool,
+    schoolLogoUrl: assetUrl(schoolSource.logo_url || organizationSource.logo_url || report?.school_logo_url),
     student: {
-      name: student.name ?? 'دانش‌آموز',
+      name: student.name ?? 'ثبت نشده',
       nationalId: student.national_id ?? '—',
       number: student.student_number ?? '—',
       initial: (student.name ?? 'د').slice(0, 1),
       photoUrl: assetUrl(student.photo_url),
     },
     academic: {
-      year: '—', grade: student.grade ?? '—', gradeRange: student.grade ?? DEFAULT_REPORT_GRADE_RANGE,
-      className: student.class_code ? `کلاس ${student.class_code}` : '—',
+      year: report?.academic?.year ?? '—', grade: student.grade ?? 'ثبت نشده', gradeRange: student.grade ?? DEFAULT_REPORT_GRADE_RANGE,
+      className: student.class_code ?? 'ثبت نشده',
       term: month.title ? `${month.title} · گزارش ماهانه` : 'گزارش ماهانه',
     },
     average: overallScore,
@@ -399,12 +455,12 @@ function mapDataMonthlyReport(report) {
     subjects: [],
     skills: behavior,
     skills21,
-    readiness: academic,
+    readiness: [],
     domainScores,
     strengths: strengths.items,
     improvements: improvements.items,
-    activities: activities.items,
-    awards: awards.items,
+    activities: [],
+    awards: [],
     counselor: [],
     recommendations: recommendations.items,
     teacherRecommendations: [],
@@ -412,13 +468,24 @@ function mapDataMonthlyReport(report) {
     support: [],
     signatures: DEFAULT_SIGNATURE_LABELS,
     attendance: { rate: null, sessions: null, unexcused: null, late: null },
+    completionPercent: clamp(report?.completion_percent),
+    completionStatus: report?.completion_status ?? 'provisional',
+    monthlyChange: currentChange,
+    monthlyChanges,
+    monthlyScores: history,
+    monthlyHistory: history,
+    metricRows,
+    indexRows,
+    sourceFile: report?.source_file ?? '',
+    sourceRow: report?.source_row ?? null,
+    missingSections: sourceSections,
     subjectsOmitted: 0,
     strengthsOmitted: strengths.omitted,
     improvementsOmitted: improvements.omitted,
     skillsOmitted: 0,
     skills21Omitted: 0,
-    activitiesOmitted: activities.omitted,
-    awardsOmitted: awards.omitted,
+    activitiesOmitted: 0,
+    awardsOmitted: 0,
     counselorOmitted: 0,
     followUpsOmitted: 0,
     recommendationsOmitted: recommendations.omitted,
@@ -430,6 +497,7 @@ function mapDataMonthlyReport(report) {
 export function mapSnapshot(snapshot) {
   if (snapshot?.report_mode === 'data_monthly') return mapDataMonthlyReport(snapshot);
   const report = snapshot?.reports?.[0];
+  if (report?.report_mode === 'data_monthly') return mapDataMonthlyReport(report);
   if (!report) return snapshot === undefined || snapshot === null ? demo : { ...emptyReport };
   const context = report.product_context ?? {};
   const latest = context.evaluations?.at?.(-1);
@@ -440,17 +508,7 @@ export function mapSnapshot(snapshot) {
   const metrics = Array.isArray(rawMetrics)
     ? rawMetrics
     : Object.entries(rawMetrics).map(([code, value]) => ({ code, title: titleForMetric(code), value }));
-  const metricRows = metrics.map(item => {
-    const code = item?.code ?? item?.metric_code;
-    const value = metricValue(item?.value);
-    return {
-      ...item,
-      code,
-      title: item?.title ?? titleForMetric(code),
-      value,
-      hasData: value !== null,
-    };
-  }).filter(item => item.code);
+  const metricRows = metrics.map(normalizeMetricRow).filter(item => item.code);
   const behavior = metricRows.filter(item => /^(DEV|CHR|DIS)_/.test(item.code ?? ''));
   const skills21 = metricRows.filter(item => /^PER_/.test(item.code ?? ''));
   const subjectRows = (report.subjects ?? []).map(item => ({
@@ -502,7 +560,7 @@ export function mapSnapshot(snapshot) {
   const followUps = bounded(allFollowUps, 4);
   const signatures = normalizeSignatureLabels(report.signatures ?? context.signatures);
   return {
-    demo: false, reportTitle, organization: organization.name ?? (typeof report.organization === 'string' ? report.organization : 'سامانه هم‌آموز'), school: report.school?.name ?? 'مدرسه',
+    demo: false, reportMode: 'official_term', reportTitle, organization: organization.name ?? (typeof report.organization === 'string' ? report.organization : 'سامانه هم‌آموز'), school: report.school?.name ?? 'مدرسه',
     schoolLogoUrl: assetUrl(report.school?.logo_url || organization.logo_url || context.school_logo_url),
     student: { name: report.student?.full_name ?? 'دانش‌آموز', nationalId: report.student?.national_id ?? '—', number: report.student?.student_number ?? '—', initial: (report.student?.full_name ?? 'د').slice(0, 1), photoUrl: assetUrl(report.student?.photo_url || report.student?.photo) },
     academic: { year: report.academic?.year ?? '—', grade: report.academic?.grade ?? '—', gradeRange, className: report.academic?.class ?? '—', term: report.academic?.term ?? '—' },
@@ -519,6 +577,14 @@ export function mapSnapshot(snapshot) {
     support: supportNotes.items,
     signatures,
     attendance: { rate: attendanceRate, sessions: attendance.finalized_session_count ?? null, unexcused: attendance.unexcused_absence_count ?? null, late: attendance.late_count ?? null },
+    completionPercent: null,
+    completionStatus: 'final',
+    monthlyChange: null,
+    monthlyChanges: [],
+    monthlyScores: [],
+    metricRows,
+    indexRows: academic,
+    missingSections: [],
     subjectsOmitted: visibleSubjects.omitted, strengthsOmitted: Math.max(0, strengthRows.length - strengths.items.length),
     improvementsOmitted: Math.max(0, improvementRows.length - improvements.items.length), skillsOmitted: 0,
     skills21Omitted: 0, activitiesOmitted: activities.omitted, awardsOmitted: awards.omitted,
@@ -572,11 +638,11 @@ function OverflowNote({ count }) {
 function Stars({ value }) {
   if (!isNumber(value)) return html`<span class="report-rating-missing" role="status" aria-label="امتیاز ثبت نشده">ثبت نشده</span>`;
   const rounded = Math.round(Number(value) / 20);
-  return html`<span class="report-stars" aria-label=${`${fa(value)} درصد`}>${[1, 2, 3, 4, 5].map(index => html`<${Icon} name="star" size=${15} className=${index <= rounded ? 'is-on' : ''}/>` )}</span>`;
+  return html`<span class="report-stars" aria-label=${`${fa(value)} درصد`}>${[1, 2, 3, 4, 5].map(index => html`<${Icon} key=${`star-${index}`} name="star" size=${15} className=${index <= rounded ? 'is-on' : ''}/>` )}</span>`;
 }
 function MetricPercent({ value }) {
   return isNumber(value)
-    ? html`${reportNumber(value)}٪`
+    ? html`<span class="report-metric-percent">${reportNumber(value)}٪</span>`
     : html`<span class="report-rating-missing" role="status">ثبت نشده</span>`;
 }
 function SubjectStatus({ subject }) {
@@ -624,11 +690,69 @@ function RecommendationGroup({ title, items, omitted = 0, ordered = false, tone 
   return html`<div class=${`report-recommendation-group report-recommendation-group--${tone}`}><h4>${title}</h4><${List} class="report-bullet-list">${items.map(item => html`<li>${item}</li>`)}</${List}><${OverflowNote} count=${omitted}/></div>`;
 }
 
-export function AnalyticalReport({ snapshot, loading = false }) {
-  const report = useMemo(() => mapSnapshot(snapshot), [snapshot]);
+function MissingSection({ message = 'اطلاعات ثبت نشده' }) {
+  return html`<p class="analytical-empty report-missing-section" role="status">${message}</p>`;
+}
+
+function MonthlyMetricTable({ report }) {
+  const rows = Array.isArray(report.indexRows) ? report.indexRows : [];
+  if (!rows.length) return html`<${MissingSection}/>`;
+  return html`<table class="report-score-table report-monthly-metric-table"><caption class="sr-only">شاخص‌های آموزشی و رفتاری</caption><thead><tr><th scope="col">شاخص</th><th scope="col">حوزه</th><th scope="col">مقدار خام</th><th scope="col">امتیاز</th><th scope="col">وضعیت</th></tr></thead><tbody>${rows.map(item => {
+    const available = item.hasData && isNumber(item.value);
+    const domain = ANALYSIS_DOMAINS.find(candidate => candidate.code === metricDomainCode(item));
+    return html`<tr key=${item.code} class=${available ? 'is-available' : 'is-missing'}><th scope="row"><span class="report-score-table__subject">${item.title}</span><small class="report-metric-code" dir="ltr">${item.code}</small></th><td>${item.domain_title ?? domain?.title ?? 'ثبت نشده'}</td><td><bdi class="report-raw-value" dir="ltr">${rawMetricDisplay(item.rawValue)}</bdi></td><td>${available ? html`<${MetricPercent} value=${item.value}/>` : html`<span class="report-rating-missing">ثبت نشده</span>`}</td><td>${available ? html`<b class="is-ok">ثبت شده</b>` : html`<span class="report-rating-missing">ثبت نشده</span>`}</td></tr>`;
+  })}</tbody></table>`;
+}
+
+function MonthlyChange({ report }) {
+  const change = numericOrNull(report.monthlyChange);
+  const changeClass = change === null ? 'is-missing' : change > 0 ? 'is-positive' : change < 0 ? 'is-negative' : 'is-stable';
+  const label = change === null
+    ? 'ثبت نشده'
+    : change > 0
+      ? `افزایش ${fa(change)} نمره`
+      : change < 0
+        ? `کاهش ${fa(Math.abs(change))} نمره`
+        : 'بدون تغییر';
+  const latest = report.monthlyHistory?.at?.(-1);
+  const previous = report.monthlyHistory?.at?.(-2);
+  return html`<div class=${`monthly-change ${changeClass}`}><span class="monthly-change__icon" aria-hidden="true">${change === null ? '—' : change > 0 ? '↑' : change < 0 ? '↓' : '→'}</span><div><strong>${label}</strong><small>${previous && latest ? `${previous.label} ← ${latest.label}` : 'مقایسه با ارزیابی قبلی'}</small></div></div>`;
+}
+
+function MonthlyReport({ report, loading = false }) {
+  const trend = trendOption(report.monthlyHistory ?? report.history);
+  const radar = radarOption(report.domainScores);
+  const strengths = barsOption(report.strengths, '#0f766e');
+  const improvements = barsOption(report.improvements, '#a61d4d');
+  const completion = isNumber(report.completionPercent) ? clamp(report.completionPercent) : null;
+  const average = isNumber(report.average) ? report.average : null;
+  const statusLabel = report.completionStatus === 'final' ? 'تکمیل‌شده' : 'ناقص / در حال تکمیل';
+  const sourceLabel = report.sourceFile
+    ? `منبع: ${report.sourceFile}${report.sourceRow ? ` · ردیف ${fa(report.sourceRow)}` : ''}`
+    : 'منبع دادهٔ ماهانه';
+  return html`<article class="analytical-sheet analytical-sheet--monthly" data-report-mode="data_monthly" aria-label=${`کارنامه تابستانه ${report.student.name}`}>
+    <header class="analytical-sheet__header monthly-sheet__header"><div class="analytical-sheet__mark"><${SchoolMark} report=${report}/></div><div class="analytical-sheet__heading"><p>${report.reportTitle}</p><h2>${report.academic.term}</h2><strong>${report.school}</strong></div><div class="monthly-sheet__meta"><strong>گزارش شاخص‌محور</strong><span>${report.organization}</span><span>${report.academic.grade} · کلاس ${report.academic.className}</span></div></header>
+    <div class="analytical-sheet__subhead monthly-sheet__subhead"><span>ارزیابی تابستانه بر اساس داده‌های واقعی</span><span>${sourceLabel}</span></div>
+    <div class="monthly-kpi-strip" aria-label="خلاصهٔ امتیاز و تکمیل گزارش"><div class="monthly-kpi"><span>امتیاز کلی</span><strong>${average === null ? 'ثبت نشده' : html`<span class="monthly-kpi-value">${reportNumber(average)} <small>از ۲۰</small></span>`}</strong><em>${report.completionStatus === 'final' ? 'ارزیابی نهایی' : 'ارزیابی موقت'}</em></div><div class="monthly-kpi monthly-kpi--completion"><span>درصد تکمیل داده</span><strong>${completion === null ? 'ثبت نشده' : html`<span class="monthly-kpi-value">${reportNumber(completion)}٪</span>`}</strong><div class="monthly-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow=${completion ?? 0} aria-label="درصد تکمیل داده">${completion !== null && html`<i style=${`width:${completion}%`}></i>`}</div><em>${statusLabel}</em></div><div class="monthly-kpi monthly-kpi--change"><span>تغییر نسبت به قبل</span><${MonthlyChange} report=${report}/></div></div>
+    <div class="monthly-sheet__grid">
+      <${Panel} key="monthly-identity" title="مشخصات دانش‌آموز" className="monthly-identity" tone="navy"><div class="report-portrait"><${StudentPhoto} report=${report}/></div><dl class="report-identity-list"><div><dt>نام و نام خانوادگی</dt><dd>${report.student.name}</dd></div><div><dt>کد ملی</dt><dd><bdi dir="ltr">${report.student.nationalId}</bdi></dd></div><div><dt>شماره دانش‌آموزی</dt><dd><bdi dir="ltr">${report.student.number}</bdi></dd></div><div><dt>پایه و کلاس</dt><dd>${report.academic.grade} · ${report.academic.className}</dd></div></dl></${Panel}>
+      <${Panel} key="monthly-radar" title="نمودار ۹ حوزهٔ رشد" className="monthly-radar" tone="teal">${loading ? html`<${MissingSection} message="در حال آماده‌سازی گزارش…"/>` : radar ? html`<${EChart} option=${radar} label="نمودار راداری ۹ حوزهٔ رشد" className="echart--radar"/>` : html`<${MissingSection}/>`}</${Panel}>
+      <${Panel} key="monthly-trend" title="روند ارزیابی ماهانه" className="monthly-trend" tone="navy">${loading ? html`<${MissingSection} message="در حال آماده‌سازی گزارش…"/>` : trend ? html`<${EChart} option=${trend} label="روند امتیازهای ارزیابی ماهانه" className="echart--trend echart--monthly-trend"/>` : html`<${MissingSection}/>`}</${Panel}>
+      <${Panel} key="monthly-metrics" title="شاخص‌های آموزشی و رفتاری" className="monthly-metrics" tone="teal"><${MonthlyMetricTable} report=${report}/></${Panel}>
+      <${Panel} key="monthly-strengths" title="نقاط قوت" className="monthly-strengths" tone="green">${strengths ? html`<${EChart} option=${strengths} label="نقاط قوت بر اساس شاخص‌ها" className="echart--bars"/>` : html`<${MissingSection}/>`}</${Panel}>
+      <${Panel} key="monthly-improvements" title="نقاط قابل بهبود" className="monthly-improvements" tone="rose">${improvements ? html`<${EChart} option=${improvements} label="نقاط قابل بهبود بر اساس شاخص‌ها" className="echart--bars"/>` : html`<${MissingSection}/>`}</${Panel}>
+      <${Panel} key="monthly-skills" title="مهارت‌های فردی" className="monthly-skills" tone="gold">${report.skills21?.length ? html`<div class="report-rating-list">${report.skills21.map(item => html`<div key=${item.code}><span>${item.title}</span><${Stars} value=${item.value}/><bdi class="monthly-skill-raw" dir="ltr">خام: ${rawMetricDisplay(item.rawValue)}</bdi><${MetricPercent} value=${item.value}/></div>`)}</div>` : html`<${MissingSection}/>`}</${Panel}>
+      <${Panel} key="monthly-change-panel" title="تغییرات نسبت به ارزیابی قبلی" className="monthly-change-panel" tone="gold"><${MonthlyChange} report=${report}/>${report.monthlyChanges?.length ? html`<ul class="monthly-change-list">${report.monthlyChanges.slice(-3).map((item, index) => html`<li key=${`${item.from_month_no ?? 'missing'}-${item.to_month_no ?? 'missing'}-${index}`}><span>${item.from_month_no ?? '—'} ← ${item.to_month_no ?? '—'}</span><b>${isNumber(item.change) ? `${fa(item.change)} نمره` : 'ثبت نشده'}</b></li>`)}</ul>` : html`<${MissingSection} message="ارزیابی قبلی ثبت نشده است"/>`}</${Panel}>
+      <${Panel} key="monthly-notes" title="توضیحات و پیشنهادها" className="monthly-notes" tone="navy">${report.recommendations?.length ? html`<ul class="report-bullet-list">${report.recommendations.map((item, index) => html`<li key=${`monthly-recommendation-${index}`}>${item}</li>`)}</ul>` : html`<${MissingSection}/>`}<p class="monthly-note-source">${sourceLabel}</p></${Panel}>
+    </div>
+    <footer class="analytical-sheet__footer monthly-sheet__footer"><div class="report-signature-heading"><strong>توضیحات و امضا</strong><span>این نسخه بر اساس شاخص‌های ثبت‌شده در ارزیابی ماهانه صادر شده است.</span></div><div class="report-signatures">${report.signatures.map((label, index) => html`<span key=${`monthly-signature-${index}`}>${label}</span>`)}</div></footer>
+  </article>`;
+}
+
+function OfficialReport({ report, loading = false }) {
   const trend = trendOption(report.history); const radar = radarOption(report.domainScores?.length >= 3 ? report.domainScores : report.skills); const strengths = barsOption(report.strengths, '#0f766e'); const improvements = barsOption(report.improvements, '#a61d4d'); const readiness = barsOption(report.readiness, '#08766f');
   const attendanceRate = isNumber(report.attendance.rate) ? report.attendance.rate : null;
-  return html`<article class="analytical-sheet" aria-label=${`کارنامه تحلیلی ${report.student.name}`}>
+  return html`<article class="analytical-sheet analytical-sheet--official" data-report-mode="official_term" aria-label=${`کارنامه تحلیلی ${report.student.name}`}>
     <header class="analytical-sheet__header"><div class="analytical-sheet__mark"><${SchoolMark} report=${report}/></div><div class="analytical-sheet__heading"><p>${report.reportTitle}</p><h2>${report.academic.gradeRange}</h2><strong>${report.school}</strong></div><blockquote>« هیچ تلاشی بی‌نتیجه نیست؛<br/>هر قدم کوچک امروز، آینده‌ای بزرگ می‌سازد. »</blockquote></header>
     <div class="analytical-sheet__subhead"><span>${report.organization}</span><span>${report.academic.year} · ${report.academic.term} · کلاس ${report.academic.className}</span>${report.demo && html`<em>نمونهٔ نمایشی</em>`}</div>
     <${MetricAvailability} report=${report}/>
@@ -650,4 +774,11 @@ export function AnalyticalReport({ snapshot, loading = false }) {
     </div>
     <footer class="analytical-sheet__footer"><div class="report-signature-heading"><strong>امضا و تأیید مسئولان مدرسه</strong><span>این نسخه پس از بررسی اطلاعات تحصیلی و تربیتی صادر می‌شود.</span></div><div class="report-signatures">${report.signatures.map(label => html`<span>${label}</span>`)}</div></footer>
   </article>`;
+}
+
+export function AnalyticalReport({ snapshot, loading = false }) {
+  const report = useMemo(() => mapSnapshot(snapshot), [snapshot]);
+  return report.reportMode === 'data_monthly'
+    ? html`<${MonthlyReport} report=${report} loading=${loading}/>`
+    : html`<${OfficialReport} report=${report} loading=${loading}/>`;
 }
