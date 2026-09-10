@@ -66,7 +66,11 @@ password: Admin123!ChangeMe
 
 Change those values before sharing the environment. Set `SEED_DEMO=false` to
 disable demo data creation. The seed is idempotent and does not reset an
-existing administrator password.
+existing administrator password. After the optional seed, the bootstrap also
+runs the direct `Data/Excel` and `Data/Photo` ingestion in the required order:
+the 12 comprehensive workbooks first, then the three standalone summer subject
+exam workbooks. Source rows and formulas are retained for audit, and rerunning
+the stack is idempotent.
 
 ### Optional environment overrides
 

@@ -64,6 +64,7 @@ from hamamooz.apps.imports.views import (
     DataSourceConflictViewSet,
     DataSourceManifestViewSet,
     ImportJobViewSet,
+    SubjectExamResultViewSet,
 )
 from hamamooz.apps.organizations.views import (
     AcademicYearViewSet,
@@ -160,6 +161,7 @@ router.register(
 router.register("imports", ImportJobViewSet, basename="import-job")
 router.register("data-sources", DataSourceManifestViewSet, basename="data-source")
 router.register("data-source-conflicts", DataSourceConflictViewSet, basename="data-source-conflict")
+router.register("subject-exam-results", SubjectExamResultViewSet, basename="subject-exam-result")
 router.register(
     "class-source-selections", ClassSourceSelectionViewSet, basename="class-source-selection"
 )

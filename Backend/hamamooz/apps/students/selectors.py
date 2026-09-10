@@ -3,6 +3,9 @@ from hamamooz.apps.attendance.selectors import enrollment_metrics
 from hamamooz.apps.evaluations.catalog import FRAMEWORK_VERSION
 from hamamooz.apps.evaluations.models import MonthlyEvaluation
 from hamamooz.apps.reports.models import ReportArchive
+from hamamooz.apps.reports.subject_exam_integration import (
+    summer_subject_results_for_enrollment,
+)
 from hamamooz.apps.students.models import Enrollment
 
 
@@ -297,6 +300,11 @@ def build_student_360_academics(*, student, school_ids, class_ids) -> dict:
         .select_related("course_offering__grade_subject__subject")
         .order_by("course_offering__grade_subject__subject__title")
     )
+    summer_subject_results = [
+        row
+        for enrollment in enrollments
+        for row in summer_subject_results_for_enrollment(enrollment)
+    ]
 
     return {
         "term_results": [
@@ -320,4 +328,7 @@ def build_student_360_academics(*, student, school_ids, class_ids) -> dict:
             }
             for result in subject_results
         ],
+        # Keep independent summer exam rows alongside, rather than inside, the
+        # official ``subject_results`` collection.
+        "summer_subject_results": summer_subject_results,
     }

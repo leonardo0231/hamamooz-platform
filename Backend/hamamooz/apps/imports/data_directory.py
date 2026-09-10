@@ -16,6 +16,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 from datetime import date, datetime
 from decimal import Decimal
+from itertools import zip_longest
 from pathlib import Path
 from typing import Any
 
@@ -243,12 +244,19 @@ class DataDirectoryScanner:
         detected_classes: set[str] = set()
         class_definitions: set[str] = set()
         student_count = 0
+        raw_workbook = None
+        workbook = None
         try:
+            # Keep both representations: ``data_only=True`` is the safe source
+            # for normalized calculations, while the formula-bearing workbook is
+            # the immutable evidence stored in DataSourceRow.raw_values.
+            raw_workbook = load_workbook(path, read_only=True, data_only=False)
             workbook = load_workbook(path, read_only=True, data_only=True)
             try:
                 for sheet in workbook.worksheets:
+                    raw_sheet = raw_workbook[sheet.title]
                     sheet_records, sheet_info, classes, definitions = self._read_sheet(
-                        manifest, sheet
+                        manifest, sheet, raw_sheet=raw_sheet
                     )
                     records.extend(sheet_records)
                     sheet_manifest.append(sheet_info)
@@ -261,8 +269,13 @@ class DataDirectoryScanner:
                     )
             finally:
                 workbook.close()
+                raw_workbook.close()
         except Exception as exc:  # captured in the manifest, not silently skipped
             errors.append({"code": "workbook_unreadable", "message": str(exc)})
+            if workbook is not None:
+                workbook.close()
+            if raw_workbook is not None:
+                raw_workbook.close()
 
         status = DataSourceManifest.Status.VALID
         if errors:
@@ -293,15 +306,20 @@ class DataDirectoryScanner:
         manifest.save()
         return manifest
 
-    def _read_sheet(self, manifest, sheet):
-        rows = list(sheet.iter_rows(values_only=True))
+    def _read_sheet(self, manifest, sheet, *, raw_sheet=None):
+        evaluated_rows = list(sheet.iter_rows(values_only=True))
+        raw_rows = list((raw_sheet or sheet).iter_rows(values_only=True))
         header_row_number = None
         header_values: list[Any] = []
+        raw_header_values: list[Any] = []
         header_map: dict[str, int] = {}
-        for number, values in enumerate(rows[:30], start=1):
+        for number, values in enumerate(evaluated_rows[:30], start=1):
             candidate = _header_map(values)
             if "national_id" in candidate or "class_code" in candidate:
                 header_row_number, header_values, header_map = number, list(values), candidate
+                raw_header_values = list(
+                    raw_rows[number - 1] if number - 1 < len(raw_rows) else values
+                )
                 break
 
         is_classification_sheet = "کلاس" in _canonical(sheet.title) and "class_code" in header_map
@@ -315,9 +333,14 @@ class DataDirectoryScanner:
         records: list[DataSourceRow] = []
         classes: set[str] = set()
         definitions: set[str] = set()
-        for number, values_tuple in enumerate(rows, start=1):
-            values = list(values_tuple)
-            if not any(value not in (None, "") for value in values):
+        for number, (raw_values_tuple, values_tuple) in enumerate(
+            zip_longest(raw_rows, evaluated_rows, fillvalue=()), start=1
+        ):
+            raw_values = list(raw_values_tuple or ())
+            values = list(values_tuple or ())
+            if not any(value not in (None, "") for value in values) and not any(
+                value not in (None, "") for value in raw_values
+            ):
                 continue
             normalized = _normalise_row(header_values, values, header_map) if header_map else {}
             kind = _row_kind(normalized, sheet.title)
@@ -327,8 +350,10 @@ class DataDirectoryScanner:
                 if is_classification_sheet:
                     definitions.add(class_code)
             raw = {
-                "headers": [str(value or "") for value in header_values] if header_values else [],
-                "values": [_json_value(value) for value in values],
+                "headers": [str(value or "") for value in raw_header_values]
+                if raw_header_values
+                else [],
+                "values": [_json_value(value) for value in raw_values],
             }
             records.append(
                 DataSourceRow(

@@ -64,6 +64,32 @@ test('the data-monthly API contract renders without inventing official data', ()
   assert.equal(report.attendance.rate, null);
 });
 
+test('summer subject exam results stay separate from official subject grades', () => {
+  const report = mapSnapshot({
+    report_mode: 'data_monthly',
+    title: 'کارنامه ارزیابی تابستانه رشد دانش‌آموز',
+    month: { no: 3, title: 'شهریور' },
+    student: { name: 'نمونه', grade: 'هفتم', class_code: '7-a' },
+    subject_grades: [{ title: 'نمره رسمی ریاضی', final_score: 19 }],
+    summer_subject_results: [{
+      id: 'summer-row-1', subject_title: 'ریاضی', score: 18, final_score: 18.5,
+      percentage: 90, rank: 3, source_file: 'کارنامه تفصیلی آزمون تابستانه هفتم.xlsx',
+    }],
+    metrics: [],
+    domains: [],
+    monthly_scores: [],
+    recommendations: [],
+  });
+
+  assert.deepEqual(report.subjects.map(item => item.title), ['نمره رسمی ریاضی']);
+  assert.equal(report.subjects[0].score, 19);
+  assert.equal(report.summerSubjectResults.length, 1);
+  assert.equal(report.summerSubjectResults[0].title, 'ریاضی');
+  assert.equal(report.summerSubjectResults[0].finalScore, 18.5);
+  assert.equal(report.summerSubjectResults[0].percent, 90);
+  assert.equal(report.summerSubjectResults[0].rank, 3);
+});
+
 test('Excel mixed scales are normalized from raw metrics and recover broken summaries', () => {
   const rawValues = [
     ['EDU_01', 18.64, 'score_20'], ['EDU_02', 'ندارد', 'delta'],

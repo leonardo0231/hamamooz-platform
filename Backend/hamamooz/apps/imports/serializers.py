@@ -8,7 +8,13 @@ from hamamooz.apps.accounts.access import accessible_school_ids
 from hamamooz.apps.organizations.models import Organization
 
 from .defaults import get_besat_organization
-from .models import ClassSourceSelection, DataSourceConflict, DataSourceManifest, ImportJob
+from .models import (
+    ClassSourceSelection,
+    DataSourceConflict,
+    DataSourceManifest,
+    ImportJob,
+    SubjectExamResult,
+)
 
 
 def uploaded_file_checksum(uploaded_file):
@@ -165,6 +171,64 @@ class DataSourceManifestSerializer(serializers.ModelSerializer):
             "row_count",
             "student_row_count",
             "scanned_at",
+            "ingest_status",
+            "ingest_summary",
+            "ingested_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+
+class SubjectExamResultSerializer(serializers.ModelSerializer):
+    """Read-only audit representation of a standalone subject-exam row."""
+
+    school_name = serializers.CharField(source="school.name", read_only=True)
+    student_name = serializers.CharField(
+        source="student.full_name", read_only=True, allow_null=True
+    )
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+
+    class Meta:
+        model = SubjectExamResult
+        fields = [
+            "id",
+            "organization",
+            "school",
+            "school_name",
+            "source_manifest",
+            "source_file",
+            "source_checksum",
+            "source_sheet",
+            "source_row",
+            "exam_period",
+            "first_name",
+            "last_name",
+            "national_id_raw",
+            "national_id",
+            "grade_name",
+            "grade_order",
+            "class_name",
+            "subject_name",
+            "student",
+            "student_name",
+            "question_count",
+            "correct_count",
+            "wrong_count",
+            "blank_count",
+            "percentage",
+            "highest_percentage",
+            "rank",
+            "t_score",
+            "overall_rank",
+            "score",
+            "final_score",
+            "raw_values",
+            "normalized_values",
+            "errors",
+            "error_count",
+            "status",
+            "status_display",
             "created_at",
             "updated_at",
         ]

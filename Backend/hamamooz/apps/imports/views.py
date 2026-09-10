@@ -9,7 +9,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from hamamooz.apps.accounts.access import accessible_school_ids, user_has_role
 from hamamooz.apps.accounts.models import Role
@@ -18,13 +18,20 @@ from hamamooz.apps.organizations.models import Organization
 
 from .data_directory import DataDirectoryScanner
 from .dynamic_engine import inspect_uploaded_workbook
-from .models import ClassSourceSelection, DataSourceConflict, DataSourceManifest, ImportJob
+from .models import (
+    ClassSourceSelection,
+    DataSourceConflict,
+    DataSourceManifest,
+    ImportJob,
+    SubjectExamResult,
+)
 from .serializers import (
     ClassSourceSelectionSerializer,
     DataSourceConflictSerializer,
     DataSourceManifestSerializer,
     ImportJobCreateSerializer,
     ImportJobSerializer,
+    SubjectExamResultSerializer,
 )
 from .services.import_executor import ImportExecutor
 from .tasks import process_import_job_task
@@ -177,7 +184,7 @@ class DataSourceManifestViewSet(AuditedModelViewSet):
     queryset = DataSourceManifest.objects.none()
     serializer_class = DataSourceManifestSerializer
     http_method_names = ["get", "post", "head", "options"]
-    filterset_fields = ["school", "status"]
+    filterset_fields = ["school", "status", "ingest_status"]
     search_fields = ["source_file"]
     required_roles_by_action = {"scan": SOURCE_MANAGERS}
 
@@ -209,6 +216,34 @@ class DataSourceConflictViewSet(AuditedModelViewSet):
         return DataSourceConflict.objects.filter(
             school_id__in=managed_source_school_ids(self.request)
         ).prefetch_related("manifests")
+
+
+class SubjectExamResultViewSet(ReadOnlyModelViewSet):
+    """Read-only audit endpoint for the three independent summer workbooks."""
+
+    queryset = SubjectExamResult.objects.none()
+    serializer_class = SubjectExamResultSerializer
+    filterset_fields = [
+        "school",
+        "status",
+        "grade_order",
+        "source_file",
+        "source_manifest",
+        "national_id",
+        "subject_name",
+    ]
+    search_fields = [
+        "source_file",
+        "national_id",
+        "national_id_raw",
+        "subject_name",
+        "class_name",
+    ]
+
+    def get_queryset(self):
+        return SubjectExamResult.objects.filter(
+            school_id__in=managed_source_school_ids(self.request)
+        ).select_related("school", "student", "source_manifest")
 
 
 class ClassSourceSelectionViewSet(AuditedModelViewSet):

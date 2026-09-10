@@ -2,7 +2,10 @@ from rest_framework import serializers
 
 from hamamooz.apps.accounts.access import accessible_organization_ids, accessible_school_ids
 from hamamooz.apps.evaluations.serializers import MonthlyEvaluationSerializer
-from hamamooz.apps.reports.serializers import ReportArchiveSerializer
+from hamamooz.apps.reports.serializers import (
+    ReportArchiveSerializer,
+    SummerSubjectResultSerializer,
+)
 
 from .models import Enrollment, EnrollmentEvent, Guardian, Student, StudentGuardian
 from .services import create_enrollment
@@ -105,6 +108,7 @@ class Student360SubjectResultSerializer(serializers.Serializer):
 class Student360AcademicsSerializer(serializers.Serializer):
     term_results = Student360TermResultSerializer(many=True)
     subject_results = Student360SubjectResultSerializer(many=True)
+    summer_subject_results = SummerSubjectResultSerializer(many=True)
 
 
 class Student360AttendanceMetricsSerializer(serializers.Serializer):

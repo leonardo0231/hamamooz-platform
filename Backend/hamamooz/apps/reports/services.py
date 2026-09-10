@@ -32,6 +32,7 @@ from hamamooz.apps.evaluations.services import EvaluationAnalyticsService
 from hamamooz.apps.students.models import Enrollment
 
 from .models import ReportArchive, ReportBatch, ReportBatchItem, ReportDraft
+from .subject_exam_integration import summer_subject_results_for_enrollment
 
 ALLOWED_REPORT_BLOCKS = {
     "student_identity",
@@ -233,6 +234,9 @@ def build_student_snapshot(enrollment, term, *, recalculate=True):
             "grade": enrollment.grade_level.title,
             "class": enrollment.class_section.title,
         },
+        # This is an independent source collection.  It must not be merged
+        # into ``subjects``, which is populated only from official offerings.
+        "summer_subject_results": summer_subject_results_for_enrollment(enrollment),
         "subjects": subjects,
         "summary": {
             "average": _decimal_string(term_result.average, policy.decimal_places),
@@ -409,6 +413,9 @@ def build_monthly_report_contract(
             "grade": enrollment.grade_level.title,
             "photo_url": student.photo.url if student.photo else "",
         },
+        # Keep summer exam rows separate from the indicator metrics and from
+        # the official subject-grade section.
+        "summer_subject_results": summer_subject_results_for_enrollment(enrollment),
         "domains": domains,
         "metrics": metric_rows,
         "overall_score": summary["overall_score"],

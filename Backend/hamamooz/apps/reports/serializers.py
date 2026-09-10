@@ -462,6 +462,33 @@ class MonthlyReportMonthSerializer(serializers.Serializer):
     title = serializers.CharField()
 
 
+class SummerSubjectResultSerializer(serializers.Serializer):
+    """Representation for the independent summer subject-exam collection."""
+
+    id = serializers.CharField(required=False, allow_null=True)
+    enrollment_id = serializers.CharField()
+    exam_key = serializers.CharField()
+    exam_title = serializers.CharField()
+    subject_code = serializers.CharField(allow_blank=True)
+    subject_title = serializers.CharField()
+    grade = serializers.CharField(allow_blank=True)
+    class_code = serializers.CharField(allow_blank=True)
+    question_count = serializers.IntegerField(allow_null=True)
+    correct_count = serializers.IntegerField(allow_null=True)
+    wrong_count = serializers.IntegerField(allow_null=True)
+    blank_count = serializers.IntegerField(allow_null=True)
+    percent = serializers.FloatField(allow_null=True)
+    highest_percent = serializers.FloatField(allow_null=True)
+    rank = serializers.IntegerField(allow_null=True)
+    t_score = serializers.FloatField(allow_null=True)
+    overall_rank = serializers.IntegerField(allow_null=True)
+    score = serializers.FloatField(allow_null=True)
+    final_score = serializers.FloatField(allow_null=True)
+    source_file = serializers.CharField(allow_blank=True)
+    source_row = serializers.IntegerField(allow_null=True)
+    raw = serializers.JSONField(required=False)
+
+
 class MonthlyReportContractSerializer(serializers.Serializer):
     """Stable React data contract for the summer/monthly report card."""
 
@@ -473,6 +500,10 @@ class MonthlyReportContractSerializer(serializers.Serializer):
     organization = serializers.JSONField(required=False, allow_null=True)
     school = serializers.JSONField(required=False, allow_null=True)
     student = MonthlyReportStudentSerializer()
+    # This collection is supplied by the independent subject-exam bounded
+    # context.  It is deliberately not represented by ``subjects`` or
+    # ``official_subject_grades``.
+    summer_subject_results = SummerSubjectResultSerializer(many=True, required=False)
     domains = serializers.ListField(child=serializers.DictField())
     metrics = serializers.ListField(child=serializers.DictField())
     overall_score = serializers.FloatField(allow_null=True)

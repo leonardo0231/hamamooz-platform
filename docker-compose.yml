@@ -108,7 +108,8 @@ services:
       --admin-username "$${SEED_ADMIN_USERNAME}"
       --admin-email "$${SEED_ADMIN_EMAIL}"
       --admin-password "$${SEED_ADMIN_PASSWORD}";
-      else echo "Demo seed is disabled (SEED_DEMO=false)."; fi'
+      else echo "Demo seed is disabled (SEED_DEMO=false)."; fi;
+      python manage.py ingest_data_directory'
     depends_on:
       release:
         condition: service_completed_successfully

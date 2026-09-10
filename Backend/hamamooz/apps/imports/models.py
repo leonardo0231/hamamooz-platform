@@ -93,6 +93,12 @@ class DataSourceManifest(SoftDeleteModel):
         INVALID = "invalid", "نامعتبر"
         CONFLICT = "conflict", "نیازمند تعیین منبع"
 
+    class IngestStatus(models.TextChoices):
+        NOT_PROCESSED = "not_processed", "ثبت رسمی نشده"
+        COMPLETED = "completed", "ثبت شد"
+        PARTIAL = "partial", "ثبت ناقص با حفظ داده خام"
+        FAILED = "failed", "خطا در ثبت"
+
     organization = models.ForeignKey(
         "organizations.Organization", on_delete=models.PROTECT, related_name="data_source_manifests"
     )
@@ -115,6 +121,17 @@ class DataSourceManifest(SoftDeleteModel):
     row_count = models.PositiveIntegerField(default=0)
     student_row_count = models.PositiveIntegerField(default=0)
     scanned_at = models.DateTimeField(auto_now=True)
+    # The scanner status describes workbook shape.  These fields separately
+    # describe the direct, row-wise write into official tables; a partial write
+    # is still useful because the raw manifest remains complete and auditable.
+    ingest_status = models.CharField(
+        max_length=20,
+        choices=IngestStatus.choices,
+        default=IngestStatus.NOT_PROCESSED,
+        db_index=True,
+    )
+    ingest_summary = models.JSONField(default=dict, blank=True)
+    ingested_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["source_file"]
@@ -127,6 +144,10 @@ class DataSourceManifest(SoftDeleteModel):
         ]
         indexes = [
             models.Index(fields=["school", "status"]),
+            models.Index(
+                fields=["school", "ingest_status"],
+                name="imports_dat_school_ingest_idx",
+            ),
             models.Index(fields=["organization", "checksum"]),
         ]
 
@@ -184,6 +205,137 @@ class DataSourceRow(SoftDeleteModel):
 
     def __str__(self):
         return f"{self.source_file}:{self.sheet_name}:{self.source_row}"
+
+
+class SubjectExamResult(SoftDeleteModel):
+    """One raw, queryable row from a standalone subject-exam workbook.
+
+    These rows intentionally do not become ``academics.Score`` records.  The three
+    supplied summer workbooks are assessment exports with one row per student and
+    subject, and may contain malformed identifiers or score cells.  Keeping the
+    source row and its normalized projection here lets an ingestion run retain every
+    row without inventing a domain score when normalization or student matching fails.
+    """
+
+    class Status(models.TextChoices):
+        VALID = "valid", "معتبر"
+        INVALID = "invalid", "دارای خطا"
+        UNMATCHED = "unmatched", "دانش‌آموز پیدا نشد"
+
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.PROTECT,
+        related_name="subject_exam_results",
+    )
+    school = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.PROTECT,
+        related_name="school_subject_exam_results",
+    )
+    source_manifest = models.ForeignKey(
+        DataSourceManifest,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="subject_exam_results",
+    )
+    # Relative POSIX path below the directory passed to the ingestor.
+    source_file = models.CharField(max_length=500, db_index=True)
+    source_checksum = models.CharField(max_length=64, db_index=True)
+    source_sheet = models.CharField(max_length=200)
+    source_row = models.PositiveIntegerField()
+    exam_period = models.CharField(max_length=30, default="summer", db_index=True)
+
+    first_name = models.CharField(max_length=100, blank=True)
+    last_name = models.CharField(max_length=100, blank=True)
+    national_id_raw = models.CharField(max_length=100, blank=True)
+    # ``national_id`` is the normalized, queryable projection.  Invalid values stay
+    # in ``national_id_raw`` and ``raw_values`` rather than being truncated.
+    national_id = models.CharField(max_length=20, blank=True, db_index=True)
+    grade_name = models.CharField(max_length=100, blank=True)
+    grade_order = models.PositiveSmallIntegerField(null=True, blank=True, db_index=True)
+    class_name = models.CharField(max_length=150, blank=True)
+    subject_name = models.CharField(max_length=150, blank=True, db_index=True)
+    student = models.ForeignKey(
+        "students.Student",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="subject_exam_results",
+    )
+
+    question_count = models.PositiveIntegerField(null=True, blank=True)
+    correct_count = models.PositiveIntegerField(null=True, blank=True)
+    wrong_count = models.PositiveIntegerField(null=True, blank=True)
+    blank_count = models.PositiveIntegerField(null=True, blank=True)
+    percentage = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
+    highest_percentage = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
+    rank = models.PositiveIntegerField(null=True, blank=True)
+    t_score = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
+    overall_rank = models.PositiveIntegerField(null=True, blank=True)
+    score = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
+    final_score = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
+
+    # ``raw_values`` contains the original cell values (including formulas); the
+    # normalized projection may contain cached formula results and parsed values.
+    raw_values = models.JSONField(default=dict, blank=True)
+    normalized_values = models.JSONField(default=dict, blank=True)
+    errors = models.JSONField(default=list, blank=True)
+    error_count = models.PositiveIntegerField(default=0)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.VALID, db_index=True
+    )
+
+    class Meta:
+        ordering = ["source_file", "source_sheet", "source_row"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "school",
+                    "source_file",
+                    "source_checksum",
+                    "source_sheet",
+                    "source_row",
+                ],
+                condition=models.Q(is_deleted=False),
+                name="uq_live_subject_exam_source_row",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["school", "status", "grade_order"],
+                name="imports_subj_school_status_idx",
+            ),
+            models.Index(
+                fields=["school", "national_id", "subject_name"],
+                name="imports_subj_student_idx",
+            ),
+            models.Index(
+                fields=["school", "source_file", "source_row"],
+                name="imports_subj_school_source_idx",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        errors = {}
+        if self.organization_id and self.school_id:
+            school_organization_id = self.school.organization_id or self.school_id
+            if school_organization_id != self.organization_id:
+                errors["school"] = "شعبه و مجموعه آزمون باید متعلق به یک مجموعه باشند."
+        if (
+            self.student_id
+            and self.organization_id
+            and self.student.organization_id != self.organization_id
+        ):
+            errors["student"] = "دانش‌آموز متعلق به مجموعه آزمون نیست."
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        identity = self.national_id or self.national_id_raw or "بدون شناسه"
+        return f"{self.source_file}:{self.source_row} - {identity} - {self.subject_name}"
 
 
 class ClassSourceSelection(SoftDeleteModel):

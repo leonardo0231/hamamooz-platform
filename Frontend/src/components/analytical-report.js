@@ -200,6 +200,7 @@ const demo = {
     { title: 'زبان انگلیسی', first: 17, previous: 18.2, current: 19.2, continuous: 19, midterm: 19.2, final: 19.4 },
     { title: 'مطالعات اجتماعی', first: 16.1, previous: 16.8, current: 18.1, continuous: 18, midterm: 18.1, final: 18.2 },
   ],
+  summerSubjectResults: [],
   skills: [
     { title: 'احترام و همکاری', value: 92 }, { title: 'مسئولیت‌پذیری', value: 88 }, { title: 'اعتماد به نفس', value: 84 },
     { title: 'نظم شخصی', value: 91 }, { title: 'خودکنترلی', value: 86 }, { title: 'مدیریت زمان', value: 78 },
@@ -258,6 +259,7 @@ const emptyReport = {
   rank: null,
   history: [],
   subjects: [],
+  summerSubjectResults: [],
   skills: [],
   skills21: [],
   readiness: [],
@@ -517,6 +519,26 @@ function normalizeMonthlySubjectRows(rows) {
   }).filter(item => item.title);
 }
 
+function normalizeSummerSubjectRows(rows) {
+  const sourceRows = Array.isArray(rows) ? rows : [];
+  return sourceRows.map((item, index) => {
+    const source = item && typeof item === 'object' ? item : { subject_title: item };
+    const title = String(source.subject_title ?? source.subject ?? source.title ?? 'درس ثبت نشده').trim() || 'درس ثبت نشده';
+    const rawScore = source.score ?? source.final_score ?? source.finalScore ?? source.final ?? source.grade;
+    const rawFinalScore = source.final_score ?? source.finalScore ?? source.final ?? source.score ?? source.grade;
+    return {
+      ...source,
+      key: source.id ?? `${title}-${source.source_row ?? source.sourceRow ?? index}`,
+      title,
+      score: numericSubject(rawScore),
+      finalScore: numericSubject(rawFinalScore),
+      percent: numericValue(source.percent ?? source.percentage),
+      rank: numericValue(source.rank),
+      overallRank: numericValue(source.overall_rank ?? source.overallRank),
+    };
+  });
+}
+
 function mapDataMonthlyReport(report) {
   // ``monthly-preview`` is deliberately a separate API contract.  Optional
   // subject_grades are accepted only when the source explicitly provides them;
@@ -531,6 +553,13 @@ function mapDataMonthlyReport(report) {
     Array.isArray(report?.subject_grades) ? report.subject_grades : report?.subjects,
   );
   const visibleSubjects = bounded(subjectRows, 12);
+  // ``summer_subject_results`` is an independent exam collection.  Do not
+  // fold it into ``subjects``: that field is reserved for explicit official
+  // subject grades supplied by the report producer.
+  const visibleSummerSubjectResults = bounded(
+    normalizeSummerSubjectRows(report?.summer_subject_results),
+    12,
+  );
   const behavior = metricRows.filter(item => /^(DEV|CHR|DIS)_/.test(item.code ?? ''));
   const skills21 = metricRows.filter(item => /^PER_/.test(item.code ?? ''));
   const indexRows = metricRows.filter(item => /^(EDU|DEV|CHR|DIS)_/.test(item.code ?? ''));
@@ -629,6 +658,7 @@ function mapDataMonthlyReport(report) {
     rank: null,
     history,
     subjects: visibleSubjects.items,
+    summerSubjectResults: visibleSummerSubjectResults.items,
     skills: behavior,
     skills21,
     readiness: [],
@@ -657,6 +687,7 @@ function mapDataMonthlyReport(report) {
     sourceRow: report?.source_row ?? null,
     missingSections: sourceSections,
     subjectsOmitted: visibleSubjects.omitted,
+    summerSubjectResultsOmitted: visibleSummerSubjectResults.omitted,
     strengthsOmitted: strengths.omitted,
     improvementsOmitted: improvements.omitted,
     skillsOmitted: 0,
@@ -702,6 +733,10 @@ export function mapSnapshot(snapshot) {
   const gradeRange = report.academic?.grade_range ?? report.academic?.gradeRange ?? historyGradeRange ?? DEFAULT_REPORT_GRADE_RANGE;
   const academic = metricRows.filter(item => /^EDU_/.test(item.code ?? ''));
   const visibleSubjects = bounded(subjectRows, 12);
+  const visibleSummerSubjectResults = bounded(
+    normalizeSummerSubjectRows(report.summer_subject_results),
+    12,
+  );
   const strengthRows = [...subjectRows].filter(item => isNumber(item.current)).sort((a, b) => b.current - a.current).map(item => ({ title: item.title, value: clamp(item.current * 5) }));
   const improvementRows = [...subjectRows].filter(item => isNumber(item.current)).sort((a, b) => a.current - b.current).map(item => ({ title: item.title, value: clamp(item.current * 5) }));
   const strengths = bounded(strengthRows, 6);
@@ -742,7 +777,9 @@ export function mapSnapshot(snapshot) {
     student: { name: report.student?.full_name ?? 'دانش‌آموز', nationalId: report.student?.national_id ?? '—', number: report.student?.student_number ?? '—', initial: (report.student?.full_name ?? 'د').slice(0, 1), photoUrl: assetUrl(report.student?.photo_url || report.student?.photo) },
     academic: { year: report.academic?.year ?? '—', grade: report.academic?.grade ?? '—', gradeRange, className: report.academic?.class ?? '—', term: report.academic?.term ?? '—' },
     average: numericSubject(report.summary?.average), rank: report.summary?.class_rank ?? null, history,
-    subjects: visibleSubjects.items, skills: behavior, skills21, readiness: academic, domainScores,
+    subjects: visibleSubjects.items,
+    summerSubjectResults: visibleSummerSubjectResults.items,
+    skills: behavior, skills21, readiness: academic, domainScores,
     strengths: strengths.items, improvements: improvements.items, activities: activities.items, awards: awards.items,
     counselor: counselor.items,
     recommendations: parentRecommendations.items,
@@ -762,7 +799,9 @@ export function mapSnapshot(snapshot) {
     metricRows,
     indexRows: academic,
     missingSections: [],
-    subjectsOmitted: visibleSubjects.omitted, strengthsOmitted: Math.max(0, strengthRows.length - strengths.items.length),
+    subjectsOmitted: visibleSubjects.omitted,
+    summerSubjectResultsOmitted: visibleSummerSubjectResults.omitted,
+    strengthsOmitted: Math.max(0, strengthRows.length - strengths.items.length),
     improvementsOmitted: Math.max(0, improvementRows.length - improvements.items.length), skillsOmitted: 0,
     skills21Omitted: 0, activitiesOmitted: activities.omitted, awardsOmitted: awards.omitted,
     counselorOmitted: counselor.omitted, followUpsOmitted: followUps.omitted,
