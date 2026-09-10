@@ -14,29 +14,72 @@ from .services import (
     normalize_report_page_size,
 )
 
+MONTH_TITLES = {
+    # Data workbooks use a school-period sequence that starts in summer, not
+    # the Jalali calendar number: 3 is therefore شهریور by contract.
+    1: "تیر",
+    2: "مرداد",
+    3: "شهریور",
+    4: "مهر",
+    5: "آبان",
+    6: "آذر",
+    7: "دی",
+    8: "بهمن",
+    9: "اسفند",
+    10: "فروردین",
+    11: "اردیبهشت",
+    12: "خرداد",
+}
+
 
 def validate_report_selection(attrs, request):
     report_type = attrs["report_type"]
     enrollment = attrs.get("enrollment")
     class_section = attrs.get("class_section")
-    term = attrs["term"]
-    if report_type == ReportArchive.ReportType.STUDENT_REPORT_CARD:
+    report_mode = attrs.get("report_mode", ReportArchive.ReportMode.OFFICIAL_TERM)
+    term = attrs.get("term")
+    if report_mode == ReportArchive.ReportMode.DATA_MONTHLY:
+        if report_type != ReportArchive.ReportType.STUDENT_REPORT_CARD:
+            raise serializers.ValidationError(
+                {"report_type": "گزارش ماهانه فقط برای یک دانش‌آموز صادر می‌شود."}
+            )
         if not enrollment or class_section:
             raise serializers.ValidationError(
-                "برای کارنامه دانش‌آموز فقط enrollment باید ارسال شود."
+                "برای گزارش ماهانه فقط enrollment باید ارسال شود."
             )
+        if term is not None:
+            raise serializers.ValidationError({"term": "گزارش ماهانه نوبت رسمی ندارد."})
+        if not attrs.get("month_no"):
+            raise serializers.ValidationError({"month_no": "شماره ماه برای گزارش ماهانه الزامی است."})
         school = enrollment.school
         class_section = enrollment.class_section
         academic_year = enrollment.academic_year
-    else:
-        if not class_section or enrollment:
+    elif report_mode == ReportArchive.ReportMode.OFFICIAL_TERM:
+        if term is None:
+            raise serializers.ValidationError({"term": "نوبت برای کارنامه رسمی الزامی است."})
+        if attrs.get("month_no") is not None or attrs.get("month_title"):
             raise serializers.ValidationError(
-                "برای کارنامه گروهی فقط class_section باید ارسال شود."
+                {"month_no": "شماره و عنوان ماه فقط برای گزارش ماهانه مجاز است."}
             )
-        school = class_section.school
-        academic_year = class_section.academic_year
-    if term.academic_year_id != academic_year.id:
-        raise serializers.ValidationError({"term": "نوبت متعلق به سال تحصیلی انتخاب‌شده نیست."})
+        if report_type == ReportArchive.ReportType.STUDENT_REPORT_CARD:
+            if not enrollment or class_section:
+                raise serializers.ValidationError(
+                    "برای کارنامه دانش‌آموز فقط enrollment باید ارسال شود."
+                )
+            school = enrollment.school
+            class_section = enrollment.class_section
+            academic_year = enrollment.academic_year
+        else:
+            if not class_section or enrollment:
+                raise serializers.ValidationError(
+                    "برای کارنامه گروهی فقط class_section باید ارسال شود."
+                )
+            school = class_section.school
+            academic_year = class_section.academic_year
+        if term.academic_year_id != academic_year.id:
+            raise serializers.ValidationError({"term": "نوبت متعلق به سال تحصیلی انتخاب‌شده نیست."})
+    else:
+        raise serializers.ValidationError({"report_mode": "حالت گزارش نامعتبر است."})
     if school.id not in set(accessible_school_ids(request.user)):
         raise serializers.ValidationError("به این شعبه دسترسی ندارید.")
     if class_section.id not in set(allowed_class_ids(request.user, [school.id])):
@@ -101,6 +144,11 @@ class ReportArchiveSerializer(serializers.ModelSerializer):
             "school_name",
             "academic_year",
             "term",
+            "report_mode",
+            "month_no",
+            "month_title",
+            "source_file",
+            "source_row",
             "report_type",
             "status",
             "status_display",
@@ -152,8 +200,25 @@ class ReportArchiveSerializer(serializers.ModelSerializer):
         return request.build_absolute_uri(path) if request else path
 
     def validate(self, attrs):
+        report_mode = attrs.get("report_mode", ReportArchive.ReportMode.OFFICIAL_TERM)
+        if report_mode == ReportArchive.ReportMode.DATA_MONTHLY:
+            month_no = attrs.get("month_no")
+            if month_no and not attrs.get("month_title"):
+                attrs["month_title"] = MONTH_TITLES[month_no]
+            if not str(attrs.get("source_file") or "").strip():
+                raise serializers.ValidationError(
+                    {"source_file": "فایل منبع برای گزارش ماهانه الزامی است."}
+                )
+            if attrs.get("source_row") is None:
+                raise serializers.ValidationError(
+                    {"source_row": "ردیف منبع برای گزارش ماهانه الزامی است."}
+                )
         attrs = validate_report_selection(attrs, self.context["request"])
-        return validate_official_report_readiness(attrs)
+        return (
+            validate_official_report_readiness(attrs)
+            if report_mode == ReportArchive.ReportMode.OFFICIAL_TERM
+            else attrs
+        )
 
     def create(self, validated_data):
         school = validated_data.pop("_school")
@@ -346,6 +411,75 @@ class ReportPreviewSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         return validate_report_selection(attrs, self.context["request"])
+
+
+class MonthlyReportPreviewSerializer(serializers.Serializer):
+    """Input for a data-driven student report without an official term.
+
+    The provenance properties are optional request hints.  When omitted the
+    report service resolves them from the source-row manifest; supplying them
+    never changes imported data and is useful for an audited re-render of a
+    historic workbook row.
+    """
+
+    enrollment = serializers.PrimaryKeyRelatedField(
+        queryset=ReportArchive._meta.get_field("enrollment").remote_field.model.objects.all()
+    )
+    month_no = serializers.IntegerField(min_value=1, max_value=12)
+    month_title = serializers.CharField(required=False, allow_blank=False, max_length=30)
+    source_file = serializers.CharField(required=False, allow_blank=False, max_length=500)
+    source_row = serializers.IntegerField(required=False, min_value=1)
+
+    def validate(self, attrs):
+        enrollment = attrs["enrollment"]
+        school = enrollment.school
+        if school.id not in set(accessible_school_ids(self.context["request"].user)):
+            raise serializers.ValidationError("به این شعبه دسترسی ندارید.")
+        if enrollment.class_section_id not in set(
+            allowed_class_ids(self.context["request"].user, [school.id])
+        ):
+            raise serializers.ValidationError("به این کلاس دسترسی ندارید.")
+        attrs.setdefault("month_title", MONTH_TITLES[attrs["month_no"]])
+        return attrs
+
+
+class MonthlyReportStudentSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    national_id = serializers.CharField()
+    student_number = serializers.CharField(allow_null=True)
+    class_code = serializers.CharField()
+    grade = serializers.CharField()
+    photo_url = serializers.CharField(allow_blank=True)
+
+
+class MonthlyReportMonthSerializer(serializers.Serializer):
+    no = serializers.IntegerField(min_value=1, max_value=12)
+    title = serializers.CharField()
+
+
+class MonthlyReportContractSerializer(serializers.Serializer):
+    """Stable React data contract for the summer/monthly report card."""
+
+    report_mode = serializers.ChoiceField(choices=[ReportArchive.ReportMode.DATA_MONTHLY])
+    title = serializers.CharField()
+    month = MonthlyReportMonthSerializer()
+    source_file = serializers.CharField(allow_blank=True)
+    source_row = serializers.IntegerField(allow_null=True)
+    student = MonthlyReportStudentSerializer()
+    domains = serializers.ListField(child=serializers.DictField())
+    metrics = serializers.ListField(child=serializers.DictField())
+    overall_score = serializers.FloatField(allow_null=True)
+    completion_percent = serializers.FloatField()
+    completion_status = serializers.ChoiceField(choices=["provisional", "final"])
+    monthly_change = serializers.FloatField(allow_null=True)
+    monthly_changes = serializers.ListField(child=serializers.DictField())
+    strengths = serializers.ListField(child=serializers.DictField())
+    improvements = serializers.ListField(child=serializers.DictField())
+    attendance = serializers.JSONField(allow_null=True)
+    activities = serializers.ListField(child=serializers.DictField())
+    awards = serializers.ListField(child=serializers.DictField())
+    recommendations = serializers.ListField(child=serializers.CharField())
+    missing_sections = serializers.ListField(child=serializers.CharField())
 
 
 class ReportTemplateSerializer(serializers.ModelSerializer):
