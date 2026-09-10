@@ -7,6 +7,7 @@ from test_imports import create_job
 
 from hamamooz.apps.evaluations.catalog import DOMAIN_DEFINITIONS, FRAMEWORK_VERSION, METRIC_CATALOG
 from hamamooz.apps.evaluations.models import MetricScore, MonthlyEvaluation
+from hamamooz.apps.evaluations.services import EvaluationAnalyticsService
 from hamamooz.apps.imports.models import ImportJob
 from hamamooz.apps.imports.serializers import uploaded_file_checksum
 from hamamooz.apps.imports.services import process_import_job
@@ -115,6 +116,58 @@ def create_job_from_payload(base_data, payload):
         checksum=checksum,
         requested_by=base_data["manager"],
     )
+
+
+@pytest.mark.django_db
+def test_recomputation_uses_only_valid_raw_indicators_and_exposes_report_insights(base_data):
+    """Workbook summaries and unknown columns must never alter calculations."""
+    evaluation = MonthlyEvaluation.objects.create(
+        enrollment=base_data["enrollments"][0],
+        month_no=3,
+        framework_version=FRAMEWORK_VERSION,
+        recorded_by=base_data["manager"],
+    )
+    MetricScore.objects.create(evaluation=evaluation, metric_code="EDU_01", value=5)
+    MetricScore.objects.create(evaluation=evaluation, metric_code="DEV_01", value=3)
+    # It is representable in the legacy table but deliberately absent from the
+    # framework catalog, so it must be auditable without contributing a score.
+    MetricScore.objects.create(evaluation=evaluation, metric_code="UNKNOWN", value=5)
+
+    summary = EvaluationAnalyticsService.evaluation_summary(evaluation)
+
+    assert [item["code"] for item in summary["metrics"]] == ["DEV_01", "EDU_01"]
+    assert summary["metrics"][1]["raw_score"] == 5
+    assert summary["metrics"][1]["score"] == 20
+    assert summary["completed_metrics"] == 2
+    assert summary["completion_percent"] == pytest.approx(
+        round(2 / len(METRIC_CATALOG) * 100, 2)
+    )
+    assert next(item for item in summary["domain_scores"] if item["code"] == "EDU")["score"] == 20
+    assert next(item for item in summary["domain_scores"] if item["code"] == "DEV")["score"] == 12
+    assert summary["overall_score"] == pytest.approx(round((20 * 20 + 12 * 15) / 35, 2))
+    assert summary["strengths"][0]["code"] == "EDU"
+    assert summary["improvements"][0]["code"] == "DEV"
+
+
+@pytest.mark.django_db
+def test_recomputation_exposes_observed_monthly_changes_without_claiming_finality(base_data):
+    enrollment = base_data["enrollments"][0]
+    for month_no, value in ((2, 3), (3, 4)):
+        evaluation = MonthlyEvaluation.objects.create(
+            enrollment=enrollment,
+            month_no=month_no,
+            framework_version=FRAMEWORK_VERSION,
+            recorded_by=base_data["manager"],
+        )
+        MetricScore.objects.create(evaluation=evaluation, metric_code="EDU_01", value=value)
+
+    summary = EvaluationAnalyticsService.student_summary(enrollment, rank_scope="class")
+
+    assert summary["completion_status"] == "provisional"
+    assert summary["change"] is None  # final-only legacy/public summary
+    assert summary["monthly_changes"] == [
+        {"from_month_no": 2, "to_month_no": 3, "change": 4.0}
+    ]
 
 
 @pytest.mark.django_db
