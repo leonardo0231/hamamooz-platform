@@ -207,6 +207,9 @@ export const dataApi = {
     ]);
     return { identity, summary, academics, attendance, evaluations };
   },
+  monthlyReportPreview: async (payload, signal) => apiRequest('reports/monthly-preview/', {
+    method: 'POST', body: payload, signal,
+  }),
   alerts: async (query, signal) => config.demoMode ? alerts : results(await apiRequest('attendance-alerts/', { query, signal })).map(normalizeAlert),
   resource: async (tag, query, signal) => results(await apiRequest(`${tag}/`, { query, signal })),
 };
