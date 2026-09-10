@@ -27,11 +27,11 @@ def run_for_enrollment(*, enrollment_id, trigger=AnalyticsRun.Trigger.MANUAL, re
     explicitly superseded, avoiding a mutable opaque ``risk = 82`` record.
     """
     with transaction.atomic():
-        enrollment = (
-            Enrollment.objects.select_for_update()
-            .select_related("school__organization")
-            .get(pk=enrollment_id)
-        )
+        # Lock the enrollment row without joining the nullable parent side of
+        # the fixed Besat organization relation. PostgreSQL rejects FOR UPDATE
+        # queries that include that nullable outer join.
+        enrollment = Enrollment.objects.select_for_update(of=("self",)).get(pk=enrollment_id)
+        enrollment = Enrollment.objects.select_related("school__organization").get(pk=enrollment.pk)
         organization = enrollment.school.organization
         run = AnalyticsRun.objects.create(
             organization=organization,
