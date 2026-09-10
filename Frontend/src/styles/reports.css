@@ -1204,12 +1204,15 @@ ol.report-bullet-list { list-style-type: decimal; }
 /* Final balance pass for the monthly sample.  The radar remains prominent,
    but no longer forces a tall empty first row; the wider behavioural section
    gets the room that the educational table does not need. */
-.analytical-sheet--monthly .monthly-sheet__grid {
-  grid-template-areas:
-    'identity radar radar'
-    'education behavior behavior'
-    'growth growth personal'
-    'strengths improvements trend';
+@media screen and (min-width: 1151px) {
+  .analytical-sheet--monthly .monthly-sheet__grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-areas:
+      'identity identity radar radar radar radar'
+      'education education education behavior behavior behavior'
+      'growth growth growth growth personal personal'
+      'strengths strengths improvements improvements trend trend';
+  }
 }
 .analytical-sheet--monthly .monthly-radar {
   align-self: start;
@@ -1244,7 +1247,13 @@ ol.report-bullet-list { list-style-type: decimal; }
 
 @media print {
   .analytical-sheet--monthly .monthly-sheet__grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     grid-template-rows: 225px 190px 245px 100px;
+    grid-template-areas:
+      'identity identity radar radar radar radar'
+      'education education education behavior behavior behavior'
+      'growth growth growth growth personal personal'
+      'strengths strengths improvements improvements trend trend';
   }
   .analytical-sheet--monthly .monthly-radar {
     width: 100%;
