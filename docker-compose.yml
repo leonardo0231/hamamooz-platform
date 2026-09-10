@@ -38,6 +38,9 @@ x-backend: &backend
   volumes:
     - static_data:/app/staticfiles
     - media_data:/app/media
+    # Repository-owned intake workbooks are evidence, not uploaded media.
+    # Keep the mount read-only so Data/Excel scanning cannot alter source files.
+    - ./Data:/app/Data:ro
 
 services:
   db:
