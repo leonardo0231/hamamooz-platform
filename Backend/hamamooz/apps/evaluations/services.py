@@ -35,6 +35,15 @@ TREND_LABELS = {
     "insufficient_data": "داده ناکافی",
 }
 
+# The legacy workbook uses an integer 0--5 scale.  Keeping this validation at
+# the calculation boundary matters even though the database currently enforces
+# the same range: imports can be retried, historical rows can pre-date the
+# constraint, and a report must never treat an unknown value as an assessed
+# indicator.
+METRIC_SCORE_MIN = 0
+METRIC_SCORE_MAX = 5
+REPORT_INSIGHT_LIMIT = 3
+
 
 def _performance_level(score):
     if score is None:
@@ -45,13 +54,41 @@ def _performance_level(score):
 class EvaluationAnalyticsService:
     @staticmethod
     def evaluation_summary(evaluation: MonthlyEvaluation) -> dict:
+        """Recompute one monthly evaluation from its persisted raw indicators.
+
+        Calculated values are deliberately not read from imported spreadsheet
+        summary columns.  Only catalogued indicators whose raw scores are in
+        the supported range participate in completion, domain, and overall
+        scores.  This makes the result reproducible and prevents unknown or
+        malformed columns from silently affecting a student's report card.
+        """
         catalog = metric_catalog_for(evaluation.framework_version) or METRIC_CATALOG
         grouped = defaultdict(list)
-        metric_scores = list(evaluation.metric_scores.all())
-        for metric_score in metric_scores:
+        metrics = []
+        for metric_score in evaluation.metric_scores.all():
             definition = catalog.get(metric_score.metric_code)
-            if definition is not None:
-                grouped[definition["domain_code"]].append(metric_score.value)
+            value = metric_score.value
+            if (
+                definition is None
+                or value is None
+                or not METRIC_SCORE_MIN <= value <= METRIC_SCORE_MAX
+            ):
+                continue
+            grouped[definition["domain_code"]].append(value)
+            metrics.append(
+                {
+                    "code": metric_score.metric_code,
+                    "title": definition["title"],
+                    "domain_code": definition["domain_code"],
+                    "domain_title": definition["domain_title"],
+                    "raw_score": value,
+                    "max_raw_score": METRIC_SCORE_MAX,
+                    # The report/radar scale is always out of 20, while the
+                    # raw value remains available for an auditable import.
+                    "score": round(value / METRIC_SCORE_MAX * 20, 2),
+                }
+            )
+        metrics.sort(key=lambda item: (item["domain_code"], item["code"]))
 
         domain_scores = []
         for code, (title, weight) in DOMAIN_DEFINITIONS.items():
@@ -70,7 +107,7 @@ class EvaluationAnalyticsService:
                 }
             )
 
-        completed_metrics = sum(len(values) for values in grouped.values())
+        completed_metrics = len(metrics)
         completion_percent = round(completed_metrics / len(catalog) * 100, 2)
         threshold_percent = max(
             1, min(100, getattr(settings, "EVALUATION_FINAL_COMPLETION_PERCENT", 100))
@@ -87,7 +124,17 @@ class EvaluationAnalyticsService:
             if total_weight
             else None
         )
+        scored_domains = [item for item in domain_scores if item["score"] is not None]
+        strengths = sorted(
+            scored_domains,
+            key=lambda item: (-item["score"], item["code"]),
+        )[:REPORT_INSIGHT_LIMIT]
+        improvements = sorted(
+            scored_domains,
+            key=lambda item: (item["score"], item["code"]),
+        )[:REPORT_INSIGHT_LIMIT]
         return {
+            "metrics": metrics,
             "domain_scores": domain_scores,
             "overall_score": overall_score,
             "completed_metrics": completed_metrics,
@@ -102,6 +149,8 @@ class EvaluationAnalyticsService:
                 if completion_status == "final"
                 else f"اطلاعات ناقص است؛ حداقل {required_metrics} شاخص باید تکمیل شود."
             ),
+            "strengths": strengths,
+            "improvements": improvements,
         }
 
     @classmethod
@@ -153,7 +202,10 @@ class EvaluationAnalyticsService:
                 "recommendation": None,
                 "completion_warning": "هنوز ارزیابی ماهانه‌ای ثبت نشده است.",
                 "monthly_scores": [],
+                "monthly_changes": [],
                 "domain_scores": [],
+                "strengths": [],
+                "improvements": [],
             }
 
         current = monthly[-1]
@@ -184,6 +236,24 @@ class EvaluationAnalyticsService:
         scored_domains = [item for item in domain_scores if item["score"] is not None]
         strongest = max(scored_domains, key=lambda item: item["score"]) if scored_domains else None
         weakest = min(scored_domains, key=lambda item: item["score"]) if scored_domains else None
+
+        # This is intentionally based on *observed* monthly values rather than
+        # finalisation status.  A summer/data-monthly workbook commonly has
+        # partial real observations, and those should be shown as measured
+        # change, never fabricated as an official final result.
+        observed_months = [
+            item for item in monthly if item["overall_score"] is not None
+        ]
+        monthly_changes = [
+            {
+                "from_month_no": previous["month_no"],
+                "to_month_no": current_month["month_no"],
+                "change": round(current_month["overall_score"] - previous["overall_score"], 2),
+            }
+            for previous, current_month in zip(
+                observed_months, observed_months[1:], strict=False
+            )
+        ]
         change = None
         trend = "insufficient_data"
         if current_is_final and len(final_months) >= 2:
@@ -233,7 +303,16 @@ class EvaluationAnalyticsService:
                 {key: value for key, value in item.items() if key != "domain_scores"}
                 for item in monthly
             ],
+            "monthly_changes": monthly_changes,
             "domain_scores": domain_scores,
+            "strengths": sorted(
+                scored_domains,
+                key=lambda item: (-item["score"], item["code"]),
+            )[:REPORT_INSIGHT_LIMIT],
+            "improvements": sorted(
+                scored_domains,
+                key=lambda item: (item["score"], item["code"]),
+            )[:REPORT_INSIGHT_LIMIT],
         }
 
     @classmethod
