@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 134465)
-Total output lines: 21326
-
 openapi: 3.0.3
 info:
   title: HamAmoz Besat School Platform API
@@ -7369,7 +7366,5454 @@ paths:
               $ref: '#/components/schemas/GuideTeacherAssignmentRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/GuideTeacherAssignmen…34465 tokens truncated…ref: '#/components/schemas/AttendanceSessionStatusEnum'
+              $ref: '#/components/schemas/GuideTeacherAssignmentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuideTeacherAssignment'
+          description: ''
+    patch:
+      operationId: guide_teacher_assignments_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this guide teacher assignment.
+        required: true
+      tags:
+      - guide-teacher-assignments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedGuideTeacherAssignmentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedGuideTeacherAssignmentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedGuideTeacherAssignmentRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuideTeacherAssignment'
+          description: ''
+    delete:
+      operationId: guide_teacher_assignments_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this guide teacher assignment.
+        required: true
+      tags:
+      - guide-teacher-assignments
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/health/live/:
+    get:
+      operationId: health_live_retrieve
+      tags:
+      - health
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/health/ready/:
+    get:
+      operationId: health_ready_retrieve
+      tags:
+      - health
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/imports/:
+    get:
+      operationId: imports_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - imports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedImportJobList'
+          description: ''
+    post:
+      operationId: imports_create
+      tags:
+      - imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportJobCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJobCreate'
+          description: ''
+  /api/v1/imports/{id}/:
+    get:
+      operationId: imports_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this import job.
+        required: true
+      tags:
+      - imports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJob'
+          description: ''
+    put:
+      operationId: imports_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this import job.
+        required: true
+      tags:
+      - imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportJobRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJob'
+          description: ''
+    patch:
+      operationId: imports_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this import job.
+        required: true
+      tags:
+      - imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedImportJobRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJob'
+          description: ''
+    delete:
+      operationId: imports_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this import job.
+        required: true
+      tags:
+      - imports
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/imports/{id}/cancel/:
+    post:
+      operationId: imports_cancel_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this import job.
+        required: true
+      tags:
+      - imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportJobRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJob'
+          description: ''
+  /api/v1/imports/{id}/confirm/:
+    post:
+      operationId: imports_confirm_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this import job.
+        required: true
+      tags:
+      - imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportJobRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJob'
+          description: ''
+  /api/v1/imports/{id}/errors/:
+    get:
+      operationId: imports_errors_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this import job.
+        required: true
+      tags:
+      - imports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJob'
+          description: ''
+  /api/v1/imports/{id}/preview/:
+    post:
+      operationId: imports_preview_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this import job.
+        required: true
+      tags:
+      - imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportJobRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJob'
+          description: ''
+  /api/v1/imports/{id}/retry/:
+    post:
+      operationId: imports_retry_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this import job.
+        required: true
+      tags:
+      - imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportJobRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJob'
+          description: ''
+  /api/v1/monthly-evaluations/:
+    get:
+      operationId: monthly_evaluations_list
+      parameters:
+      - in: query
+        name: enrollment
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: enrollment__academic_year
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: enrollment__class_section
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: enrollment__student
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: framework_version
+        schema:
+          type: string
+      - in: query
+        name: month_no
+        schema:
+          type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - monthly-evaluations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMonthlyEvaluationList'
+          description: ''
+  /api/v1/monthly-evaluations/{id}/:
+    get:
+      operationId: monthly_evaluations_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this monthly evaluation.
+        required: true
+      tags:
+      - monthly-evaluations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonthlyEvaluation'
+          description: ''
+  /api/v1/monthly-evaluations/{id}/manual/:
+    delete:
+      operationId: monthly_evaluations_manual_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this monthly evaluation.
+        required: true
+      - in: query
+        name: reason
+        schema:
+          type: string
+        description: دلیل حذف منطقی ارزیابی از نمای جاری.
+        required: true
+      tags:
+      - monthly-evaluations
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/monthly-evaluations/analytics/:
+    get:
+      operationId: monthly_evaluations_analytics_retrieve
+      parameters:
+      - in: query
+        name: enrollment
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: rank_scope
+        schema:
+          type: string
+          enum:
+          - class
+          - school
+      tags:
+      - monthly-evaluations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentEvaluationAnalytics'
+          description: ''
+  /api/v1/monthly-evaluations/catalog/:
+    get:
+      operationId: monthly_evaluations_catalog_retrieve
+      tags:
+      - monthly-evaluations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationCatalog'
+          description: ''
+  /api/v1/monthly-evaluations/dashboard/:
+    get:
+      operationId: monthly_evaluations_dashboard_retrieve
+      parameters:
+      - in: query
+        name: academic_year
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: class_section
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - monthly-evaluations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationDashboard'
+          description: ''
+  /api/v1/monthly-evaluations/export/:
+    get:
+      operationId: monthly_evaluations_export_retrieve
+      parameters:
+      - in: query
+        name: academic_year
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: class_section
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - monthly-evaluations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/monthly-evaluations/manual/:
+    post:
+      operationId: monthly_evaluations_manual_create
+      tags:
+      - monthly-evaluations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManualMonthlyEvaluationInputRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ManualMonthlyEvaluationInputRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ManualMonthlyEvaluationInputRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualMonthlyEvaluationResponse'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualMonthlyEvaluationResponse'
+          description: ''
+  /api/v1/organizations/:
+    get:
+      operationId: organizations_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - organizations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedOrganizationList'
+          description: ''
+    post:
+      operationId: organizations_create
+      tags:
+      - organizations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrganizationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrganizationRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+  /api/v1/organizations/{id}/:
+    get:
+      operationId: organizations_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this organization.
+        required: true
+      tags:
+      - organizations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+    put:
+      operationId: organizations_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this organization.
+        required: true
+      tags:
+      - organizations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrganizationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrganizationRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+    patch:
+      operationId: organizations_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this organization.
+        required: true
+      tags:
+      - organizations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedOrganizationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedOrganizationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedOrganizationRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+    delete:
+      operationId: organizations_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this organization.
+        required: true
+      tags:
+      - organizations
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/parent-notifications/:
+    get:
+      operationId: parent_notifications_list
+      parameters:
+      - in: query
+        name: channel
+        schema:
+          type: string
+          enum:
+          - email
+          - in_app
+          - sms
+        description: |-
+          * `in_app` - داخل سامانه
+          * `email` - ایمیل
+          * `sms` - پیامک
+      - in: query
+        name: guardian
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: kind
+        schema:
+          type: string
+          enum:
+          - absence
+          - alert
+          - summary
+        description: |-
+          * `absence` - گزارش غیبت
+          * `summary` - گزارش دوره‌ای
+          * `alert` - هشدار غیبت بیش از حد
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: school
+        schema:
+          type: string
+          format: uuid
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - dead_letter
+          - failed
+          - processing
+          - queued
+          - sent
+          - skipped
+        description: |-
+          * `queued` - در صف
+          * `processing` - در حال ارسال
+          * `sent` - ارسال‌شده
+          * `failed` - ناموفق
+          * `dead_letter` - متوقف‌شده
+          * `skipped` - ردشده
+      - in: query
+        name: student
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - parent-notifications
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedParentNotificationList'
+          description: ''
+  /api/v1/parent-notifications/{id}/:
+    get:
+      operationId: parent_notifications_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this parent notification.
+        required: true
+      tags:
+      - parent-notifications
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParentNotification'
+          description: ''
+  /api/v1/parent-notifications/{id}/retry/:
+    post:
+      operationId: parent_notifications_retry_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this parent notification.
+        required: true
+      tags:
+      - parent-notifications
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParentNotification'
+          description: ''
+  /api/v1/portal/children/{student_id}/attendance/:
+    get:
+      operationId: portal_children_attendance_retrieve
+      parameters:
+      - in: path
+        name: student_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - portal
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalAttendance'
+          description: ''
+  /api/v1/portal/children/{student_id}/guide-plans/:
+    get:
+      operationId: portal_children_guide_plans_retrieve
+      parameters:
+      - in: path
+        name: student_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - portal
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalGuidePlansResponse'
+          description: ''
+  /api/v1/portal/children/{student_id}/recommendations/:
+    get:
+      operationId: portal_children_recommendations_retrieve
+      parameters:
+      - in: path
+        name: student_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - portal
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalRecommendationsResponse'
+          description: ''
+  /api/v1/portal/children/{student_id}/reports/:
+    get:
+      operationId: portal_children_reports_retrieve
+      parameters:
+      - in: path
+        name: student_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - portal
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalReportsResponse'
+          description: ''
+  /api/v1/portal/children/{student_id}/reports/{report_id}/download/:
+    get:
+      operationId: portal_children_reports_download_retrieve
+      parameters:
+      - in: path
+        name: report_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: student_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - portal
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/portal/me/children/:
+    get:
+      operationId: portal_me_children_retrieve
+      tags:
+      - portal
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalChildrenResponse'
+          description: ''
+  /api/v1/portal/student/attendance/:
+    get:
+      operationId: portal_student_attendance_retrieve
+      tags:
+      - portal
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalAttendance'
+          description: ''
+  /api/v1/portal/student/guide-plans/:
+    get:
+      operationId: portal_student_guide_plans_retrieve
+      tags:
+      - portal
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalGuidePlansResponse'
+          description: ''
+  /api/v1/portal/student/recommendations/:
+    get:
+      operationId: portal_student_recommendations_retrieve
+      tags:
+      - portal
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalRecommendationsResponse'
+          description: ''
+  /api/v1/portal/student/reports/:
+    get:
+      operationId: portal_student_reports_retrieve
+      tags:
+      - portal
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalReportsResponse'
+          description: ''
+  /api/v1/portal/student/reports/{report_id}/download/:
+    get:
+      operationId: portal_student_reports_download_retrieve
+      parameters:
+      - in: path
+        name: report_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - portal
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/portal/visibility-policies/:
+    get:
+      operationId: portal_visibility_policies_list
+      description: Organization-level visibility policy; counseling remains hard-denied
+        in code.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - in: query
+        name: organization
+        schema:
+          type: string
+          format: uuid
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: resource
+        schema:
+          type: string
+          enum:
+          - attendance_summary
+          - behavior
+          - counseling
+          - guide_plan
+          - recommendations
+          - report_card
+        description: |-
+          * `report_card` - Report card
+          * `recommendations` - Recommendations
+          * `attendance_summary` - Attendance summary
+          * `behavior` - Behavior
+          * `counseling` - Counseling
+          * `guide_plan` - Guide plan
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: visibility
+        schema:
+          type: string
+          enum:
+          - approved_only
+          - hidden
+          - never
+          - released
+          - visible
+        description: |-
+          * `released` - Released only
+          * `approved_only` - Approved only
+          * `visible` - Visible
+          * `hidden` - Hidden
+          * `never` - Never
+      tags:
+      - portal
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPortalVisibilityPolicyList'
+          description: ''
+    post:
+      operationId: portal_visibility_policies_create
+      description: Organization-level visibility policy; counseling remains hard-denied
+        in code.
+      tags:
+      - portal
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PortalVisibilityPolicyRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PortalVisibilityPolicyRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PortalVisibilityPolicyRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalVisibilityPolicy'
+          description: ''
+  /api/v1/portal/visibility-policies/{id}/:
+    get:
+      operationId: portal_visibility_policies_retrieve
+      description: Organization-level visibility policy; counseling remains hard-denied
+        in code.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this portal visibility policy.
+        required: true
+      tags:
+      - portal
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalVisibilityPolicy'
+          description: ''
+    put:
+      operationId: portal_visibility_policies_update
+      description: Organization-level visibility policy; counseling remains hard-denied
+        in code.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this portal visibility policy.
+        required: true
+      tags:
+      - portal
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PortalVisibilityPolicyRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PortalVisibilityPolicyRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PortalVisibilityPolicyRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalVisibilityPolicy'
+          description: ''
+    patch:
+      operationId: portal_visibility_policies_partial_update
+      description: Organization-level visibility policy; counseling remains hard-denied
+        in code.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this portal visibility policy.
+        required: true
+      tags:
+      - portal
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPortalVisibilityPolicyRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPortalVisibilityPolicyRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPortalVisibilityPolicyRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalVisibilityPolicy'
+          description: ''
+    delete:
+      operationId: portal_visibility_policies_destroy
+      description: Organization-level visibility policy; counseling remains hard-denied
+        in code.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this portal visibility policy.
+        required: true
+      tags:
+      - portal
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/recommendations/:
+    get:
+      operationId: recommendations_list
+      parameters:
+      - in: query
+        name: audience
+        schema:
+          type: string
+          enum:
+          - counselor
+          - educational_deputy
+          - guide_teacher
+          - manager
+          - parent
+          - student
+          - teacher
+        description: |-
+          * `parent` - Parent
+          * `student` - Student
+          * `guide_teacher` - Guide teacher
+          * `teacher` - Teacher
+          * `educational_deputy` - Educational deputy
+          * `counselor` - Counselor
+          * `manager` - Manager
+      - in: query
+        name: enrollment
+        schema:
+          type: string
+          format: uuid
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: priority
+        schema:
+          type: string
+          enum:
+          - critical
+          - high
+          - low
+          - medium
+        description: |-
+          * `low` - Low
+          * `medium` - Medium
+          * `high` - High
+          * `critical` - Critical
+      - in: query
+        name: rule_code
+        schema:
+          type: string
+      - in: query
+        name: school
+        schema:
+          type: string
+          format: uuid
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - approved
+          - dismissed
+          - draft
+          - expired
+          - pending_review
+          - rejected
+          - superseded
+        description: |-
+          * `draft` - Draft
+          * `pending_review` - Pending review
+          * `approved` - Approved
+          * `rejected` - Rejected
+          * `dismissed` - Dismissed
+          * `expired` - Expired
+          * `superseded` - Superseded
+      tags:
+      - recommendations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRecommendationList'
+          description: ''
+    post:
+      operationId: recommendations_create
+      tags:
+      - recommendations
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recommendation'
+          description: ''
+  /api/v1/recommendations/{id}/:
+    get:
+      operationId: recommendations_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this recommendation.
+        required: true
+      tags:
+      - recommendations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recommendation'
+          description: ''
+  /api/v1/recommendations/{id}/transition/:
+    post:
+      operationId: recommendations_transition_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this recommendation.
+        required: true
+      tags:
+      - recommendations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendationTransitionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RecommendationTransitionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RecommendationTransitionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recommendation'
+          description: ''
+  /api/v1/recommendations/generate/:
+    post:
+      operationId: recommendations_generate_create
+      parameters:
+      - in: query
+        name: audience
+        schema:
+          type: string
+          enum:
+          - counselor
+          - educational_deputy
+          - guide_teacher
+          - manager
+          - parent
+          - student
+          - teacher
+        description: |-
+          * `parent` - Parent
+          * `student` - Student
+          * `guide_teacher` - Guide teacher
+          * `teacher` - Teacher
+          * `educational_deputy` - Educational deputy
+          * `counselor` - Counselor
+          * `manager` - Manager
+      - in: query
+        name: enrollment
+        schema:
+          type: string
+          format: uuid
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: priority
+        schema:
+          type: string
+          enum:
+          - critical
+          - high
+          - low
+          - medium
+        description: |-
+          * `low` - Low
+          * `medium` - Medium
+          * `high` - High
+          * `critical` - Critical
+      - in: query
+        name: rule_code
+        schema:
+          type: string
+      - in: query
+        name: school
+        schema:
+          type: string
+          format: uuid
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - approved
+          - dismissed
+          - draft
+          - expired
+          - pending_review
+          - rejected
+          - superseded
+        description: |-
+          * `draft` - Draft
+          * `pending_review` - Pending review
+          * `approved` - Approved
+          * `rejected` - Rejected
+          * `dismissed` - Dismissed
+          * `expired` - Expired
+          * `superseded` - Superseded
+      tags:
+      - recommendations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateRecommendationsRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GenerateRecommendationsRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GenerateRecommendationsRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRecommendationList'
+          description: ''
+  /api/v1/reports/:
+    get:
+      operationId: reports_list
+      parameters:
+      - in: query
+        name: academic_year
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: class_section
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: enrollment
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: month_no
+        schema:
+          type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: report_mode
+        schema:
+          type: string
+          enum:
+          - data_monthly
+          - official_term
+        description: |-
+          * `official_term` - کارنامه رسمی نوبت
+          * `data_monthly` - کارنامه داده‌محور ماهانه
+      - in: query
+        name: report_type
+        schema:
+          type: string
+          enum:
+          - class_report_cards
+          - student_report_card
+        description: |-
+          * `student_report_card` - کارنامه دانش‌آموز
+          * `class_report_cards` - کارنامه گروهی کلاس
+      - in: query
+        name: school
+        schema:
+          type: string
+          format: uuid
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - completed
+          - failed
+          - processing
+          - queued
+        description: |-
+          * `queued` - در صف
+          * `processing` - در حال تولید
+          * `completed` - آماده
+          * `failed` - ناموفق
+      - in: query
+        name: term
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedReportArchiveList'
+          description: ''
+    post:
+      operationId: reports_create
+      tags:
+      - reports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportArchiveRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReportArchiveRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReportArchiveRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportArchive'
+          description: ''
+  /api/v1/reports/{id}/:
+    get:
+      operationId: reports_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this report archive.
+        required: true
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportArchive'
+          description: ''
+  /api/v1/reports/{id}/download/:
+    get:
+      operationId: reports_download_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this report archive.
+        required: true
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportArchive'
+          description: ''
+  /api/v1/reports/{id}/release/:
+    post:
+      operationId: reports_release_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this report archive.
+        required: true
+      tags:
+      - reports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportArchiveRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReportArchiveRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReportArchiveRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportArchive'
+          description: ''
+  /api/v1/reports/batches/:
+    get:
+      operationId: reports_batches_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedReportBatchList'
+          description: ''
+    post:
+      operationId: reports_batches_create
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportBatch'
+          description: ''
+  /api/v1/reports/batches/{id}/:
+    get:
+      operationId: reports_batches_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this report batch.
+        required: true
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportBatch'
+          description: ''
+  /api/v1/reports/batches/{id}/download/:
+    get:
+      operationId: reports_batches_download_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this report batch.
+        required: true
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportBatch'
+          description: ''
+  /api/v1/reports/batches/{id}/release/:
+    post:
+      operationId: reports_batches_release_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this report batch.
+        required: true
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportBatch'
+          description: ''
+  /api/v1/reports/drafts/:
+    get:
+      operationId: reports_drafts_list
+      parameters:
+      - in: query
+        name: academic_year
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: class_section
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: enrollment
+        schema:
+          type: string
+          format: uuid
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: school
+        schema:
+          type: string
+          format: uuid
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - approved
+          - draft
+          - rejected
+          - rendered
+          - submitted
+        description: |-
+          * `draft` - Draft
+          * `submitted` - Submitted
+          * `approved` - Approved
+          * `rejected` - Rejected
+          * `rendered` - Rendered
+      - in: query
+        name: term
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedReportDraftList'
+          description: ''
+    post:
+      operationId: reports_drafts_create
+      tags:
+      - reports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportDraftCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReportDraftCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReportDraftCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportDraftCreate'
+          description: ''
+  /api/v1/reports/drafts/{id}/:
+    get:
+      operationId: reports_drafts_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this report draft.
+        required: true
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportDraft'
+          description: ''
+    patch:
+      operationId: reports_drafts_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this report draft.
+        required: true
+      tags:
+      - reports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedReportDraftRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedReportDraftRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedReportDraftRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportDraft'
+          description: ''
+  /api/v1/reports/drafts/{id}/approve/:
+    post:
+      operationId: reports_drafts_approve_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this report draft.
+        required: true
+      tags:
+      - reports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportDraftRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReportDraftRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReportDraftRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportDraft'
+          description: ''
+  /api/v1/reports/drafts/{id}/reject/:
+    post:
+      operationId: reports_drafts_reject_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this report draft.
+        required: true
+      tags:
+      - reports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportDraftRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReportDraftRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReportDraftRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportDraft'
+          description: ''
+  /api/v1/reports/drafts/{id}/render/:
+    post:
+      operationId: reports_drafts_render_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this report draft.
+        required: true
+      tags:
+      - reports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportDraftRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReportDraftRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReportDraftRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportDraft'
+          description: ''
+  /api/v1/reports/drafts/{id}/submit/:
+    post:
+      operationId: reports_drafts_submit_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this report draft.
+        required: true
+      tags:
+      - reports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportDraftRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReportDraftRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReportDraftRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportDraft'
+          description: ''
+  /api/v1/reports/monthly-preview/:
+    post:
+      operationId: reports_monthly_preview_create
+      description: Return one React-ready data-monthly report, without a formal term.
+      tags:
+      - reports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportArchiveRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReportArchiveRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReportArchiveRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportArchive'
+          description: ''
+  /api/v1/reports/preview/:
+    post:
+      operationId: reports_preview_create
+      tags:
+      - reports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportArchiveRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReportArchiveRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReportArchiveRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportArchive'
+          description: ''
+  /api/v1/reports/templates/:
+    get:
+      operationId: reports_templates_list
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - in: query
+        name: organization
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: output_format
+        schema:
+          type: string
+          enum:
+          - docx
+          - pdf
+        description: |-
+          * `pdf` - PDF
+          * `docx` - Word
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: report_type
+        schema:
+          type: string
+          enum:
+          - class_report_cards
+          - student_report_card
+        description: |-
+          * `student_report_card` - کارنامه دانش‌آموز
+          * `class_report_cards` - کارنامه گروهی کلاس
+      - in: query
+        name: school
+        schema:
+          type: string
+          format: uuid
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedReportTemplateList'
+          description: ''
+    post:
+      operationId: reports_templates_create
+      tags:
+      - reports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportTemplateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReportTemplateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReportTemplateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportTemplate'
+          description: ''
+  /api/v1/reports/templates/{id}/:
+    get:
+      operationId: reports_templates_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this report template.
+        required: true
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportTemplate'
+          description: ''
+    put:
+      operationId: reports_templates_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this report template.
+        required: true
+      tags:
+      - reports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportTemplateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReportTemplateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReportTemplateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportTemplate'
+          description: ''
+    patch:
+      operationId: reports_templates_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this report template.
+        required: true
+      tags:
+      - reports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedReportTemplateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedReportTemplateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedReportTemplateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportTemplate'
+          description: ''
+    delete:
+      operationId: reports_templates_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this report template.
+        required: true
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/role-assignments/:
+    get:
+      operationId: role_assignments_list
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - in: query
+        name: organization
+        schema:
+          type: string
+          format: uuid
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: role
+        schema:
+          type: string
+          enum:
+          - counselor
+          - educational_deputy
+          - guide_teacher
+          - operator
+          - organization_admin
+          - school_manager
+          - student_affairs_deputy
+          - system_admin
+          - teacher
+        description: |-
+          * `system_admin` - مدیر کل سامانه
+          * `organization_admin` - مدیر مجموعه
+          * `school_manager` - مدیر شعبه
+          * `educational_deputy` - معاون آموزشی
+          * `operator` - اپراتور
+          * `teacher` - دبیر
+          * `student_affairs_deputy` - معاون امور دانش‌آموزی
+          * `counselor` - مشاور
+          * `guide_teacher` - معلم راهنما
+      - in: query
+        name: school
+        schema:
+          type: string
+          format: uuid
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: user
+        schema:
+          type: integer
+      tags:
+      - role-assignments
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRoleAssignmentList'
+          description: ''
+    post:
+      operationId: role_assignments_create
+      tags:
+      - role-assignments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleAssignmentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RoleAssignmentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RoleAssignmentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleAssignment'
+          description: ''
+  /api/v1/role-assignments/{id}/:
+    get:
+      operationId: role_assignments_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this role assignment.
+        required: true
+      tags:
+      - role-assignments
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleAssignment'
+          description: ''
+    put:
+      operationId: role_assignments_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this role assignment.
+        required: true
+      tags:
+      - role-assignments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleAssignmentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RoleAssignmentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RoleAssignmentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleAssignment'
+          description: ''
+    patch:
+      operationId: role_assignments_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this role assignment.
+        required: true
+      tags:
+      - role-assignments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedRoleAssignmentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedRoleAssignmentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedRoleAssignmentRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleAssignment'
+          description: ''
+    delete:
+      operationId: role_assignments_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this role assignment.
+        required: true
+      tags:
+      - role-assignments
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/scores/:
+    get:
+      operationId: scores_list
+      parameters:
+      - in: query
+        name: assessment
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: enrollment
+        schema:
+          type: string
+          format: uuid
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - excused_absent
+          - not_entered
+          - present
+          - unexcused_absent
+        description: |-
+          * `present` - دارای نمره
+          * `excused_absent` - غیبت موجه
+          * `unexcused_absent` - غیبت غیرموجه
+          * `not_entered` - ثبت‌نشده
+      tags:
+      - scores
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedScoreList'
+          description: ''
+  /api/v1/scores/{id}/:
+    get:
+      operationId: scores_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this score.
+        required: true
+      tags:
+      - scores
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Score'
+          description: ''
+  /api/v1/scores/{id}/correct-locked/:
+    post:
+      operationId: scores_correct_locked_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this score.
+        required: true
+      tags:
+      - scores
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Score'
+          description: ''
+  /api/v1/students/:
+    get:
+      operationId: students_list
+      parameters:
+      - in: query
+        name: enrollments__academic_year
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: enrollments__class_section
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: gender
+        schema:
+          type: string
+          enum:
+          - female
+          - male
+        description: |-
+          * `female` - دختر
+          * `male` - پسر
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - in: query
+        name: organization
+        schema:
+          type: string
+          format: uuid
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - graduated
+          - transferred
+          - withdrawn
+        description: |-
+          * `active` - فعال
+          * `graduated` - فارغ‌التحصیل
+          * `transferred` - انتقالی
+          * `withdrawn` - ترک‌تحصیل
+      tags:
+      - students
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStudentList'
+          description: ''
+    post:
+      operationId: students_create
+      tags:
+      - students
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: ''
+  /api/v1/students/{id}/:
+    get:
+      operationId: students_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student.
+        required: true
+      tags:
+      - students
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: ''
+    put:
+      operationId: students_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student.
+        required: true
+      tags:
+      - students
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: ''
+    patch:
+      operationId: students_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student.
+        required: true
+      tags:
+      - students
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: ''
+    delete:
+      operationId: students_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student.
+        required: true
+      tags:
+      - students
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/students/{id}/360/academics/:
+    get:
+      operationId: students_360_academics_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student.
+        required: true
+      tags:
+      - students
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student360Academics'
+          description: ''
+  /api/v1/students/{id}/360/activities/:
+    get:
+      operationId: students_360_activities_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student.
+        required: true
+      tags:
+      - students
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student360Activities'
+          description: ''
+  /api/v1/students/{id}/360/attendance/:
+    get:
+      operationId: students_360_attendance_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student.
+        required: true
+      tags:
+      - students
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student360Attendance'
+          description: ''
+  /api/v1/students/{id}/360/behavior/:
+    get:
+      operationId: students_360_behavior_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student.
+        required: true
+      tags:
+      - students
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student360Behavior'
+          description: ''
+  /api/v1/students/{id}/360/evaluations/:
+    get:
+      operationId: students_360_evaluations_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student.
+        required: true
+      tags:
+      - students
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student360Evaluations'
+          description: ''
+  /api/v1/students/{id}/360/recommendations/:
+    get:
+      operationId: students_360_recommendations_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student.
+        required: true
+      tags:
+      - students
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student360Recommendations'
+          description: ''
+  /api/v1/students/{id}/360/reports/:
+    get:
+      operationId: students_360_reports_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student.
+        required: true
+      tags:
+      - students
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student360Reports'
+          description: ''
+  /api/v1/students/{id}/360/risks/:
+    get:
+      operationId: students_360_risks_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student.
+        required: true
+      tags:
+      - students
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student360Risks'
+          description: ''
+  /api/v1/students/{id}/360/summary/:
+    get:
+      operationId: students_360_summary_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student.
+        required: true
+      tags:
+      - students
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student360Summary'
+          description: ''
+  /api/v1/students/{id}/guardians/:
+    post:
+      operationId: students_guardians_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student.
+        required: true
+      tags:
+      - students
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: ''
+  /api/v1/subject-exam-results/:
+    get:
+      operationId: subject_exam_results_list
+      description: Read-only audit endpoint for the three independent summer workbooks.
+      parameters:
+      - in: query
+        name: grade_order
+        schema:
+          type: integer
+      - in: query
+        name: national_id
+        schema:
+          type: string
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: school
+        schema:
+          type: string
+          format: uuid
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: source_file
+        schema:
+          type: string
+      - in: query
+        name: source_manifest
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - invalid
+          - unmatched
+          - valid
+        description: |-
+          * `valid` - معتبر
+          * `invalid` - دارای خطا
+          * `unmatched` - دانش‌آموز پیدا نشد
+      - in: query
+        name: subject_name
+        schema:
+          type: string
+      tags:
+      - subject-exam-results
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSubjectExamResultList'
+          description: ''
+  /api/v1/subject-exam-results/{id}/:
+    get:
+      operationId: subject_exam_results_retrieve
+      description: Read-only audit endpoint for the three independent summer workbooks.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this subject exam result.
+        required: true
+      tags:
+      - subject-exam-results
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubjectExamResult'
+          description: ''
+  /api/v1/subjects/:
+    get:
+      operationId: subjects_list
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - in: query
+        name: organization
+        schema:
+          type: string
+          format: uuid
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - subjects
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSubjectList'
+          description: ''
+    post:
+      operationId: subjects_create
+      tags:
+      - subjects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubjectRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SubjectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SubjectRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subject'
+          description: ''
+  /api/v1/subjects/{id}/:
+    get:
+      operationId: subjects_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this subject.
+        required: true
+      tags:
+      - subjects
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subject'
+          description: ''
+    put:
+      operationId: subjects_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this subject.
+        required: true
+      tags:
+      - subjects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubjectRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SubjectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SubjectRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subject'
+          description: ''
+    patch:
+      operationId: subjects_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this subject.
+        required: true
+      tags:
+      - subjects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSubjectRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSubjectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSubjectRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subject'
+          description: ''
+    delete:
+      operationId: subjects_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this subject.
+        required: true
+      tags:
+      - subjects
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/terms/:
+    get:
+      operationId: terms_list
+      parameters:
+      - in: query
+        name: academic_year
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: code
+        schema:
+          type: string
+          enum:
+          - first
+          - second
+        description: |-
+          * `first` - نوبت اول
+          * `second` - نوبت دوم
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - terms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTermList'
+          description: ''
+    post:
+      operationId: terms_create
+      tags:
+      - terms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TermRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TermRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TermRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Term'
+          description: ''
+  /api/v1/terms/{id}/:
+    get:
+      operationId: terms_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this term.
+        required: true
+      tags:
+      - terms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Term'
+          description: ''
+    put:
+      operationId: terms_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this term.
+        required: true
+      tags:
+      - terms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TermRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TermRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TermRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Term'
+          description: ''
+    patch:
+      operationId: terms_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this term.
+        required: true
+      tags:
+      - terms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTermRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTermRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTermRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Term'
+          description: ''
+    delete:
+      operationId: terms_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this term.
+        required: true
+      tags:
+      - terms
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/users/:
+    get:
+      operationId: users_list
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUserList'
+          description: ''
+    post:
+      operationId: users_create
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/users/{id}/:
+    get:
+      operationId: users_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this کاربر.
+        required: true
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    put:
+      operationId: users_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this کاربر.
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    patch:
+      operationId: users_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this کاربر.
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/users/{id}/change_password/:
+    post:
+      operationId: users_change_password_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this کاربر.
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/users/{id}/deactivate/:
+    post:
+      operationId: users_deactivate_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this کاربر.
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+components:
+  schemas:
+    AbsenceEvidence:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        file:
+          type: string
+          format: uri
+          readOnly: true
+        original_name:
+          type: string
+          readOnly: true
+        content_type:
+          type: string
+          readOnly: true
+        size_bytes:
+          type: integer
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        uploaded_by:
+          type: integer
+          readOnly: true
+        uploaded_by_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - content_type
+      - created_at
+      - description
+      - file
+      - id
+      - original_name
+      - size_bytes
+      - uploaded_by
+      - uploaded_by_name
+    AcademicYear:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_deleted:
+          type: boolean
+          readOnly: true
+        deleted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        code:
+          type: string
+          maxLength: 20
+          pattern: ^[-a-zA-Z0-9_]+$
+        title:
+          type: string
+          maxLength: 50
+        starts_on:
+          type: string
+          format: date
+        ends_on:
+          type: string
+          format: date
+        is_current:
+          type: boolean
+        is_active:
+          type: boolean
+        organization:
+          type: string
+          format: uuid
+      required:
+      - code
+      - created_at
+      - deleted_at
+      - ends_on
+      - id
+      - is_deleted
+      - organization
+      - organization_name
+      - starts_on
+      - title
+      - updated_at
+    AcademicYearIdentity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - title
+    AcademicYearRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 20
+          pattern: ^[-a-zA-Z0-9_]+$
+        title:
+          type: string
+          minLength: 1
+          maxLength: 50
+        starts_on:
+          type: string
+          format: date
+        ends_on:
+          type: string
+          format: date
+        is_current:
+          type: boolean
+        is_active:
+          type: boolean
+        organization:
+          type: string
+          format: uuid
+      required:
+      - code
+      - ends_on
+      - organization
+      - starts_on
+      - title
+    Activity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        organization:
+          type: string
+          format: uuid
+        school:
+          type: string
+          format: uuid
+        school_name:
+          type: string
+          readOnly: true
+        academic_year:
+          type: string
+          format: uuid
+        academic_year_title:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        kind:
+          $ref: '#/components/schemas/ActivityKindEnum'
+        description:
+          type: string
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ActivityStatusEnum'
+        created_by:
+          type: integer
+          readOnly: true
+        created_by_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - academic_year
+      - academic_year_title
+      - created_at
+      - created_by
+      - created_by_name
+      - id
+      - kind
+      - organization
+      - school
+      - school_name
+      - starts_at
+      - title
+      - updated_at
+    ActivityAchievement:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        participation:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 200
+        result:
+          type: string
+          maxLength: 250
+        placement:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+        awarded_at:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - participation
+      - title
+      - updated_at
+    ActivityAchievementRequest:
+      type: object
+      properties:
+        participation:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        result:
+          type: string
+          maxLength: 250
+        placement:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+        awarded_at:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+      required:
+      - participation
+      - title
+    ActivityAttachment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        activity:
+          type: string
+          format: uuid
+        file:
+          type: string
+          format: uri
+        original_name:
+          type: string
+          readOnly: true
+        uploaded_by:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - activity
+      - created_at
+      - file
+      - id
+      - original_name
+      - updated_at
+      - uploaded_by
+    ActivityAttachmentRequest:
+      type: object
+      properties:
+        activity:
+          type: string
+          format: uuid
+        file:
+          type: string
+          format: binary
+      required:
+      - activity
+      - file
+    ActivityKindEnum:
+      enum:
+      - cultural
+      - competition
+      - research
+      - sport
+      - art
+      - other
+      type: string
+      description: |-
+        * `cultural` - Cultural
+        * `competition` - Competition
+        * `research` - Research
+        * `sport` - Sport
+        * `art` - Art
+        * `other` - Other
+    ActivityParticipation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        activity:
+          type: string
+          format: uuid
+        activity_title:
+          type: string
+          readOnly: true
+        enrollment:
+          type: string
+          format: uuid
+        student_name:
+          type: string
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/ActivityParticipationStatusEnum'
+        participation_role:
+          type: string
+          maxLength: 100
+        result:
+          type: string
+          maxLength: 250
+        placement:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - activity
+      - activity_title
+      - created_at
+      - enrollment
+      - id
+      - student_name
+      - updated_at
+    ActivityParticipationRequest:
+      type: object
+      properties:
+        activity:
+          type: string
+          format: uuid
+        enrollment:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ActivityParticipationStatusEnum'
+        participation_role:
+          type: string
+          maxLength: 100
+        result:
+          type: string
+          maxLength: 250
+        placement:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+        notes:
+          type: string
+      required:
+      - activity
+      - enrollment
+    ActivityParticipationStatusEnum:
+      enum:
+      - invited
+      - registered
+      - participated
+      - withdrawn
+      - absent
+      type: string
+      description: |-
+        * `invited` - Invited
+        * `registered` - Registered
+        * `participated` - Participated
+        * `withdrawn` - Withdrawn
+        * `absent` - Absent
+    ActivityRequest:
+      type: object
+      properties:
+        organization:
+          type: string
+          format: uuid
+        school:
+          type: string
+          format: uuid
+        academic_year:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        kind:
+          $ref: '#/components/schemas/ActivityKindEnum'
+        description:
+          type: string
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ActivityStatusEnum'
+      required:
+      - academic_year
+      - kind
+      - organization
+      - school
+      - starts_at
+      - title
+    ActivityStatusEnum:
+      enum:
+      - draft
+      - published
+      - completed
+      - cancelled
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `published` - Published
+        * `completed` - Completed
+        * `cancelled` - Cancelled
+    AnalyticsDomain:
+      type: object
+      properties:
+        code:
+          type: string
+        title:
+          type: string
+        score:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - code
+      - score
+      - title
+    AnalyticsRuleConfig:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        organization:
+          type: string
+          format: uuid
+        rule_code:
+          type: string
+          maxLength: 100
+        rule_version:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        enabled:
+          type: boolean
+        parameters: {}
+        effective_from:
+          type: string
+          format: date
+          nullable: true
+        effective_to:
+          type: string
+          format: date
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - organization
+      - rule_code
+      - rule_version
+      - updated_at
+    AnalyticsRuleConfigRequest:
+      type: object
+      properties:
+        organization:
+          type: string
+          format: uuid
+        rule_code:
+          type: string
+          minLength: 1
+          maxLength: 100
+        rule_version:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        enabled:
+          type: boolean
+        parameters: {}
+        effective_from:
+          type: string
+          format: date
+          nullable: true
+        effective_to:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - organization
+      - rule_code
+      - rule_version
+    AnalyticsRun:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        organization:
+          type: string
+          format: uuid
+          readOnly: true
+        school:
+          type: string
+          format: uuid
+          readOnly: true
+        enrollment:
+          type: string
+          format: uuid
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/AnalyticsRunStatusEnum'
+          readOnly: true
+        trigger:
+          allOf:
+          - $ref: '#/components/schemas/TriggerEnum'
+          readOnly: true
+        requested_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        error_code:
+          type: string
+          readOnly: true
+        rule_snapshot:
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - completed_at
+      - created_at
+      - enrollment
+      - error_code
+      - id
+      - organization
+      - requested_by
+      - rule_snapshot
+      - school
+      - started_at
+      - status
+      - trigger
+    AnalyticsRunCreate:
+      type: object
+      properties:
+        enrollment:
+          type: string
+          format: uuid
+        trigger:
+          $ref: '#/components/schemas/TriggerEnum'
+      required:
+      - enrollment
+    AnalyticsRunCreateRequest:
+      type: object
+      properties:
+        enrollment:
+          type: string
+          format: uuid
+        trigger:
+          $ref: '#/components/schemas/TriggerEnum'
+      required:
+      - enrollment
+    AnalyticsRunStatusEnum:
+      enum:
+      - pending
+      - running
+      - completed
+      - failed
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `running` - Running
+        * `completed` - Completed
+        * `failed` - Failed
+    Assessment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        course_offering:
+          type: string
+          format: uuid
+        assessment_type:
+          type: string
+          format: uuid
+        assessment_type_title:
+          type: string
+          readOnly: true
+        subject_title:
+          type: string
+          readOnly: true
+        class_title:
+          type: string
+          readOnly: true
+        school_name:
+          type: string
+          readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
+        teacher_name:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          maxLength: 150
+        assessment_date:
+          type: string
+          format: date
+        max_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,2})?$
+        weight:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
+        status:
+          allOf:
+          - $ref: '#/components/schemas/AssessmentStatusEnum'
+          readOnly: true
+        created_by:
+          type: integer
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reviewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reviewed_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        locked_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        rejection_reason:
+          type: string
+          readOnly: true
+        workflow_version:
+          type: integer
+          readOnly: true
+        score_count:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - assessment_date
+      - assessment_type
+      - assessment_type_title
+      - class_title
+      - course_offering
+      - created_at
+      - created_by
+      - id
+      - locked_at
+      - organization_name
+      - rejection_reason
+      - reviewed_at
+      - reviewed_by
+      - school_name
+      - score_count
+      - status
+      - subject_title
+      - submitted_at
+      - teacher_name
+      - title
+      - updated_at
+      - workflow_version
+    AssessmentRequest:
+      type: object
+      properties:
+        course_offering:
+          type: string
+          format: uuid
+        assessment_type:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 150
+        assessment_date:
+          type: string
+          format: date
+        max_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,2})?$
+        weight:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
+      required:
+      - assessment_date
+      - assessment_type
+      - course_offering
+      - title
+    AssessmentStatusEnum:
+      enum:
+      - draft
+      - submitted
+      - rejected
+      - approved
+      - locked
+      type: string
+      description: |-
+        * `draft` - پیش‌نویس
+        * `submitted` - ارسال‌شده برای تأیید
+        * `rejected` - ردشده
+        * `approved` - تأییدشده
+        * `locked` - قفل‌شده
+    AssessmentType:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_deleted:
+          type: boolean
+          readOnly: true
+        deleted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        code:
+          type: string
+          maxLength: 30
+          pattern: ^[-a-zA-Z0-9_]+$
+        title:
+          type: string
+          maxLength: 100
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        default_weight:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
+        is_active:
+          type: boolean
+        organization:
+          type: string
+          format: uuid
+      required:
+      - category
+      - code
+      - created_at
+      - deleted_at
+      - id
+      - is_deleted
+      - organization
+      - organization_name
+      - title
+      - updated_at
+    AssessmentTypeRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 30
+          pattern: ^[-a-zA-Z0-9_]+$
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        default_weight:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
+        is_active:
+          type: boolean
+        organization:
+          type: string
+          format: uuid
+      required:
+      - category
+      - code
+      - organization
+      - title
+    AsyncJobStatusEnum:
+      enum:
+      - queued
+      - processing
+      - completed
+      - failed
+      type: string
+      description: |-
+        * `queued` - در صف
+        * `processing` - در حال تولید
+        * `completed` - آماده
+        * `failed` - ناموفق
+    AttendanceAlert:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        policy:
+          type: string
+          format: uuid
+          readOnly: true
+        school:
+          type: string
+          format: uuid
+          readOnly: true
+        school_name:
+          type: string
+          readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
+        academic_year:
+          type: string
+          format: uuid
+          readOnly: true
+        enrollment:
+          type: string
+          format: uuid
+          readOnly: true
+        student:
+          type: string
+          format: uuid
+          readOnly: true
+        student_name:
+          type: string
+          readOnly: true
+        class_title:
+          type: string
+          readOnly: true
+        scope:
+          allOf:
+          - $ref: '#/components/schemas/AttendanceScopeEnum'
+          readOnly: true
+        severity:
+          allOf:
+          - $ref: '#/components/schemas/AttendanceAlertSeverityEnum'
+          readOnly: true
+        period_start:
+          type: string
+          format: date
+          readOnly: true
+        period_end:
+          type: string
+          format: date
+          readOnly: true
+        absence_count:
+          type: integer
+          readOnly: true
+        total_sessions:
+          type: integer
+          readOnly: true
+        absence_percent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/AttendanceAlertStatusEnum'
+          readOnly: true
+        acknowledged_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        acknowledged_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        resolved_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        resolved_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - absence_count
+      - absence_percent
+      - academic_year
+      - acknowledged_at
+      - acknowledged_by
+      - class_title
+      - created_at
+      - enrollment
+      - id
+      - organization_name
+      - period_end
+      - period_start
+      - policy
+      - resolved_at
+      - resolved_by
+      - school
+      - school_name
+      - scope
+      - severity
+      - status
+      - student
+      - student_name
+      - total_sessions
+      - updated_at
+    AttendanceAlertSeverityEnum:
+      enum:
+      - warning
+      - critical
+      type: string
+      description: |-
+        * `warning` - هشدار
+        * `critical` - بحرانی
+    AttendanceAlertStatusEnum:
+      enum:
+      - open
+      - acknowledged
+      - resolved
+      type: string
+      description: |-
+        * `open` - باز
+        * `acknowledged` - مشاهده‌شده
+        * `resolved` - رفع‌شده
+    AttendanceMetrics:
+      type: object
+      properties:
+        total_sessions:
+          type: integer
+          readOnly: true
+        absence_count:
+          type: integer
+          readOnly: true
+        excused_absence_count:
+          type: integer
+          readOnly: true
+        unexcused_absence_count:
+          type: integer
+          readOnly: true
+        late_count:
+          type: integer
+          readOnly: true
+        early_leave_count:
+          type: integer
+          readOnly: true
+        absence_percent:
+          type: number
+          format: double
+          readOnly: true
+      required:
+      - absence_count
+      - absence_percent
+      - early_leave_count
+      - excused_absence_count
+      - late_count
+      - total_sessions
+      - unexcused_absence_count
+    AttendanceNotificationChannelEnum:
+      enum:
+      - in_app
+      - email
+      - sms
+      type: string
+      description: |-
+        * `in_app` - داخل سامانه
+        * `email` - ایمیل
+        * `sms` - پیامک
+    AttendancePolicy:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        school:
+          type: string
+          format: uuid
+        school_name:
+          type: string
+          readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
+        academic_year:
+          type: string
+          format: uuid
+        academic_year_title:
+          type: string
+          readOnly: true
+        warning_absence_count:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        critical_absence_count:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        warning_absence_percent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        critical_absence_percent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        lookback_days:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        include_excused_absences:
+          type: boolean
+        require_evidence_for_excuse:
+          type: boolean
+        notify_guardians:
+          type: boolean
+        notification_channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationChannelsEnum'
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - academic_year
+      - academic_year_title
+      - created_at
+      - id
+      - organization_name
+      - school
+      - school_name
+      - updated_at
+    AttendancePolicyRequest:
+      type: object
+      properties:
+        school:
+          type: string
+          format: uuid
+        academic_year:
+          type: string
+          format: uuid
+        warning_absence_count:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        critical_absence_count:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        warning_absence_percent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        critical_absence_percent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        lookback_days:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        include_excused_absences:
+          type: boolean
+        require_evidence_for_excuse:
+          type: boolean
+        notify_guardians:
+          type: boolean
+        notification_channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationChannelsEnum'
+        is_active:
+          type: boolean
+      required:
+      - academic_year
+      - school
+    AttendanceRecord:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        session:
+          type: string
+          format: uuid
+          readOnly: true
+        session_date:
+          type: string
+          format: date
+          readOnly: true
+        session_scope:
+          type: string
+          readOnly: true
+        enrollment:
+          type: string
+          format: uuid
+          readOnly: true
+        student:
+          type: string
+          format: uuid
+          readOnly: true
+        student_name:
+          type: string
+          readOnly: true
+        student_number:
+          type: string
+          readOnly: true
+        class_title:
+          type: string
+          readOnly: true
+        subject_title:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/AttendanceRecordStatusEnum'
+          readOnly: true
+        arrival_time:
+          type: string
+          format: time
+          readOnly: true
+          nullable: true
+        departure_time:
+          type: string
+          format: time
+          readOnly: true
+          nullable: true
+        late_minutes:
+          type: integer
+          readOnly: true
+        early_leave_minutes:
+          type: integer
+          readOnly: true
+        is_late:
+          type: boolean
+          readOnly: true
+        left_early:
+          type: boolean
+          readOnly: true
+        note:
+          type: string
+          readOnly: true
+        absence_reason:
+          type: string
+          readOnly: true
+        excuse_status:
+          allOf:
+          - $ref: '#/components/schemas/ExcuseStatusEnum'
+          readOnly: true
+        excuse_submitted_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        excuse_submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reviewed_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        reviewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        review_note:
+          type: string
+          readOnly: true
+        recorded_by:
+          type: integer
+          readOnly: true
+        revision:
+          type: integer
+          readOnly: true
+        evidence_files:
+          type: array
+          items:
+            $ref: '#/components/schemas/AbsenceEvidence'
+          readOnly: true
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttendanceRecordRevision'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - absence_reason
+      - arrival_time
+      - class_title
+      - created_at
+      - departure_time
+      - early_leave_minutes
+      - enrollment
+      - evidence_files
+      - excuse_status
+      - excuse_submitted_at
+      - excuse_submitted_by
+      - history
+      - id
+      - is_late
+      - late_minutes
+      - left_early
+      - note
+      - recorded_by
+      - review_note
+      - reviewed_at
+      - reviewed_by
+      - revision
+      - session
+      - session_date
+      - session_scope
+      - status
+      - student
+      - student_name
+      - student_number
+      - subject_title
+      - updated_at
+    AttendanceRecordRevision:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        changed_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        changed_by_name:
+          type: string
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        before:
+          readOnly: true
+        after:
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - after
+      - before
+      - changed_by
+      - changed_by_name
+      - created_at
+      - id
+      - reason
+    AttendanceRecordStatusEnum:
+      enum:
+      - present
+      - absent_excused
+      - absent_unexcused
+      type: string
+      description: |-
+        * `present` - حاضر
+        * `absent_excused` - غیبت موجه
+        * `absent_unexcused` - غیبت غیرموجه
+    AttendanceScopeEnum:
+      enum:
+      - daily
+      - period
+      type: string
+      description: |-
+        * `daily` - روزانه
+        * `period` - زنگ/کلاس
+    AttendanceSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        school:
+          type: string
+          format: uuid
+        school_name:
+          type: string
+          readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
+        academic_year:
+          type: string
+          format: uuid
+        class_section:
+          type: string
+          format: uuid
+        class_title:
+          type: string
+          readOnly: true
+        term:
+          type: string
+          format: uuid
+          nullable: true
+        course_offering:
+          type: string
+          format: uuid
+          nullable: true
+        subject_title:
+          type: string
+          readOnly: true
+        teacher_name:
+          type: string
+          readOnly: true
+        session_date:
+          type: string
+          format: date
+        scope:
+          $ref: '#/components/schemas/AttendanceScopeEnum'
+        period_number:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+        title:
+          type: string
+          maxLength: 150
+        starts_at:
+          type: string
+          format: time
+          nullable: true
+        ends_at:
+          type: string
+          format: time
+          nullable: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/AttendanceSessionStatusEnum'
           readOnly: true
         taken_by:
           type: integer
