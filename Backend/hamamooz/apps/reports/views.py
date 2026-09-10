@@ -13,10 +13,13 @@ from hamamooz.apps.accounts.access import allowed_class_ids, selected_school_ids
 from hamamooz.apps.accounts.models import Role
 from hamamooz.apps.core.services import record_audit
 from hamamooz.apps.core.viewsets import AuditedModelViewSet
+from hamamooz.apps.evaluations.models import MonthlyEvaluation
 
 from .chromium_renderer import _print_url
 from .models import ReportArchive, ReportBatch, ReportDraft, ReportTemplate
 from .serializers import (
+    MonthlyReportContractSerializer,
+    MonthlyReportPreviewSerializer,
     ReportArchiveSerializer,
     ReportBatchCreateSerializer,
     ReportBatchSerializer,
@@ -27,7 +30,12 @@ from .serializers import (
     ReportPreviewSerializer,
     ReportTemplateSerializer,
 )
-from .services import build_report_render_snapshot, render_report_draft
+from .services import (
+    MonthlyReportSourceSelectionRequired,
+    build_monthly_report_contract,
+    build_report_render_snapshot,
+    render_report_draft,
+)
 from .tasks import generate_report_batch_task, generate_report_task
 
 REPORTERS = [
@@ -96,10 +104,13 @@ class ReportArchiveViewSet(AuditedModelViewSet):
         "status",
         "enrollment",
         "class_section",
+        "report_mode",
+        "month_no",
     ]
     required_roles_by_action = {
         "create": REPORTERS,
         "preview": REPORTERS,
+        "monthly_preview": REPORTERS,
         "release": REPORT_REVIEWERS,
     }
 
@@ -150,6 +161,30 @@ class ReportArchiveViewSet(AuditedModelViewSet):
                 "snapshot": snapshot,
             }
         )
+
+    @action(detail=False, methods=["post"], url_path="monthly-preview")
+    def monthly_preview(self, request):
+        """Return one React-ready data-monthly report, without a formal term."""
+
+        serializer = MonthlyReportPreviewSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            contract = build_monthly_report_contract(
+                data["enrollment"],
+                data["month_no"],
+                month_title=data["month_title"],
+                source_file=data.get("source_file", ""),
+                source_row=data.get("source_row"),
+            )
+        except MonthlyReportSourceSelectionRequired as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
+        except MonthlyEvaluation.DoesNotExist:
+            return Response(
+                {"month_no": "برای این دانش‌آموز در ماه انتخاب‌شده داده ارزیابی وجود ندارد."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(MonthlyReportContractSerializer(contract).data)
 
     @action(detail=True, methods=["get"])
     def download(self, request, pk=None):
