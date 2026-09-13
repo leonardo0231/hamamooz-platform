@@ -19,6 +19,7 @@ backups/
 Backend/docs/import_templates/*.generated.xlsx
 tmp/
 output/
+Data/
 
 # Frontend dependencies
 node_modules/
